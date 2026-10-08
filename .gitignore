@@ -1,0 +1,13 @@
+workdir/
+node_modules/
+
+# Claude Code's personal files (logins, history, caches) - never commit these.
+.claude/*
+!.claude/agents/
+
+# secrets that should never be committed
+.env
+.env.*
+*.pem
+*.key
+*credentials*
