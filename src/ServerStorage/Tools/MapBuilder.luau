@@ -109,7 +109,7 @@ end
 local function billboard(parent: Instance, name: string, size: Vector2, offset: Vector3, text: string, color: Color3)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = name
-	gui.Size = UDim2.fromScale(size.X, size.Y)
+	gui.Size = UDim2.fromOffset(size.X * 22, size.Y * 22) -- pixel size: readable, never screen-filling
 	gui.StudsOffsetWorldSpace = offset
 	gui.LightInfluence = 0
 	gui.MaxDistance = 70
@@ -239,6 +239,17 @@ local function buildPlot(parent: Instance, index: number, center: Vector3, look:
 	local seg = (W - gap) / 2
 	wall(Vector3.new(seg, wallH, 1), Vector3.new(-(gap / 2 + seg / 2), 1 + wallH / 2, -D / 2 + 0.5))
 	wall(Vector3.new(seg, wallH, 1), Vector3.new(gap / 2 + seg / 2, 1 + wallH / 2, -D / 2 + 0.5))
+
+	-- gentle ramp over the floor lip at the entrance
+	local ramp = Instance.new("WedgePart")
+	ramp.Name = "EntranceRamp"
+	ramp.Anchored = true
+	ramp.Size = Vector3.new(gap, 1, 3)
+	ramp.CFrame = cf * CFrame.new(0, 0.5, -D / 2 - 1.5) -- slope rises toward +Z (into the base)
+	ramp.Color = color
+	ramp.Material = Enum.Material.Plastic
+	ramp.TopSurface = Enum.SurfaceType.Smooth
+	ramp.Parent = plot
 
 	-- entrance arch + owner sign
 	for _, sx in ipairs({ -1, 1 }) do

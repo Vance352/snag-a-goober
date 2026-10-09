@@ -26,6 +26,8 @@ local MonetizationService = {}
 local S
 
 local passById: { [number]: string } = {}
+-- passes this server prompted, per player (purchase-finished must match one)
+local prompted: { [Player]: { [number]: number } } = {}
 local productById: { [number]: string } = {}
 local QUOTE_TTL = 15 * 60
 
@@ -112,6 +114,8 @@ function MonetizationService.PromptPass(player: Player, key: any)
 	if st.passes[key] then
 		return S.Session.Notify(player, "Error", { text = "You already own " .. p.name .. "!" })
 	end
+	prompted[player] = prompted[player] or {}
+	prompted[player][p.id] = os.clock()
 	MarketplaceService:PromptGamePassPurchase(player, p.id)
 end
 
@@ -218,7 +222,16 @@ function MonetizationService.Start()
 	MarketplaceService.ProcessReceipt = MonetizationService.ProcessReceipt
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
 		local key = passById[passId]
+		local wasPrompted = prompted[player] and prompted[player][passId] and os.clock() - prompted[player][passId] < 900
+		if purchased and key and not wasPrompted then
+			-- not a purchase we started: only trust Roblox's ownership record
+			local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, passId)
+			purchased = ok and owns == true
+		end
 		if purchased and key then
+			if prompted[player] then
+				prompted[player][passId] = nil
+			end
 			MonetizationService.ApplyPass(player, key)
 			S.Session.Notify(player, "Purchased", { text = "Thanks! " .. Config.GamePasses[key].name .. " is active.", kind = "pass" })
 		elseif not purchased then
@@ -230,6 +243,9 @@ function MonetizationService.Start()
 		if player and not purchased then
 			S.Session.Notify(player, "PurchaseCancelled", {})
 		end
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		prompted[player] = nil
 	end)
 	Net.Function("GetQuote").OnServerInvoke = function(player)
 		if not S.Session.RateOk(player, "Quote", 4, 2) then

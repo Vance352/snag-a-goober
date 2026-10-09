@@ -140,6 +140,7 @@ local function onCharacter(player: Player, char: Model)
 	if not hum or not hrp then
 		return
 	end
+	S.MoveGuard.Grace(player, 4) -- respawn moves the character
 	-- wait until the session (and plot) exist
 	local t0 = os.clock()
 	while not (S.Session.Get(player) and S.Session.Get(player).ready) and os.clock() - t0 < 30 do
@@ -148,7 +149,7 @@ local function onCharacter(player: Player, char: Model)
 	local cf = S.Plot.SpawnCFrame(player)
 	if cf then
 		task.defer(function()
-			char:PivotTo(cf)
+			S.MoveGuard.ServerMove(player, cf)
 		end)
 	end
 	CharacterService.ApplySpeed(player)

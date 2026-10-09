@@ -240,7 +240,7 @@ function TestHarness.Start(S)
 
 	function C.tp(x, y, z, id)
 		local p = P(id)
-		p.Character:PivotTo(CFrame.new(x, y, z))
+		S.MoveGuard.ServerMove(p, CFrame.new(x, y, z))
 		return true
 	end
 
@@ -249,7 +249,7 @@ function TestHarness.Start(S)
 		local p = P(id)
 		local plot = S.Plot.Get(p)
 		local target = plot:FindFirstChild(part, true) :: BasePart
-		p.Character:PivotTo(CFrame.new(target.Position + Vector3.new(0, 3, offsetZ or 0)))
+		S.MoveGuard.ServerMove(p, CFrame.new(target.Position + Vector3.new(0, 3, offsetZ or 0)))
 		return tostring(target.Position)
 	end
 

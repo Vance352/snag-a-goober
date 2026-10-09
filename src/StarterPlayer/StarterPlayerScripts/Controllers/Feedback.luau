@@ -155,7 +155,8 @@ end
 
 function NOTIFY.StolenFrom(p)
 	pointAt(nil)
-	UI.Banner("ROBBED!", ("%s stole your %s. You got $%s insurance and a %ds shield."):format(p.thief, nameOf(p.id), Util.Short(p.compensation), p.shield), Color3.fromRGB(255, 120, 120), 4.5)
+	local insurance = if p.compensation > 0 then ("You got $%s insurance and a"):format(Util.Short(p.compensation)) else "Your base got a"
+	UI.Banner("ROBBED!", ("%s stole your %s. %s %ds shield."):format(p.thief, nameOf(p.id), insurance, p.shield), Color3.fromRGB(255, 120, 120), 4.5)
 	Effects.Play("Error")
 end
 
@@ -251,10 +252,10 @@ end
 function EFFECT.RareSpawn(p)
 	local color = Config.Rarities[p.rarity].color
 	if p.rarity == "Legendary" or p.rarity == "Secret" then
-		UI.Banner(("%s SPOTTED!"):format(p.rarity:upper()), ("A %s just hit the %s!"):format(nameOf(p.id), if p.line == "Gold" then "Gold Line" else "Slop Line"), color, 4)
+		UI.Banner(("%s SPOTTED!"):format(p.rarity:upper()), ("%s just hit %s!"):format(nameOf(p.id), if p.line == "Gold" then "the Gold Line" else "the Slop Line"), color, 4)
 		Effects.Play(if p.rarity == "Secret" then "Legendary" else "Rare")
 	else
-		UI.Toast(("✨ An EPIC <font color=\"#%s\">%s</font> is on the belt!"):format(color:ToHex(), nameOf(p.id)), "purple", 2.5)
+		UI.Toast(("✨ EPIC <font color=\"#%s\">%s</font> is on the belt!"):format(color:ToHex(), nameOf(p.id)), "purple", 2.5)
 	end
 end
 

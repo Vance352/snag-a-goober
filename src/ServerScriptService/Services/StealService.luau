@@ -85,9 +85,33 @@ function StealService.CanSteal(thief: Player, victim: Player, uid: string): (boo
 	return true, nil
 end
 
+-- The client tells us when the player starts holding the Steal prompt; the
+-- server times the hold itself, so the hold can't be skipped.
+local holds: { [Player]: { uid: string, t: number } } = {}
+
+function StealService.HoldBegan(thief: Player, uid: any)
+	if type(uid) ~= "string" or #uid > 40 or not S.Session.RateOk(thief, "StealHold", 6, 1) then
+		return
+	end
+	local victim = S.Base.OwnerOf(uid)
+	local model = victim and S.Base.ModelOf(victim, uid)
+	local hrp = hrpOf(thief)
+	if model and hrp and (hrp.Position - model:GetPivot().Position).Magnitude <= C.stealRange then
+		holds[thief] = { uid = uid, t = os.clock() }
+	end
+end
+
 function StealService.Request(thief: Player, uid: any)
 	if type(uid) ~= "string" or #uid > 40 or not S.Session.RateOk(thief, "Steal", 3, 1) then
 		return
+	end
+	local hold = holds[thief]
+	holds[thief] = nil
+	if not hold or hold.uid ~= uid or os.clock() - hold.t < C.holdDuration - 0.25 then
+		return -- no (or too short a) hold seen by the server
+	end
+	if not S.MoveGuard.Plausible(thief) then
+		return fail(thief, "Whoa, slow down!")
 	end
 	local victim = S.Base.OwnerOf(uid)
 	if not victim then
@@ -175,6 +199,7 @@ function StealService.Fail(thief: Player, reason: string)
 			died = "You dropped the stolen Goober!",
 			dropped = "You let the Goober go home.",
 			left = "",
+			teleport = "The Goober slipped away - no shortcuts!",
 			victimLeft = "Its owner left - the Goober went home with them.",
 		})[reason] or "The stolen Goober got away!"
 		if thief.Parent and text ~= "" then
@@ -211,8 +236,14 @@ local function succeed(thief: Player)
 	ts.data.stats.steals += 1
 	vs.data.stats.stolenFrom += 1
 	S.Session.AddXP(thief, Config.XP.steal)
-	local comp = math.floor(def.price * C.compensation)
-	S.Session.AddCoins(victim, comp)
+	-- insurance pays at most once per compensationCooldown per victim, so
+	-- friends can't farm coins by stealing back and forth
+	local comp = 0
+	if os.clock() >= (vs.compensatedAt or -1e9) + C.compensationCooldown then
+		comp = math.floor(def.price * C.compensation)
+		vs.compensatedAt = os.clock()
+		S.Session.AddCoins(victim, comp)
+	end
 	S.Base.LockFor(victim, C.victimShield, false)
 	S.Session.Notify(thief, "StealSuccess", { id = carry.id, victim = victim.DisplayName })
 	S.Session.Notify(victim, "StolenFrom", {
@@ -244,7 +275,12 @@ function StealService.Start()
 						local plot = S.Plot.Get(thief)
 						if vhrp and (vhrp.Position - thrp.Position).Magnitude <= C.catchRadius then
 							StealService.Fail(thief, "caught")
-						elseif plot and S.Plot.Inside(plot, thrp.Position) then
+						elseif
+							plot
+							and S.Plot.Inside(plot, thrp.Position)
+							and os.clock() - carry.startedAt >= C.minCarryTime
+							and os.clock() - carry.startT >= S.MoveGuard.MinTravelTime(thief, carry.startPos, thrp.Position)
+						then
 							succeed(thief)
 						end
 					end

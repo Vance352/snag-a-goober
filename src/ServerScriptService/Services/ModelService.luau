@@ -93,10 +93,10 @@ local function tagGui(def, mode: string): BillboardGui
 	local rarity = Config.Rarities[def.rarity]
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Tag"
-	gui.Size = UDim2.fromScale(6, 1.9)
+	gui.Size = UDim2.fromOffset(150, 50) -- constant on-screen size (never fills the screen up close)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, def.height * rarity.scale + 1.4, 0)
 	gui.LightInfluence = 0
-	gui.MaxDistance = if mode == "belt" then 90 else 60
+	gui.MaxDistance = if mode == "belt" then 80 else 45
 	gui.AlwaysOnTop = false
 	gui.ResetOnSpawn = false
 

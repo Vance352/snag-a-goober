@@ -28,6 +28,7 @@ type BeltGoober = {
 	dir: number,
 	z: number,
 	reservedFor: number?,
+	price: number,
 	model: Model,
 }
 
@@ -94,6 +95,8 @@ function ConveyorService.Spawn(gid: string, lineName: string, reservedFor: Playe
 		dir = dir,
 		z = z,
 		reservedFor = reservedFor and reservedFor.UserId,
+		-- Personal Drops are half price for their owner
+		price = if reservedFor then math.floor(GooberData.ById[gid].price * Config.PersonalDrop.discount) else GooberData.ById[gid].price,
 		model = model,
 	}
 	model:SetAttribute("SpawnT", b.spawnT)
@@ -103,10 +106,15 @@ function ConveyorService.Spawn(gid: string, lineName: string, reservedFor: Playe
 	model:SetAttribute("BeltZ", z)
 	model:SetAttribute("BeltY", M.beltY)
 	model:SetAttribute("Line", lineName)
-	model:SetAttribute("Price", GooberData.ById[gid].price)
+	model:SetAttribute("Price", b.price)
 	if reservedFor then
 		model:SetAttribute("ReservedFor", reservedFor.UserId)
 		model:SetAttribute("ReservedName", reservedFor.DisplayName)
+		local tag = model.PrimaryPart and model.PrimaryPart:FindFirstChild("Tag")
+		local info = tag and tag:FindFirstChild("Info")
+		if info then
+			info.Text = ("$%s (50%% OFF)  •  +%s/s"):format(Util.Short(b.price), Util.Short(GooberData.ById[gid].income))
+		end
 	end
 	local pos = ConveyorService.PositionOf(b)
 	S.Model.PlaceAt(model, CFrame.lookAt(pos, pos + Vector3.new(0, 0, if lineName == "Main" then -1 else 1)))
@@ -167,6 +175,9 @@ function ConveyorService.Snag(player: Player, uid: any)
 	if not hrp or not hum or hum.Health <= 0 then
 		return
 	end
+	if not S.MoveGuard.Plausible(player) then
+		return fail(player, "Whoa, slow down!")
+	end
 	-- allow for a little latency: check against the position slightly in the past
 	local p0 = ConveyorService.PositionOf(b)
 	local p1 = ConveyorService.PositionOf(b, now() - 0.4)
@@ -178,14 +189,13 @@ function ConveyorService.Snag(player: Player, uid: any)
 		return fail(player, "Your base is full! Sell a Goober or buy More Stands.")
 	end
 	local def = GooberData.ById[b.id]
-	if not S.Session.Spend(player, def.price) then
-		return fail(player, ("You need $%s to snag %s."):format(Util.Short(def.price), def.name))
+	if not S.Session.Spend(player, b.price) then
+		return fail(player, ("You need $%s to snag %s."):format(Util.Short(b.price), def.name))
 	end
 	-- commit: the belt Goober becomes the player's carried Goober
 	belt[uid] = nil
-	S.Carry.Begin(player, { uid = uid, id = b.id, source = "belt", model = b.model, price = def.price })
+	S.Carry.Begin(player, { uid = uid, id = b.id, source = "belt", model = b.model, price = b.price })
 	st.data.stats.snags += 1
-	S.Session.AddXP(player, Config.Rarities[def.rarity].xp)
 	S.Session.Effect("Snagged", { id = b.id, rarity = def.rarity, by = player.UserId, pos = p0 })
 	S.Progress.TutorialEvent(player, "Snagged")
 end

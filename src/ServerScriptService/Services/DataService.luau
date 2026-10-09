@@ -279,18 +279,30 @@ function DataService.Save(player: Player, release: boolean?): boolean
 	profile.saving = true
 	local lostLock = false
 	profile.data.lastOnline = os.time()
-	local ok, err = pcall(function()
-		store:UpdateAsync(profile.key, function(old)
-			if type(old) == "table" and old.lock and old.lock.job ~= game.JobId then
-				lostLock = true
-				return nil
-			end
-			return {
-				data = profile.data,
-				lock = if release then nil else { job = game.JobId, t = os.time() },
-			}
+	-- the final save (release) retries with backoff; autosaves just try again next cycle
+	local attempts = if release then 4 else 1
+	local ok, err
+	for attempt = 1, attempts do
+		ok, err = pcall(function()
+			store:UpdateAsync(profile.key, function(old)
+				if type(old) == "table" and old.lock and old.lock.job ~= game.JobId then
+					lostLock = true
+					return nil
+				end
+				return {
+					data = profile.data,
+					lock = if release then nil else { job = game.JobId, t = os.time() },
+				}
+			end)
 		end)
-	end)
+		if ok or lostLock then
+			break
+		end
+		warn(("[DataService] save attempt %d/%d failed for %s: %s"):format(attempt, attempts, player.Name, tostring(err)))
+		if attempt < attempts then
+			task.wait(attempt * 1.5)
+		end
+	end
 	profile.saving = false
 	if ok and not lostLock then
 		profile.lastSave = os.clock()

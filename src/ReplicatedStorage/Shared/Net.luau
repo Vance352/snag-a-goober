@@ -10,6 +10,7 @@ local EVENTS = {
 	-- client -> server
 	"Snag", -- (gooberUid)
 	"Steal", -- (gooberUid)
+	"StealHold", -- (gooberUid) prompt hold started; the server times the hold
 	"Sell", -- (gooberUid)
 	"Drop", -- ()
 	"BuyUpgrade", -- (key)

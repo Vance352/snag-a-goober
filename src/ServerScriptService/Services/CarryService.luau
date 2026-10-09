@@ -28,6 +28,9 @@ function CarryService.Begin(player: Player, carry)
 	if not st then
 		return
 	end
+	local hrp0 = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart
+	carry.startT = os.clock()
+	carry.startPos = if hrp0 then hrp0.Position else Vector3.zero
 	st.carry = carry
 	S.Model.SetMode(carry.model, "carried")
 	carry.model:SetAttribute("CarriedBy", player.UserId)
@@ -76,6 +79,9 @@ function CarryService.PlaceHome(player: Player)
 		return false
 	end
 	local def = GooberData.ById[carry.id]
+	-- snag XP is paid when the Goober actually lands at home (not on snag, so
+	-- snag-and-drop can't farm XP)
+	S.Session.AddXP(player, Config.Rarities[def.rarity].xp)
 	S.Session.Effect("PlaceFx", { id = carry.id, rarity = def.rarity }, player)
 	return true
 end
@@ -128,7 +134,13 @@ function CarryService.Start()
 					local plot = S.Plot.Get(player)
 					local char = player.Character
 					local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
-					if plot and hrp and S.Plot.Inside(plot, hrp.Position) then
+					if
+						plot
+						and hrp
+						and S.Plot.Inside(plot, hrp.Position)
+						-- you can't get home faster than you can walk there
+						and os.clock() - carry.startT >= S.MoveGuard.MinTravelTime(player, carry.startPos, hrp.Position)
+					then
 						CarryService.PlaceHome(player)
 					elseif carry.model.Parent == nil then
 						-- the model vanished (character reset mid-frame etc.)

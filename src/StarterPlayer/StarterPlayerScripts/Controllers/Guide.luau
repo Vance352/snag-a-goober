@@ -108,7 +108,8 @@ local function findGrabTarget(): BasePart?
 			local reserved = m:GetAttribute("ReservedFor")
 			local def = GooberData.ById[m:GetAttribute("GooberId")]
 			local mine = reserved == player.UserId
-			local ok = (mine or not reserved) and m:GetAttribute("Line") == "Main" and (s == nil or def.price <= s.coins)
+			local price = m:GetAttribute("Price") or def.price
+			local ok = (mine or not reserved) and m:GetAttribute("Line") == "Main" and (s == nil or price <= s.coins)
 			if ok then
 				local score = (root.Position - hrp.Position).Magnitude - (if mine then 1000 else 0)
 				-- prefer goobers that are still heading toward us / not about to fall off

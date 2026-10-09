@@ -27,6 +27,7 @@ local S = {
 	Character = require(Services.CharacterService),
 	Chaos = require(Services.ChaosService),
 	Monetization = require(Services.MonetizationService),
+	MoveGuard = require(Services.MoveGuard),
 }
 for _, svc in pairs(S) do
 	if type(svc.Init) == "function" then
@@ -121,6 +122,7 @@ end
 
 on("Snag", S.Conveyor.Snag)
 on("Steal", S.Steal.Request)
+on("StealHold", S.Steal.HoldBegan)
 on("Sell", S.Base.Sell)
 on("Drop", S.Carry.Drop)
 on("BuyUpgrade", S.Progress.BuyUpgrade)
@@ -146,6 +148,7 @@ S.Steal.Start()
 S.Chaos.Start()
 S.Character.Start()
 S.Monetization.Start()
+S.MoveGuard.Start()
 
 -- leaderstats + base signs
 task.spawn(function()

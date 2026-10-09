@@ -243,7 +243,7 @@ function BaseService.EjectIntruders(owner: Player)
 			local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
 			if hrp and S.Plot.Inside(plot, hrp.Position) then
 				local out = b.CFrame * CFrame.new(0, 0, -b.Size.Z / 2 - 6)
-				char:PivotTo(CFrame.new(out.Position + Vector3.new(0, 3, 0)))
+				S.MoveGuard.ServerMove(other, CFrame.new(out.Position + Vector3.new(0, 3, 0)))
 			end
 		end
 	end
@@ -300,6 +300,15 @@ function BaseService.Start()
 					if rate > 0 then
 						if st.passes.AutoCollect then
 							S.Session.AddCoins(player, rate)
+							-- Auto Collect earns the same XP a Cash Pad collect would (every 10 s)
+							st.autoAcc = (st.autoAcc or 0) + rate
+							st.autoTick = (st.autoTick or 0) + 1
+							if st.autoTick >= 10 then
+								st.autoTick = 0
+								S.Session.AddXP(player, math.clamp(math.floor(st.autoAcc / Config.XP.collectPer), 1, Config.XP.collectMax))
+								st.autoAcc = 0
+							end
+							S.Progress.TutorialEvent(player, "Collected")
 						else
 							st.data.bank += rate -- totalEarned counts it when collected
 						end

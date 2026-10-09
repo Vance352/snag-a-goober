@@ -69,7 +69,7 @@ local function beltPromptText(model: Model): (string, boolean)
 	if myLevel() < line.levelRequired then
 		return ("Unlocks at Lv %d"):format(line.levelRequired), false
 	end
-	local price = def.price
+	local price = model:GetAttribute("Price") or def.price
 	if s and s.coins < price then
 		return ("Need $%s"):format(Util.Short(price)), true
 	end
@@ -140,6 +140,9 @@ local function setupStand(model: Model, info)
 		local p = makePrompt(model, "Steal!", def.name, Config.Steal.holdDuration, Enum.KeyCode.E)
 		if p then
 			p.MaxActivationDistance = 9
+			p.PromptButtonHoldBegan:Connect(function()
+				Net.Event("StealHold"):FireServer(model:GetAttribute("Uid"))
+			end)
 			p.Triggered:Connect(function()
 				Net.Event("Steal"):FireServer(model:GetAttribute("Uid"))
 			end)

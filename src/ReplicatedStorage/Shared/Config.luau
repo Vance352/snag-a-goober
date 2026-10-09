@@ -49,6 +49,7 @@ Config.PersonalDrop = {
 	luckPerRebirth = 0.1,
 	maxRebirthLuck = 0.5,
 	luckyPassLuck = 0.5, -- Lucky Goober gamepass adds +0.5 (x1.5 at 0 rebirths)
+	discount = 0.5, -- Personal Drops cost their owner half price
 }
 
 -- ----------------------------------------------------------------- economy
@@ -129,7 +130,7 @@ Config.StealLevel = 3
 Config.LockLevel = 5
 
 function Config.LevelReward(level: number): number
-	return 25 * level * level
+	return math.floor(15 * level ^ 1.5)
 end
 
 -- ----------------------------------------------------------------- rebirth
@@ -163,6 +164,8 @@ Config.Steal = {
 	carrySpeedMult = 0.85,
 	stunTime = 2,
 	compensation = 0.25, -- victim receives 25% of the stolen Goober's price
+	compensationCooldown = 600, -- ...at most once per 10 minutes
+	minCarryTime = 3, -- a theft can't complete faster than this (owner gets a chance)
 	stealRange = 12,
 }
 
@@ -253,7 +256,7 @@ Config.GamePasses = {
 		icon = "rbxassetid://131853608626044",
 		name = "Lucky Goober",
 		price = 199,
-		desc = "Your Personal Drops roll with +50% luck for Rare-or-better Goobers. See exact odds before buying.",
+		desc = "Adds +0.5 luck to your Personal Drops (Rare-or-better 1.5x as likely with no rebirths). Exact odds shown before you buy.",
 		randomModifier = true,
 	},
 }

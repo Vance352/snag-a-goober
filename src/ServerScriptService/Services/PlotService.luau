@@ -255,13 +255,4 @@ function PlotService.SetBankText(player: Player, amount: number, auto: boolean)
 	end
 end
 
-Players.PlayerRemoving:Connect(function(player)
-	-- release happens from GameService after data is settled; this is a safety net
-	task.defer(function()
-		if byPlayer[player] then
-			PlotService.Release(player)
-		end
-	end)
-end)
-
 return PlotService

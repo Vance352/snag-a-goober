@@ -140,7 +140,7 @@ local function buildHUD(root: Frame)
 	menuButton("Dex", "📖", "DEX", Color3.fromRGB(80, 160, 255), 2)
 	menuButton("Rebirth", "♻️", "REBIRTH", Color3.fromRGB(190, 100, 255), 3)
 	menuButton("Shop", "🛒", "SHOP", Color3.fromRGB(255, 170, 40), 4)
-	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(8, 164), Size = UDim2.fromOffset(44, 44), Text = "⚙️", Color = C.panel2, MaxText = 24, Parent = root }, function()
+	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(8, 164), Size = UDim2.fromOffset(56, 56), Text = "⚙️", Color = C.panel2, MaxText = 28, Parent = root }, function()
 		UI.Toggle("Settings")
 	end)
 
@@ -174,11 +174,11 @@ local function buildHUD(root: Frame)
 	refs.carry = carry
 
 	-- tutorial hint
-	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 122), Size = UDim2.fromOffset(440, 48), BackgroundColor3 = C.lime, Visible = false, Parent = root })
+	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 122), Size = UDim2.fromOffset(460, 52), BackgroundColor3 = C.lime, Visible = false, Parent = root })
 	Theme.corner(hint, 16)
 	Theme.stroke(hint, 3)
-	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -96, 1, -8), Text = "", MaxText = 22, Parent = hint })
-	Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(74, 34), Text = "Skip", Color = C.panel2, MaxText = 16, Parent = hint }, function()
+	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -110, 1, -8), Text = "", MaxText = 22, Parent = hint })
+	Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(92, 42), Text = "Skip", Color = C.panel2, MaxText = 18, Parent = hint }, function()
 		Net.Event("TutorialSkip"):FireServer()
 	end)
 	refs.hint = hint
@@ -790,10 +790,14 @@ local function buildSettings()
 		if not s then
 			return
 		end
+		local hasMusic = Config.Sounds.Music ~= ""
+		local hasSfx = Config.Sounds.Coin ~= ""
 		for b, key in pairs({ [music] = "music", [sfx] = "sfx" }) do
 			local on = s.settings[key] ~= false
-			b.Text = if on then "ON" else "OFF"
-			b.BackgroundColor3 = if on then C.lime else C.gray
+			local available = if key == "music" then hasMusic else hasSfx
+			b.Text = if not available then "N/A" elseif on then "ON" else "OFF"
+			b.BackgroundColor3 = if on and available then C.lime else C.gray
+			b.Active = available
 		end
 		skip.Visible = s.tutorial ~= Tutorial.DONE
 		note.Text = if s.temporary then "Studio test session: progress is NOT saved." else "Your progress saves automatically."
@@ -904,8 +908,8 @@ function UI.Start()
 	UI.root = root
 	local function rescale()
 		local cam = Workspace.CurrentCamera
-		local vp = cam and cam.ViewportSize or Vector2.new(960, 540)
-		local s = math.clamp(math.min(vp.X / 960, vp.Y / 540), 0.6, 1.35)
+		local vp = cam and cam.ViewportSize or Vector2.new(900, 500)
+		local s = math.clamp(math.min(vp.X / 900, vp.Y / 500), 0.62, 1.35)
 		scale.Scale = s
 		root.Size = UDim2.fromScale(1 / s, 1 / s)
 	end
