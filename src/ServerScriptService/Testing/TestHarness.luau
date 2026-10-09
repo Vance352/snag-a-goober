@@ -253,6 +253,21 @@ function TestHarness.Start(S)
 		return tostring(target.Position)
 	end
 
+	-- Checks every configured pass/product id against the live marketplace.
+	function C.verifyMarketplace()
+		local MS = game:GetService("MarketplaceService")
+		local out = {}
+		for key, p in pairs(Config.GamePasses) do
+			local ok, info = pcall(MS.GetProductInfo, MS, p.id, Enum.InfoType.GamePass)
+			out[key] = if ok then { id = p.id, name = info.Name, live = info.PriceInRobux, config = p.price, forSale = info.IsForSale, match = info.PriceInRobux == p.price } else { id = p.id, error = tostring(info) }
+		end
+		for key, p in pairs(Config.Products) do
+			local ok, info = pcall(MS.GetProductInfo, MS, p.id, Enum.InfoType.Product)
+			out[key] = if ok then { id = p.id, name = info.Name, live = info.PriceInRobux, config = p.price, match = info.PriceInRobux == p.price } else { id = p.id, error = tostring(info) }
+		end
+		return out
+	end
+
 	function C.stats()
 		local belt = 0
 		for _ in pairs(S.Conveyor.All()) do

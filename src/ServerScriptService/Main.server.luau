@@ -52,7 +52,7 @@ local function setupLeaderstats(player: Player)
 	ls.Parent = player
 end
 
-S.Data.Loaded.Event:Connect(function(player: Player, data)
+S.Data.OnLoaded(function(player: Player, data)
 	if not player.Parent then
 		return
 	end

@@ -28,8 +28,15 @@ local LOCK_RETRIES = 6
 local LOCK_RETRY_WAIT = 5
 
 local DataService = {}
-DataService.Loaded = Instance.new("BindableEvent")
 DataService.StoreName = STORE_NAME
+
+-- Callbacks (not a BindableEvent: Bindables deep-copy tables, and every
+-- service must mutate the *same* data table that gets saved).
+local loadedHooks: { (Player, any) -> () } = {}
+
+function DataService.OnLoaded(fn: (Player, any) -> ())
+	table.insert(loadedHooks, fn)
+end
 
 local store: DataStore? = nil
 do
@@ -363,7 +370,9 @@ local function onPlayerAdded(player: Player)
 			lastSave = os.clock(),
 		}
 	end
-	DataService.Loaded:Fire(player, profiles[player].data)
+	for _, fn in ipairs(loadedHooks) do
+		task.spawn(fn, player, profiles[player].data)
+	end
 end
 
 function DataService.Start()

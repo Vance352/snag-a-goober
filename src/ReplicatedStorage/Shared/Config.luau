@@ -214,37 +214,37 @@ Config.DexMilestones = {
 -- A 0 id means "not configured": the store hides that offer.
 Config.GamePasses = {
 	VIP = {
-		id = 0,
+		id = 2022824311,
 		name = "VIP Club",
 		price = 249,
 		desc = "Gold VIP name tag, sparkle trail, golden base sign and a VIP chat tag. Cosmetic only.",
 	},
 	DoubleCoins = {
-		id = 0,
+		id = 2022452299,
 		name = "Double Slop Coins",
 		price = 399,
 		desc = "Permanently doubles all Goober income. Multiplies with upgrades, rebirths and boosts.",
 	},
 	ExtraSlots = {
-		id = 0,
+		id = 2023412292,
 		name = "+4 Goober Stands",
 		price = 199,
 		desc = "Permanently adds 4 extra stands to your base.",
 	},
 	SprintBoots = {
-		id = 0,
+		id = 2022320299,
 		name = "Sprint Boots",
 		price = 99,
 		desc = "Permanently +4 walk speed on top of your Zoomies upgrade.",
 	},
 	AutoCollect = {
-		id = 0,
+		id = 2023184287,
 		name = "Auto Collect",
 		price = 149,
 		desc = "Your Goobers' coins go straight into your wallet - no need to step on the Cash Pad.",
 	},
 	Lucky = {
-		id = 0,
+		id = 2021996302,
 		name = "Lucky Goober",
 		price = 199,
 		desc = "Your Personal Drops roll with +50% luck for Rare-or-better Goobers. See exact odds before buying.",
@@ -255,28 +255,28 @@ Config.PassOrder = { "DoubleCoins", "AutoCollect", "ExtraSlots", "Lucky", "Sprin
 
 Config.Products = {
 	CoinsSmall = {
-		id = 0,
+		id = 3717345239,
 		name = "Slop Sack",
 		price = 25,
 		minutes = 5,
 		minCoins = 500,
 	},
 	CoinsMedium = {
-		id = 0,
+		id = 3717345325,
 		name = "Slop Barrel",
 		price = 99,
 		minutes = 30,
 		minCoins = 2_500,
 	},
 	CoinsLarge = {
-		id = 0,
+		id = 3717345363,
 		name = "Slop Tanker",
 		price = 299,
 		minutes = 120,
 		minCoins = 10_000,
 	},
 	Boost = {
-		id = 0,
+		id = 3717345400,
 		name = "2x Income (15 min)",
 		price = 49,
 		boostSeconds = 15 * 60,

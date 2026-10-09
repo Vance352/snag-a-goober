@@ -119,10 +119,12 @@ class Asset:
         self._commit(slot, bm, loc, rot, (scale[0] * r, scale[1] * r, scale[2] * r), None, smooth)
 
     def cyl(self, slot, r=0.5, depth=1.0, loc=(0, 0, 0), rot=(0, 0, 0), scale=(1, 1, 1),
-            r2=None, seg=20, smooth=True, cap=True):
+            r2=None, seg=20, smooth=True, cap=True, flip=False):
         bm = bmesh.new()
         bmesh.ops.create_cone(bm, cap_ends=cap, cap_tris=False, segments=seg,
                               radius1=r, radius2=r if r2 is None else r2, depth=depth)
+        if flip:  # inward-facing walls (inside of tubs/funnels)
+            bmesh.ops.reverse_faces(bm, faces=bm.faces)
         self._commit(slot, bm, loc, rot, scale, None, smooth)
         # flat caps look better: caller can pass smooth=False for hard objects
 

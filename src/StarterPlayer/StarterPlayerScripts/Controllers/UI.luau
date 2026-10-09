@@ -611,6 +611,26 @@ end
 
 -- ---------------------------------------------------------------- shop
 local quote = {}
+-- live Robux prices from the marketplace (falls back to Config while loading)
+local livePrice: { [string]: number } = {}
+local function loadLivePrices()
+	for key, p in pairs(Config.GamePasses) do
+		task.spawn(function()
+			local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, p.id, Enum.InfoType.GamePass)
+			if ok and info and info.PriceInRobux then
+				livePrice[key] = info.PriceInRobux
+			end
+		end)
+	end
+	for key, p in pairs(Config.Products) do
+		task.spawn(function()
+			local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, p.id, Enum.InfoType.Product)
+			if ok and info and info.PriceInRobux then
+				livePrice[key] = info.PriceInRobux
+			end
+		end)
+	end
+end
 local function buildShop()
 	local _, body = panelShell("Shop", "🛒  SHOP", Color3.fromRGB(230, 150, 30))
 	local holder = Theme.frame({ Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Parent = body })
@@ -699,7 +719,7 @@ local function buildShop()
 				c.buy.Text = "Not on sale yet"
 				c.buy.BackgroundColor3 = C.gray
 			else
-				c.buy.Text = "R$ " .. p.price
+				c.buy.Text = "R$ " .. (livePrice[key] or p.price)
 				c.buy.BackgroundColor3 = C.robux
 			end
 		end
@@ -722,7 +742,7 @@ local function buildShop()
 				c.buy.Text = "Not on sale yet"
 				c.buy.BackgroundColor3 = C.gray
 			else
-				c.buy.Text = "R$ " .. p.price
+				c.buy.Text = "R$ " .. (livePrice[key] or p.price)
 				c.buy.BackgroundColor3 = C.robux
 			end
 		end
@@ -882,6 +902,7 @@ function UI.Start()
 	rescale()
 	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 
+	loadLivePrices()
 	buildHUD(root)
 	buildUpgrades()
 	buildDex()
