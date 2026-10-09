@@ -48,7 +48,19 @@ local SOLID_PROPS = { P_Gusher = true, P_SlopVat = true, P_SlopOMatic = true, P_
 -- 1) gather imported parts
 local groups = {}
 local count = 0
-for _, d in ipairs(workspace:GetDescendants()) do
+-- raw imports live in Workspace right after Import 3D, and are kept in
+-- ServerStorage.RawImport afterwards so the processor can be re-run anytime
+local sources = { workspace }
+if game.ServerStorage:FindFirstChild("RawImport") then
+	table.insert(sources, game.ServerStorage.RawImport)
+end
+local all = {}
+for _, src in ipairs(sources) do
+	for _, d in ipairs(src:GetDescendants()) do
+		table.insert(all, d)
+	end
+end
+for _, d in ipairs(all) do
 	if d:IsA("MeshPart") then
 		local aid, slot = d.Name:match("^([GP][%w_]-)__(%w+)$")
 		if aid and palette.palette[aid] then

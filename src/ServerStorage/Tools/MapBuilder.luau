@@ -369,7 +369,11 @@ local function buildBelt(parent: Instance, lineName: string, z: number, dir: num
 		Material = Enum.Material.Rubber,
 		Parent = belt,
 	})
-	surf:SetAttribute("Dir", dir)
+	if lineName == "Gold" then
+		-- flip the surface so the chevron texture points the way this line runs
+		surf.CFrame *= CFrame.Angles(0, math.pi, 0)
+	end
+	surf:SetAttribute("Dir", 1) -- scroll direction relative to the (possibly flipped) surface
 	-- chevrons (client scrolls the texture to show motion)
 	local tex = Instance.new("Texture")
 	tex.Name = "Chevrons"

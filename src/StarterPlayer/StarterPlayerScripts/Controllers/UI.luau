@@ -790,8 +790,8 @@ local function buildSettings()
 		if not s then
 			return
 		end
-		local hasMusic = Config.Sounds.Music ~= ""
-		local hasSfx = Config.Sounds.Coin ~= ""
+		local hasMusic = Config.Audio.Music ~= ""
+		local hasSfx = Config.Audio.Sprite ~= ""
 		for b, key in pairs({ [music] = "music", [sfx] = "sfx" }) do
 			local on = s.settings[key] ~= false
 			local available = if key == "music" then hasMusic else hasSfx

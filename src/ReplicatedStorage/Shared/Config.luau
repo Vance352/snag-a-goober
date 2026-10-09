@@ -315,23 +315,28 @@ Config.Map = {
 }
 
 -- --------------------------------------------------------------------- sfx
--- Filled with Roblox audio library ids; empty string = silent.
-Config.Sounds = {
-	Snag = "",
-	Place = "",
-	Coin = "",
-	Upgrade = "",
-	LevelUp = "",
-	Rare = "",
-	Legendary = "",
-	StealAlarm = "",
-	Caught = "",
-	StealSuccess = "",
-	Rebirth = "",
-	Event = "",
-	Click = "",
-	Error = "",
-	Music = "",
+-- All sound effects live in one original synthesized "sound sprite"
+-- (Assets/Audio/SAG_SFX.wav, made by tools/make_audio.py); each effect plays
+-- its time region. Regions come from Assets/Audio/SAG_SFX.json.
+Config.Audio = {
+	Sprite = "rbxassetid://105795631759143",
+	Music = "rbxassetid://85469046329980",
+	Regions = {
+		Snag = { 0.0, 0.32 },
+		Place = { 0.62, 1.1701 },
+		Coin = { 1.4701, 1.9901 },
+		Upgrade = { 2.2901, 2.9701 },
+		LevelUp = { 3.2701, 4.3501 },
+		Rare = { 4.6501, 5.4501 },
+		Legendary = { 5.7501, 7.1501 },
+		StealAlarm = { 7.4501, 8.2302 },
+		Caught = { 8.5302, 8.9102 },
+		StealSuccess = { 9.2102, 9.9502 },
+		Rebirth = { 10.2502, 12.1503 },
+		Event = { 12.4503, 13.8503 },
+		Click = { 14.1503, 14.1853 },
+		Error = { 14.4853, 14.7453 },
+	},
 }
 
 return Config

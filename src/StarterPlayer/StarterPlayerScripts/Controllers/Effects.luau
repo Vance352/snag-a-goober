@@ -39,21 +39,22 @@ function Effects.Start()
 	local group = Instance.new("SoundGroup")
 	group.Name = "SFX"
 	group.Parent = SoundService
-	for name, id in pairs(Config.Sounds) do
-		if id ~= "" and name ~= "Music" then
-			local s = Instance.new("Sound")
-			s.Name = name
-			s.SoundId = id
-			s.Volume = VOLUME[name] or 0.5
-			s.SoundGroup = group
-			s.Parent = SoundService
-			sounds[name] = s
-		end
+	local A = Config.Audio
+	for name, region in pairs(A.Regions) do
+		local s = Instance.new("Sound")
+		s.Name = name
+		s.SoundId = A.Sprite
+		s.Volume = VOLUME[name] or 0.5
+		s.PlaybackRegionsEnabled = true
+		s.PlaybackRegion = NumberRange.new(region[1], region[2])
+		s.SoundGroup = group
+		s.Parent = SoundService
+		sounds[name] = s
 	end
-	if Config.Sounds.Music ~= "" then
+	if A.Music ~= "" then
 		music = Instance.new("Sound")
 		music.Name = "Music"
-		music.SoundId = Config.Sounds.Music
+		music.SoundId = A.Music
 		music.Looped = true
 		music.Volume = 0.22
 		music.Parent = SoundService
@@ -80,15 +81,12 @@ function Effects.Play(name: string, pitch: number?)
 	if not s then
 		return
 	end
-	if pitch then
-		local c = s:Clone()
-		c.PlaybackSpeed = pitch
-		c.Parent = SoundService
-		c:Play()
-		Debris:AddItem(c, 4)
-	else
-		s:Play()
-	end
+	-- clone so overlapping plays of the same effect don't cut each other off
+	local c = s:Clone()
+	c.PlaybackSpeed = pitch or 1
+	c.Parent = SoundService
+	c:Play()
+	Debris:AddItem(c, 4)
 end
 
 local function anchorAt(pos: Vector3): (Part, Attachment)
