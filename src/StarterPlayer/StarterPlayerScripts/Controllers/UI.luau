@@ -117,9 +117,9 @@ local function buildHUD(root: Frame)
 	refs.nextUnlock = Theme.label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 98), Size = UDim2.fromOffset(320, 18), Text = "", TextColor3 = C.sub, MaxText = 16, Parent = root })
 
 	-- menu buttons (2x2, top-left)
-	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(152, 152), BackgroundTransparency = 1, Parent = root })
+	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(176, 176), BackgroundTransparency = 1, Parent = root })
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.fromOffset(72, 72)
+	grid.CellSize = UDim2.fromOffset(84, 84)
 	grid.CellPadding = UDim2.fromOffset(8, 8)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = menu
@@ -129,7 +129,7 @@ local function buildHUD(root: Frame)
 			UI.Toggle(name)
 		end)
 		Theme.label({ Size = UDim2.new(1, 0, 0.62, 0), Position = UDim2.fromScale(0, 0.04), Text = emoji, Stroke = false, MaxText = 36, Parent = b })
-		Theme.label({ Size = UDim2.new(1, -4, 0.3, 0), Position = UDim2.new(0, 2, 0.66, 0), Text = label, MaxText = 15, Parent = b })
+		Theme.label({ Size = UDim2.new(1, -4, 0.3, 0), Position = UDim2.new(0, 2, 0.66, 0), Text = label, MaxText = 16, Parent = b })
 		local badge = Theme.frame({ Name = "Badge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 4, 0, -4), Size = UDim2.fromOffset(18, 18), BackgroundColor3 = C.red, Visible = false, Parent = b })
 		Theme.corner(badge, 9)
 		Theme.stroke(badge, 2)
@@ -140,7 +140,7 @@ local function buildHUD(root: Frame)
 	menuButton("Dex", "📖", "DEX", Color3.fromRGB(80, 160, 255), 2)
 	menuButton("Rebirth", "♻️", "REBIRTH", Color3.fromRGB(190, 100, 255), 3)
 	menuButton("Shop", "🛒", "SHOP", Color3.fromRGB(255, 170, 40), 4)
-	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(8, 164), Size = UDim2.fromOffset(66, 66), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
+	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(8, 188), Size = UDim2.fromOffset(66, 66), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
 		UI.Toggle("Settings")
 	end)
 
@@ -286,19 +286,19 @@ local function panelShell(name: string, title: string, accent: Color3): (Frame, 
 	local sizer = Instance.new("UISizeConstraint")
 	sizer.MaxSize = Vector2.new(620, 440)
 	sizer.Parent = p
-	local head = Theme.frame({ Size = UDim2.new(1, 0, 0, 56), BackgroundColor3 = accent, ZIndex = 22, Parent = p })
+	local head = Theme.frame({ Size = UDim2.new(1, 0, 0, 68), BackgroundColor3 = accent, ZIndex = 22, Parent = p })
 	Theme.corner(head, 20)
 	Theme.frame({ Position = UDim2.new(0, 0, 1, -20), Size = UDim2.new(1, 0, 0, 20), BackgroundColor3 = accent, ZIndex = 22, Parent = head })
 	Theme.label({ Position = UDim2.fromOffset(18, 6), Size = UDim2.new(1, -90, 1, -12), Text = title, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 34, ZIndex = 23, Stroke = 3, Parent = head })
-	local x = Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(60, 50), Text = "X", Color = C.red, ZIndex = 24, MaxText = 28, Parent = head }, function()
+	local x = Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(72, 60), Text = "X", Color = C.red, ZIndex = 24, MaxText = 30, Parent = head }, function()
 		Effects.Play("Click")
 		UI.Close()
 	end)
 	x.ZIndex = 24
 	local body = Instance.new("ScrollingFrame")
 	body.Name = "Body"
-	body.Position = UDim2.fromOffset(14, 66)
-	body.Size = UDim2.new(1, -28, 1, -78)
+	body.Position = UDim2.fromOffset(14, 78)
+	body.Size = UDim2.new(1, -28, 1, -90)
 	body.BackgroundTransparency = 1
 	body.BorderSizePixel = 0
 	body.ScrollBarThickness = 8
@@ -498,7 +498,7 @@ local function buildRebirth()
 	local _, body = panelShell("Rebirth", "♻️  REBIRTH", Color3.fromRGB(150, 80, 220))
 	local title = Theme.label({ Size = UDim2.new(1, -10, 0, 34), Text = "", MaxText = 28, Parent = body })
 	local req = Theme.label({ Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, -10, 0, 50), Text = "", TextWrapped = true, MaxText = 19, Parent = body })
-	local cols = Theme.frame({ Position = UDim2.fromOffset(0, 94), Size = UDim2.new(1, -10, 0, 170), BackgroundTransparency = 1, Parent = body })
+	local cols = Theme.frame({ Position = UDim2.fromOffset(0, 92), Size = UDim2.new(1, -10, 0, 142), BackgroundTransparency = 1, Parent = body })
 	local function col(i, head, color)
 		local f = Theme.frame({ Position = UDim2.new((i - 1) / 3, 4, 0, 0), Size = UDim2.new(1 / 3, -8, 1, 0), BackgroundColor3 = C.panel2, Parent = cols })
 		Theme.corner(f, 12)
@@ -508,10 +508,10 @@ local function buildRebirth()
 	local resets = col(1, "RESETS", C.red)
 	local keeps = col(2, "YOU KEEP", C.lime)
 	local gains = col(3, "YOU GAIN", C.gold)
-	local why = Theme.label({ Position = UDim2.fromOffset(0, 270), Size = UDim2.new(1, -10, 0, 22), Text = "Why? Your Goobers earn more forever, so every future run is faster.", TextColor3 = C.sub, MaxText = 16, Parent = body })
+	local why = Theme.label({ Position = UDim2.fromOffset(0, 300), Size = UDim2.new(1, -10, 0, 22), Text = "Why? Your Goobers earn more forever, so every future run is faster.", TextColor3 = C.sub, MaxText = 16, Parent = body })
 	local confirmUntil = 0
 	local btn
-	btn = Theme.button({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 298), Size = UDim2.fromOffset(300, 56), Text = "REBIRTH", Color = Color3.fromRGB(190, 100, 255), Parent = body }, function()
+	btn = Theme.button({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 240), Size = UDim2.fromOffset(300, 56), Text = "REBIRTH", Color = Color3.fromRGB(190, 100, 255), Parent = body }, function()
 		local s = State.data
 		if not s then
 			return
@@ -830,13 +830,13 @@ local function onState(s, prev)
 	refs.boostPill.Visible = s.boostLeft > 0
 	refs.boostText.Text = "⚡ 2x Income  " .. Util.Time(s.boostLeft)
 	if s.lockLeft > 0 then
-		refs.lockText.Text = "🔒 Base locked  " .. Util.Time(s.lockLeft)
+		refs.lockText.Text = "🔒 Locked " .. Util.Time(s.lockLeft)
 		refs.lockPill.BackgroundColor3 = Color3.fromRGB(70, 110, 200)
 	elseif s.lockReadyIn > 0 then
-		refs.lockText.Text = "🔓 Lock ready in " .. Util.Time(s.lockReadyIn)
+		refs.lockText.Text = "🔓 Lock in " .. Util.Time(s.lockReadyIn)
 		refs.lockPill.BackgroundColor3 = C.gray
 	else
-		refs.lockText.Text = "🔓 Lock ready - step on the red pad"
+		refs.lockText.Text = "🔓 Lock ready (red pad)"
 		refs.lockPill.BackgroundColor3 = Color3.fromRGB(200, 70, 90)
 	end
 	refs.lockPill.Visible = s.level >= Config.StealLevel or s.lockLeft > 0

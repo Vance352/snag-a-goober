@@ -2,23 +2,26 @@
 	MoveGuard - server-side sanity checks on client-replicated movement.
 
 	Characters are physically simulated by their own client, so an exploiter
-	can teleport or speed-hack. MoveGuard keeps a "trust anchor" per player:
+	can teleport or speed-hack. MoveGuard uses one rule everywhere:
 
-	  * Every 0.1 s it samples each character. While movement is plausible
-	    (reachable at the server-set walk speed), the anchor follows the player.
-	  * An implausible jump puts the player "in debt": they owe the time it
-	    would have taken to walk that jump (+1 s). Snag / steal requests are
-	    refused until the debt is paid. The debt is a fixed amount of time, so
-	    it pays down while the player walks on and never snowballs from a
-	    single physics bump. Teleport-then-wait is never faster than walking.
-	  * There is no free grace period. Respawns and server teleports (spawn,
-	    ejection) anchor trust at the *server's* chosen position and open a
-	    short "settle" window in which only positions near that target count;
-	    anything else is ignored and nothing can complete meanwhile.
-	  * CarryStep() validates every tick of a carry: single-tick jumps,
-	    sustained speed averaged over ~3 s against the humanoid's real
-	    WalkSpeed (thieves are slowed, so a thief can't out-run an owner), and
-	    hovering. Network ping adds a small capped slack.
+	    "Could you have walked here?"
+
+	  * Normal play: the current position must be reachable, at the server's
+	    WalkSpeed (+8%), from every recorded sample 0.6-2 s old. Samples
+	    younger than 0.6 s are skipped, so a short replication hitch followed
+	    by a catch-up is not punished, while sustained speed hacks and
+	    teleports are.
+	  * On a violation the player is "in debt": trust freezes at the last
+	    trusted spot A. Debt clears only once the current position is
+	    reachable by walking from A in the time since A. Every move made while
+	    in debt is therefore charged (multi-hop teleports gain nothing), and
+	    teleport-then-wait is never faster than walking. A safety valve
+	    forgives debt after 30 s (longer than any walk on this map).
+	  * Respawns and server teleports re-anchor at the server's own target
+	    with a 1 s settle window in which only positions near the target count
+	    and nothing can complete.
+	  * CarryStep() applies the same reachability rule to a carry's own trail
+	    (at the real, slowed walk speed +5%) and checks hovering.
 ]]
 
 local Players = game:GetService("Players")
@@ -26,19 +29,21 @@ local Players = game:GetService("Players")
 local MoveGuard = {}
 local S
 
-local SPEED_SLACK = 1.12 -- short-window (1 s) action checks
-local DIST_SLACK = 3 -- studs of physics jitter
-local JUMP_LIMIT = 12 -- a single 0.1 s step longer than this (+ speed) is a teleport
-local CARRY_WINDOW = 3.0 -- seconds averaged for carry speed
-local CARRY_SLACK = 1.05 -- +5% over walk speed while carrying
-local SETTLE_TIME = 1.0 -- seconds a server move needs to replicate
+local ACTION_SLACK = 1.08 -- free-roam speed tolerance
+local CARRY_SLACK = 1.05 -- carry speed tolerance
+local DIST_SLACK = 2.5 -- studs of physics jitter
+local MIN_AGE = 0.6 -- ignore samples younger than this: one hitch catch-up (~0.6 s of walking) is tolerated
+local HISTORY = 2.0
+local SETTLE_TIME = 1.0
 local SETTLE_RADIUS = 12
+local DEBT_FORGIVE = 30
 
-type Sample = { t: number, pos: Vector3 }
+type Sample = { t: number, pos: Vector3, speed: number? }
 type Guard = {
 	history: { Sample },
 	anchor: Sample?,
-	debtUntil: number,
+	debt: boolean,
+	debtSince: number,
 	settleUntil: number,
 	settlePos: Vector3?,
 	flaggedAt: number,
@@ -53,7 +58,7 @@ end
 local function guardOf(player: Player): Guard
 	local g = guards[player]
 	if not g then
-		g = { history = {}, anchor = nil, debtUntil = 0, settleUntil = 0, settlePos = nil, flaggedAt = -100, lastFlag = nil }
+		g = { history = {}, anchor = nil, debt = false, debtSince = 0, settleUntil = 0, settlePos = nil, flaggedAt = -100, lastFlag = nil }
 		guards[player] = g
 	end
 	return g
@@ -68,21 +73,21 @@ local function flat(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
 end
 
--- The server's own WalkSpeed for the character (clients can't change it on
--- the server), with a floor so a brief stun doesn't count as zero.
+-- The server's own WalkSpeed (clients can't change it on the server), with a
+-- floor so a brief stun doesn't count as zero.
 function MoveGuard.MaxSpeed(player: Player): number
 	local c = player.Character
 	local hum = c and c:FindFirstChildOfClass("Humanoid")
 	return math.max(hum and hum.WalkSpeed or 16, 8)
 end
 
-local function pingOf(player: Player): number
+local function pingSlack(player: Player, speed: number): number
 	local ok, ping = pcall(player.GetNetworkPing, player)
-	return if ok and type(ping) == "number" then ping else 0.1
+	ping = if ok and type(ping) == "number" then ping else 0.1
+	return speed * math.clamp(ping, 0.05, 0.2)
 end
 
--- Seconds a legit player needs to walk from a to b (used for carries:
--- you can't finish faster than this).
+-- Seconds a legit carrier needs to walk from a to b (carries can't finish sooner).
 function MoveGuard.MinTravelTime(player: Player, a: Vector3, b: Vector3): number
 	local d = (flat(a) - flat(b)).Magnitude
 	return math.max(0, d / (MoveGuard.MaxSpeed(player) * 1.1) - 0.3)
@@ -92,63 +97,70 @@ function MoveGuard.Settling(player: Player): boolean
 	return os.clock() < guardOf(player).settleUntil
 end
 
-local function inDebt(g: Guard): boolean
-	return os.clock() < g.debtUntil
-end
-
-local function sampleAgo(g: Guard, ago: number): Sample?
-	local h = g.history
-	if #h == 0 then
-		return nil
-	end
-	local target = os.clock() - ago
-	for i = #h, 1, -1 do
-		if h[i].t <= target then
-			return h[i]
-		end
-	end
-	return h[1]
-end
-
--- Is `pos` (now) reachable from the sample ~1 s ago?
--- Is `pos` (now) reachable from every sample 1-2 s ago (and from the
--- newest sample at least ~1 s old if history is short)?
-local function windowOk(player: Player, g: Guard, pos: Vector3): (boolean, number)
-	local h = g.history
-	if #h == 0 then
-		return true, 0
-	end
+-- Reachable from every sample in `list` that is MIN_AGE..HISTORY old?
+-- Uses the highest walk speed in force since each sample, so a speed drop
+-- (e.g. becoming a slowed thief) doesn't make earlier legit walking look fast.
+local function reachable(list: { Sample }, pos: Vector3, speedNow: number, slack: number, extra: number): (boolean, number)
 	local now = os.clock()
-	local speed = MoveGuard.MaxSpeed(player)
-	local lag = speed * math.clamp(pingOf(player) * 2, 0.1, 0.4)
-	local checked = false
-	for i = #h, 1, -1 do
-		local s = h[i]
+	local speed = speedNow
+	for i = #list, 1, -1 do
+		local s = list[i]
+		speed = math.max(speed, s.speed or speedNow)
 		local dt = now - s.t
-		if dt >= 1.0 or (i == 1 and not checked) then
-			checked = true
-			dt = math.max(0.1, dt)
+		if dt >= MIN_AGE then
 			local d = (flat(pos) - flat(s.pos)).Magnitude
-			if d > speed * SPEED_SLACK * dt + DIST_SLACK + lag then
-				return false, d - speed * dt
+			local allowed = speed * slack * dt + DIST_SLACK + extra
+			if d > allowed then
+				return false, d - allowed
 			end
 		end
 	end
 	return true, 0
 end
 
--- Owe the time it would take to walk the excess distance (+1 s).
-local function addDebt(player: Player, g: Guard, excess: number, reason: string)
-	local now = os.clock()
-	local owed = math.clamp(excess / (MoveGuard.MaxSpeed(player) * 1.1) + 1.0, 1.0, 10)
-	g.debtUntil = math.max(g.debtUntil, now) + owed
-	g.flaggedAt = now
-	g.lastFlag = ("%s %.0f studs -> %.1fs"):format(reason, excess, owed)
-	g.history = {}
+local function enterDebt(player: Player, g: Guard, excess: number, reason: string)
+	if g.debt then
+		return
+	end
+	g.debt = true
+	g.debtSince = os.clock()
+	g.flaggedAt = os.clock()
+	g.lastFlag = ("%s +%.0f studs"):format(reason, excess)
+	-- trust freezes at the newest sample (the last position we accepted)
+	g.anchor = g.history[#g.history] or g.anchor
 	local st = S.Session.Get(player)
 	if st and st.carry and st.carry.source == "steal" then
-		S.Steal.Fail(player, "teleport")
+		S.Steal.Offence(player)
 	end
+end
+
+-- While in debt: could they have walked here from the frozen anchor?
+local function debtPaid(player: Player, g: Guard, pos: Vector3): boolean
+	local a = g.anchor
+	local now = os.clock()
+	if not a or now - g.debtSince > DEBT_FORGIVE then
+		return true
+	end
+	local d = (flat(pos) - flat(a.pos)).Magnitude
+	return d <= MoveGuard.MaxSpeed(player) * ACTION_SLACK * (now - a.t) + DIST_SLACK
+end
+
+local function check(player: Player, g: Guard, pos: Vector3): boolean
+	if g.debt then
+		if debtPaid(player, g, pos) then
+			g.debt = false
+			g.history = { { t = os.clock(), pos = pos, speed = MoveGuard.MaxSpeed(player) } }
+			return true
+		end
+		return false
+	end
+	local speed = MoveGuard.MaxSpeed(player)
+	local ok, excess = reachable(g.history, pos, speed, ACTION_SLACK, pingSlack(player, speed))
+	if not ok then
+		enterDebt(player, g, excess, "move")
+		return false
+	end
+	return true
 end
 
 -- True if the player's current position is trustworthy right now.
@@ -158,19 +170,14 @@ function MoveGuard.Plausible(player: Player): boolean
 	if not hrp then
 		return true
 	end
-	if inDebt(g) then
-		return false
-	end
 	if os.clock() < g.settleUntil then
-		-- only the server's target position is trusted while a move settles
 		return g.settlePos ~= nil and (flat(hrp.Position) - flat(g.settlePos)).Magnitude <= SETTLE_RADIUS
 	end
-	local ok, excess = windowOk(player, g, hrp.Position)
-	if not ok then
-		addDebt(player, g, excess, "action")
-		return false
-	end
-	return true
+	return check(player, g, hrp.Position)
+end
+
+function MoveGuard.InDebt(player: Player): boolean
+	return guardOf(player).debt
 end
 
 function MoveGuard.FlaggedSince(player: Player, t: number): boolean
@@ -181,11 +188,11 @@ function MoveGuard.LastFlag(player: Player): string?
 	return guardOf(player).lastFlag
 end
 
--- Anchor trust at a position the server chose (spawn / server teleport).
-local function anchorAt(player: Player, g: Guard, pos: Vector3)
+local function anchorAt(g: Guard, pos: Vector3)
 	local now = os.clock()
 	g.history = { { t = now, pos = pos } }
 	g.anchor = { t = now, pos = pos }
+	g.debt = false
 	g.settleUntil = now + SETTLE_TIME
 	g.settlePos = pos
 end
@@ -194,7 +201,7 @@ end
 function MoveGuard.OnSpawn(player: Player)
 	local hrp = hrpOf(player)
 	if hrp then
-		anchorAt(player, guardOf(player), hrp.Position)
+		anchorAt(guardOf(player), hrp.Position)
 	end
 end
 
@@ -222,7 +229,7 @@ function MoveGuard.ServerMove(player: Player, cf: CFrame)
 		end
 	end
 	c:PivotTo(cf)
-	anchorAt(player, guardOf(player), cf.Position)
+	anchorAt(guardOf(player), cf.Position)
 end
 
 local rayParams = RaycastParams.new()
@@ -238,46 +245,26 @@ function MoveGuard.CarryStep(player: Player, carry): boolean
 	local g = guardOf(player)
 	local now = os.clock()
 	local pos = hrp.Position
-	if inDebt(g) then
+	if g.debt then
 		return false
 	end
-	if now < g.settleUntil then
-		-- ignore samples until the server move has replicated (completion is
-		-- blocked meanwhile by Settling())
-		if g.settlePos and (flat(pos) - flat(g.settlePos)).Magnitude > SETTLE_RADIUS then
-			return true
-		end
+	if now < g.settleUntil and g.settlePos and (flat(pos) - flat(g.settlePos)).Magnitude > SETTLE_RADIUS then
+		return true -- server move still replicating; completion is blocked by Settling()
 	end
 	local trail = carry.trail
 	if not trail then
-		carry.trail = { { t = now, pos = pos } }
+		carry.trail = { { t = now, pos = pos, speed = MoveGuard.MaxSpeed(player) } }
 		carry.airSince = nil
 		return true
 	end
 	local speed = MoveGuard.MaxSpeed(player)
-	local last = trail[#trail]
-	-- single-tick jump (teleport)
-	if (flat(pos) - flat(last.pos)).Magnitude > JUMP_LIMIT + speed * 1.5 * math.max(0.1, now - last.t) then
-		return false
-	end
-	table.insert(trail, { t = now, pos = pos })
-	while #trail > 2 and now - trail[2].t >= CARRY_WINDOW do
+	local ok = reachable(trail, pos, speed, CARRY_SLACK, pingSlack(player, speed))
+	table.insert(trail, { t = now, pos = pos, speed = speed })
+	while #trail > 1 and now - trail[1].t > 3.0 do
 		table.remove(trail, 1)
 	end
-	-- sustained speed against the real (slowed) walk speed: every sub-window
-	-- of >= 1 s inside the trail is checked, so standing still first can't
-	-- "bank" distance for a later burst
-	local ping = math.clamp(pingOf(player), 0.05, 0.15)
-	for i = 1, #trail - 1 do
-		local s = trail[i]
-		local dt = now - s.t
-		if dt < 1.0 then
-			break
-		end
-		local allowed = speed * CARRY_SLACK * dt + 1.5 + speed * ping
-		if (flat(pos) - flat(s.pos)).Magnitude > allowed then
-			return false
-		end
+	if not ok then
+		return false
 	end
 	-- hovering: more than 12 studs above whatever is below for > 0.6 s
 	rayParams.FilterDescendantsInstances = { player.Character, carry.model }
@@ -306,23 +293,13 @@ function MoveGuard.Start()
 					local pos = hrp.Position
 					local record = true
 					if now < g.settleUntil then
-						-- trust only positions near the server's target
-						if g.settlePos and (flat(pos) - flat(g.settlePos)).Magnitude <= SETTLE_RADIUS then
-							g.anchor = { t = now, pos = pos }
-						else
-							record = false
-						end
-					elseif not inDebt(g) then
-						local ok, excess = windowOk(player, g, pos)
-						if ok then
-							g.anchor = { t = now, pos = pos }
-						else
-							addDebt(player, g, excess, "sample")
-						end
+						record = g.settlePos ~= nil and (flat(pos) - flat(g.settlePos)).Magnitude <= SETTLE_RADIUS
+					else
+						record = check(player, g, pos)
 					end
 					if record then
-						table.insert(g.history, { t = now, pos = pos })
-						while #g.history > 0 and now - g.history[1].t > 2.2 do
+						table.insert(g.history, { t = now, pos = pos, speed = MoveGuard.MaxSpeed(player) })
+						while #g.history > 1 and now - g.history[1].t > HISTORY do
 							table.remove(g.history, 1)
 						end
 					end

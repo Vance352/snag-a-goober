@@ -214,6 +214,27 @@ function StealService.Fail(thief: Player, reason: string)
 	end
 end
 
+-- A movement violation during a theft. The first one (often just a network
+-- hitch) restarts the walk clock: the thief can't finish until they could
+-- have walked home from the steal spot, and the owner can still catch them.
+-- A second one while still violating cancels the theft.
+function StealService.Offence(thief: Player)
+	local ts = S.Session.Get(thief)
+	local carry = ts and ts.carry
+	if not carry or carry.source ~= "steal" then
+		return
+	end
+	local now = os.clock()
+	if not carry.offenceAt then
+		carry.offenceAt = now
+		carry.startT = now
+		carry.trail = nil
+		S.Session.Toast(thief, "No shortcuts! Carry it home properly.", "red")
+	elseif now - carry.offenceAt >= 1.0 then
+		StealService.Fail(thief, "teleport")
+	end
+end
+
 local function succeed(thief: Player)
 	local ts = S.Session.Get(thief)
 	local carry = ts.carry
@@ -226,13 +247,14 @@ local function succeed(thief: Player)
 		return
 	end
 	-- transfer: remove from victim first, then give the thief a fresh record
+	local victimPaid = (vs.data.goobers[carry.uid] and vs.data.goobers[carry.uid].paid) or def.price
 	S.Carry._clear(thief)
 	carry.model:Destroy()
 	S.Base.RemoveRecord(victim, carry.uid)
-	local newUid = S.Base.Place(thief, carry.id, { stolen = true })
+	local newUid = S.Base.Place(thief, carry.id, { stolen = true, paid = math.floor(victimPaid * 0.5) })
 	if not newUid then
 		-- thief base filled up mid-run: give it back
-		S.Base.Place(victim, carry.id, { uid = carry.uid })
+		S.Base.Place(victim, carry.id, { uid = carry.uid, paid = victimPaid })
 		S.Session.Toast(thief, "Your base was full - the Goober went home.", "red")
 		return
 	end
@@ -247,7 +269,7 @@ local function succeed(thief: Player)
 	-- friends can't farm coins by stealing back and forth
 	local comp = 0
 	if os.clock() >= (vs.compensatedAt or -1e9) + C.compensationCooldown then
-		comp = math.floor(def.price * C.compensation)
+		comp = math.floor(victimPaid * C.compensation) -- based on what they actually paid
 		vs.compensatedAt = os.clock()
 		S.Session.AddCoins(victim, comp)
 	end
@@ -281,11 +303,11 @@ function StealService.Start()
 						local vhrp = hrpOf(victim)
 						local plot = S.Plot.Get(thief)
 						local gap = vhrp and (vhrp.Position - thrp.Position)
-						if not S.MoveGuard.CarryStep(thief, carry) then
-							-- teleport, speed hack or flying: the theft is cancelled
-							StealService.Fail(thief, "teleport")
-						elseif gap and Vector2.new(gap.X, gap.Z).Magnitude <= C.catchRadius and math.abs(gap.Y) <= 10 then
+						if gap and Vector2.new(gap.X, gap.Z).Magnitude <= C.catchRadius and math.abs(gap.Y) <= 10 then
+							-- the owner's tag always wins, even mid-shove
 							StealService.Fail(thief, "caught")
+						elseif not S.MoveGuard.CarryStep(thief, carry) then
+							StealService.Offence(thief)
 						elseif
 							plot
 							and S.Plot.Inside(plot, thrp.Position)

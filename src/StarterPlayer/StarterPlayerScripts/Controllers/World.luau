@@ -185,12 +185,14 @@ local function stealPromptState(model: Model): (boolean, string)
 	end
 	local prot = (model:GetAttribute("ProtectedUntil") or 0) - serverNow()
 	if prot > 0 then
-		return true, ("Protected %d:%02d"):format(prot // 60, math.ceil(prot) % 60)
+		local secs = math.ceil(prot)
+		return true, ("Protected %d:%02d"):format(secs // 60, secs % 60)
 	end
 	local pair = s.pairCooldowns and s.pairCooldowns[tostring(ownerId)]
 	local wait = math.max(pair or 0, s.stealCooldown or 0)
 	if wait > 0 then
-		return true, ("Steal in %d:%02d"):format(wait // 60, math.ceil(wait) % 60)
+		local secs = math.ceil(wait)
+		return true, ("Steal in %d:%02d"):format(secs // 60, secs % 60)
 	end
 	return true, "Steal!"
 end

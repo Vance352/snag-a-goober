@@ -67,3 +67,14 @@ The 2-client session could not be restarted overnight (needs the owner), so two-
 | Same at server WalkSpeed 20 (Sprint Boots owned) | not flagged - correct (within 5% of real speed) |
 | Legit MoveTo carry at 16 | PASS, placed 1.7 s, no warning |
 | Single 15-stud bump then snag | first snag succeeds at 0.6 s (was ~6 s lockout) |
+
+## 2026-10-09 - builder retest of round-5 findings (single-player Studio Play)
+Two-player paths not re-run (2-client session needs the owner present).
+| Test | Result |
+|---|---|
+| Two-hop teleport (hop to belt, then hop again) and snag | BLOCKED - no snag within 16 s vs a 10.2 s walk; every refusal "Whoa, slow down!" |
+| Carry with a 0.5 s client freeze + catch-up (simulated hitch) | PASS - placed at 1.6 s (clean walk 1.2 s), no "No shortcuts" (MIN_AGE 0.6) |
+| Reset, wait 1.2 s, teleport next to belt (spawn ~2 s walk away), snag | snag at 3.4 s after spawn >= 2.0 s walk; earlier tries "Whoa, slow down!" |
+| Reset, teleport repeatedly beside the farthest belt Goober (90-140 studs), snag x13 | first success 7.8 s after spawn vs 6.9 s legit walk - never faster than walking |
+| Legit Humanoid:MoveTo carry home from that far spot (WalkSpeed 20) | PASS - placed after 6.1 s, no warning |
+| Console | no script errors |
