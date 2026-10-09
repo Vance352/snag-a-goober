@@ -11,3 +11,5 @@ node_modules/
 *.pem
 *.key
 *credentials*
+*.blend1
+tools/sync_manifest.json
