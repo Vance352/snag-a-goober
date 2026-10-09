@@ -256,7 +256,7 @@ Config.GamePasses = {
 		icon = "rbxassetid://131853608626044",
 		name = "Lucky Goober",
 		price = 199,
-		desc = "Adds +0.5 luck to your Personal Drops, making Rare-or-better Goobers more likely (e.g. 18% -> 24.8% with no rebirths). Exact odds shown before you buy.",
+		desc = "Better Personal Drops: Rare+ 18% -> 24.8%. Tap ODDS INFO for every rarity.",
 		randomModifier = true,
 	},
 }

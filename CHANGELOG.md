@@ -2,6 +2,9 @@
 
 Newest entry at the top.
 
+## 2026-10-09 (afternoon)
+- Polish from audit 15: banners narrower/lower (no longer cover Settings on phones), Rebirth panel tightened, short Lucky shop text (full odds on the Odds screen), closing Odds returns to the Shop, shorter name-tag view distances (belt 30, stands 18), Steal prompt says "Base full" when your base is full.
+
 ## 2026-10-09 (morning)
 - QA round 15 PASSED: 8.08 / 10 (rendered Studio, phone emulation, live 2-player session). Report in QA/round15-audit.md; checklist and handoff updated.
 - Two-player theft tests in a real 2-client Studio session: catch, successful theft (transfer, half-value record, 25% compensation, shield), teleport-home cancel, lag stall at high thief speed, thief leaving mid-steal - all correct (QA/test-log.md).

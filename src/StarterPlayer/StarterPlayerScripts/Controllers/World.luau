@@ -175,6 +175,9 @@ local function stealPromptState(model: Model): (boolean, string)
 	if s.level < Config.StealLevel then
 		return true, ("Steal (Lv %d)"):format(Config.StealLevel)
 	end
+	if s.used and s.capacity and s.used >= s.capacity then
+		return true, "Base full"
+	end
 	local ownerId = model:GetAttribute("OwnerId")
 	local owner = Players:GetPlayerByUserId(ownerId)
 	if owner and (owner:GetAttribute("Level") or 1) < Config.StealLevel then

@@ -193,7 +193,7 @@ local function buildHUD(root: Frame)
 	refs.toasts = toasts
 
 	-- banner
-	local banner = Theme.frame({ Name = "Banner", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.44), Size = UDim2.fromOffset(620, 110), BackgroundTransparency = 1, Visible = false, Parent = root })
+	local banner = Theme.frame({ Name = "Banner", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(400, 96), BackgroundTransparency = 1, Visible = false, Parent = root })
 	refs.bannerTitle = Theme.label({ Size = UDim2.new(1, 0, 0.62, 0), Text = "", MaxText = 64, Stroke = 4, Parent = banner })
 	refs.bannerSub = Theme.label({ Position = UDim2.fromScale(0, 0.62), Size = UDim2.new(1, 0, 0.36, 0), Text = "", MaxText = 28, Stroke = 3, Parent = banner })
 	refs.banner = banner
@@ -321,6 +321,7 @@ end
 
 function UI.Open(name: string)
 	if UI.openPanel and UI.openPanel ~= name then
+		UI.returnTo = nil -- switching panels directly: don't bounce back
 		UI.Close()
 	end
 	local p = panels[name]
@@ -345,7 +346,12 @@ function UI.Close()
 	if UI.openPanel and panels[UI.openPanel] then
 		panels[UI.openPanel].Visible = false
 	end
+	local back = UI.returnTo
+	UI.returnTo = nil
 	UI.openPanel = nil
+	if back and back ~= UI.openPanel then
+		UI.Open(back) -- e.g. Odds -> back to the Shop it was opened from
+	end
 end
 
 function UI.Toggle(name: string)
@@ -498,7 +504,7 @@ local function buildRebirth()
 	local _, body = panelShell("Rebirth", "♻️  REBIRTH", Color3.fromRGB(150, 80, 220))
 	local title = Theme.label({ Size = UDim2.new(1, -10, 0, 34), Text = "", MaxText = 28, Parent = body })
 	local req = Theme.label({ Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, -10, 0, 50), Text = "", TextWrapped = true, MaxText = 19, Parent = body })
-	local cols = Theme.frame({ Position = UDim2.fromOffset(0, 92), Size = UDim2.new(1, -10, 0, 142), BackgroundTransparency = 1, Parent = body })
+	local cols = Theme.frame({ Position = UDim2.fromOffset(0, 90), Size = UDim2.new(1, -10, 0, 124), BackgroundTransparency = 1, Parent = body })
 	local function col(i, head, color)
 		local f = Theme.frame({ Position = UDim2.new((i - 1) / 3, 4, 0, 0), Size = UDim2.new(1 / 3, -8, 1, 0), BackgroundColor3 = C.panel2, Parent = cols })
 		Theme.corner(f, 12)
@@ -508,10 +514,10 @@ local function buildRebirth()
 	local resets = col(1, "RESETS", C.red)
 	local keeps = col(2, "YOU KEEP", C.lime)
 	local gains = col(3, "YOU GAIN", C.gold)
-	local why = Theme.label({ Position = UDim2.fromOffset(0, 300), Size = UDim2.new(1, -10, 0, 22), Text = "Why? Your Goobers earn more forever, so every future run is faster.", TextColor3 = C.sub, MaxText = 16, Parent = body })
+	local why = Theme.label({ Position = UDim2.fromOffset(0, 282), Size = UDim2.new(1, -10, 0, 22), Text = "Why? Your Goobers earn more forever, so every future run is faster.", TextColor3 = C.sub, MaxText = 16, Parent = body })
 	local confirmUntil = 0
 	local btn
-	btn = Theme.button({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 240), Size = UDim2.fromOffset(300, 56), Text = "REBIRTH", Color = Color3.fromRGB(190, 100, 255), Parent = body }, function()
+	btn = Theme.button({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 220), Size = UDim2.fromOffset(300, 56), Text = "REBIRTH", Color = Color3.fromRGB(190, 100, 255), Parent = body }, function()
 		local s = State.data
 		if not s then
 			return
@@ -690,6 +696,7 @@ local function buildShop()
 			end
 		end, if p.randomModifier then { text = "ODDS INFO", fn = function()
 			UI.Open("Odds")
+			UI.returnTo = "Shop"
 		end } else nil, p.icon)
 	end
 	section("Slop Coins & Boosts  •  one-time")
