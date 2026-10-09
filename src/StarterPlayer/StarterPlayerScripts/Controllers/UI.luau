@@ -89,35 +89,34 @@ end
 
 -- --------------------------------------------------------------- HUD
 local function buildHUD(root: Frame)
-	-- coins pill
+	-- coins pill (top-left corner, so the middle of a phone screen stays clear)
 	local coins = Theme.frame({
 		Name = "Coins",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 6),
-		Size = UDim2.fromOffset(290, 58),
+		Position = UDim2.fromOffset(8, 6),
+		Size = UDim2.fromOffset(214, 52),
 		BackgroundColor3 = C.panel,
 		Parent = root,
 	})
-	Theme.corner(coins, 29)
+	Theme.corner(coins, 26)
 	Theme.stroke(coins, 3)
-	local icon = Theme.frame({ Size = UDim2.fromOffset(46, 46), Position = UDim2.fromOffset(6, 6), BackgroundColor3 = C.gold, Parent = coins })
-	Theme.corner(icon, 23)
+	local icon = Theme.frame({ Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(6, 6), BackgroundColor3 = C.gold, Parent = coins })
+	Theme.corner(icon, 20)
 	Theme.stroke(icon, 2.5)
-	Theme.label({ Size = UDim2.fromScale(1, 1), Text = "$", MaxText = 34, Parent = icon })
-	refs.coins = Theme.label({ Position = UDim2.fromOffset(60, 2), Size = UDim2.new(1, -70, 0, 34), Text = "0", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 34, Parent = coins })
-	refs.rate = Theme.label({ Position = UDim2.fromOffset(60, 34), Size = UDim2.new(1, -70, 0, 20), Text = "+0/s", TextColor3 = C.lime, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 20, Parent = coins })
+	Theme.label({ Size = UDim2.fromScale(1, 1), Text = "$", MaxText = 30, Parent = icon })
+	refs.coins = Theme.label({ Position = UDim2.fromOffset(52, 2), Size = UDim2.new(1, -60, 0, 30), Text = "0", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 30, Parent = coins })
+	refs.rate = Theme.label({ Position = UDim2.fromOffset(52, 31), Size = UDim2.new(1, -60, 0, 18), Text = "+0/s", TextColor3 = C.lime, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = coins })
 
-	-- level bar
-	local bar = Theme.frame({ Name = "Level", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 70), Size = UDim2.fromOffset(290, 26), BackgroundColor3 = C.ink, Parent = root })
-	Theme.corner(bar, 13)
+	-- level bar (under the coins)
+	local bar = Theme.frame({ Name = "Level", Position = UDim2.fromOffset(8, 64), Size = UDim2.fromOffset(214, 24), BackgroundColor3 = C.ink, Parent = root })
+	Theme.corner(bar, 12)
 	Theme.stroke(bar, 2.5)
 	refs.xpFill = Theme.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = C.lime, Parent = bar })
-	Theme.corner(refs.xpFill, 13)
-	refs.level = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "Lv 1", MaxText = 18, ZIndex = 2, Parent = bar })
-	refs.nextUnlock = Theme.label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 98), Size = UDim2.fromOffset(320, 18), Text = "", TextColor3 = C.sub, MaxText = 16, Parent = root })
+	Theme.corner(refs.xpFill, 12)
+	refs.level = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "Lv 1", MaxText = 16, ZIndex = 2, Parent = bar })
+	refs.nextUnlock = Theme.label({ Position = UDim2.fromOffset(10, 90), Size = UDim2.fromOffset(240, 16), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, Parent = root })
 
-	-- menu buttons (2x2, top-left)
-	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(176, 176), BackgroundTransparency = 1, Parent = root })
+	-- menu buttons (2x2, left, under the coins)
+	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 110), Size = UDim2.fromOffset(176, 176), BackgroundTransparency = 1, Parent = root })
 	local grid = Instance.new("UIGridLayout")
 	grid.CellSize = UDim2.fromOffset(84, 84)
 	grid.CellPadding = UDim2.fromOffset(8, 8)
@@ -140,7 +139,7 @@ local function buildHUD(root: Frame)
 	menuButton("Dex", "📖", "DEX", Color3.fromRGB(80, 160, 255), 2)
 	menuButton("Rebirth", "♻️", "REBIRTH", Color3.fromRGB(190, 100, 255), 3)
 	menuButton("Shop", "🛒", "SHOP", Color3.fromRGB(255, 170, 40), 4)
-	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(192, 6), Size = UDim2.fromOffset(60, 60), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
+	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(192, 110), Size = UDim2.fromOffset(60, 60), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
 		UI.Toggle("Settings")
 	end)
 
@@ -174,7 +173,7 @@ local function buildHUD(root: Frame)
 	refs.carry = carry
 
 	-- tutorial hint
-	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 122), Size = UDim2.fromOffset(370, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root }) -- clears the status column on 16:9 phones
+	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(370, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root }) -- clears the status column on 16:9 phones
 	Theme.corner(hint, 16)
 	Theme.stroke(hint, 3)
 	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -134, 1, -8), Text = "", MaxText = 22, Parent = hint })
@@ -185,7 +184,7 @@ local function buildHUD(root: Frame)
 	refs.hint = hint
 
 	-- toasts
-	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 188), Size = UDim2.fromOffset(360, 200), BackgroundTransparency = 1, Parent = root })
+	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 78), Size = UDim2.fromOffset(360, 200), BackgroundTransparency = 1, Parent = root })
 	local tl = Instance.new("UIListLayout")
 	tl.Padding = UDim.new(0, 6)
 	tl.HorizontalAlignment = Enum.HorizontalAlignment.Center

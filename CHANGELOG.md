@@ -2,6 +2,9 @@
 
 Newest entry at the top.
 
+## 2026-10-09 (morning)
+- Mobile: coins + level moved from the top centre to a compact top-left block above the menu (they sat in the middle of phone screens); tutorial hint and toasts moved up into the freed top centre.
+
 ## 2026-10-09
 - QA round 14: 7.58, no critical defects, every category >= 7 - NOT passed (needs 8.0); remaining gap is unverifiable rendering/mobile/two-player areas. Doc fixes (MoveGuard header, dead STALL_MAX, checklist lag wording). Final handoff report in QA/FINAL_HANDOFF.md; round 14 audit in QA/round14-audit.md.
 - Fix round-13 critical (spoofed idle -> teleport): the newest real movement sample is never pruned, stalls may skip at most 5 s past it, a new stall needs movement since the last one; guard_sim gets an exploit mode, realistic ReceiveAge and safe cleanup. Round 13 audit in QA/round13-audit.md.
