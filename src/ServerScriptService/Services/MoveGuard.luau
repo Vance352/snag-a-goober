@@ -14,7 +14,7 @@
 	  * Lag: when a walking client's connection stalls, the server sees it
 	    frozen in place while its replicated velocity still says "walking",
 	    then catching up in a few bursts. Those frozen "stall" samples
-	    (stationary with walking velocity, at most 4 s past the last real
+	    (stationary with walking velocity, at most 5 s past the last real
 	    sample, and only after real movement since the previous stall) and
 	    the catch-up in
 	    the second after them are not real positions in time, so they are
@@ -47,7 +47,6 @@ local DIST_SLACK = 2.5 -- studs of physics jitter
 local REPL_LAG = 0.35 -- seconds: replication delay varies (a catch-up after a stall collapses it)
 local STALL_VEL = 0.4 -- replicated speed (x walk speed) that marks a frozen position as a stall
 local STALL_MOVE = 1 -- studs per sample: a stall is a position that doesn't move
-local STALL_MAX = 3.0 -- seconds: a "stall" longer than this is someone standing still
 local STALL_BACK = 0.4 -- seconds: frozen samples just before a stall is recognised still count as the stall
 local STALL_AGE = 0.3 -- seconds without physics packets from the owner = a stall
 local CATCHUP_WINDOW = 0.6 -- seconds after a stall in which positions may still lag (burst catch-up)

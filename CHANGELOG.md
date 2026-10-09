@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-09
+- QA round 14: 7.58, no critical defects, every category >= 7 - NOT passed (needs 8.0); remaining gap is unverifiable rendering/mobile/two-player areas. Doc fixes (MoveGuard header, dead STALL_MAX, checklist lag wording). Final handoff report in QA/FINAL_HANDOFF.md; round 14 audit in QA/round14-audit.md.
 - Fix round-13 critical (spoofed idle -> teleport): the newest real movement sample is never pruned, stalls may skip at most 5 s past it, a new stall needs movement since the last one; guard_sim gets an exploit mode, realistic ReceiveAge and safe cleanup. Round 13 audit in QA/round13-audit.md.
 - QA round 12 fixes: a stall is now "stationary while velocity says walking (or no packets arrive)" - no walk-in rule, so the speed-dependent dead band, stalls at walk start and stalls after a debt gap are recognised; stationary samples in the catch-up window are skipped too. New tools/guard_sim.luau (deterministic MoveGuard stress test). Round 12 audit in QA/round12-audit.md.
 - QA round 11 fixes: walking on after a lag catch-up counts as walking into the next stall (clustered stalls no longer cancel thefts); carries keep their original start, so no re-time can let them finish sooner than walking from where they really began. Round 11 audit in QA/round11-audit.md.
