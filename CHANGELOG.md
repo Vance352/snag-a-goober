@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-09 (morning)
+- QA round 15 PASSED: 8.08 / 10 (rendered Studio, phone emulation, live 2-player session). Report in QA/round15-audit.md; checklist and handoff updated.
 - Two-player theft tests in a real 2-client Studio session: catch, successful theft (transfer, half-value record, 25% compensation, shield), teleport-home cancel, lag stall at high thief speed, thief leaving mid-steal - all correct (QA/test-log.md).
 - Mobile: coins + level moved from the top centre to a compact top-left block above the menu (they sat in the middle of phone screens); tutorial hint and toasts moved up into the freed top centre.
 

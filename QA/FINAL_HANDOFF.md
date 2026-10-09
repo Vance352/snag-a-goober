@@ -1,6 +1,6 @@
-# Snag A Goober - final handoff report (2026-10-09)
+# Snag A Goober - final handoff report (updated 2026-10-09 morning)
 
-**Status: the game has NOT passed the independent release audit.** The pass mark is 8.0/10. The final round (14) scored 7.58, with no critical defects and no category below 7; the best round was 7.73 (round 12). The remaining gap is mostly what could not be observed overnight: Studio was not rendering (screen locked) and only one test client was available, so visuals, phone layout, onboarding and every two-player path stayed UNVERIFIED and capped those categories. The brief's rule is applied as written: this is a genuine environmental limit, so the work stops here and says so plainly. The experience is still **Private**.
+**Status: PASSED the independent release audit in round 15 - 8.08 / 10** (pass mark 8.0), no critical defects, every category >= 7.5. Rounds 1-14 (overnight, Studio not rendering, one client) scored 5.40-7.73 and failed; round 15 was scored with Studio rendering, phone emulation (750x381, touch) and a live two-player session, after this morning's mobile HUD fix and two-player theft tests. The experience is still **Private** until Vance publishes. Report: `QA/round15-audit.md`.
 
 ## 1. Name and project location
 - **Snag A Goober**, Roblox PlaceId 90695592143707 / GameId 10769928826 (owner cooolvance55).
@@ -128,7 +128,21 @@ Overnight, Studio was not rendering, so client visuals were frozen and screensho
 | Slop Tanker | 299 | 3717345363 |
 | 2x Income (15 min) | 49 | 3717345400 |
 
-## 14-15. Final independent scores (round 14, build 80cf75b)
+## 14-15. Final independent scores (round 15, build 931d510) - PASS
+| Category (weight) | Score |
+|---|---:|
+| Functional correctness and reliability (20%) | 8.5 |
+| Core loop simplicity and enjoyment (15%) | 8 |
+| Replayability and progression (15%) | 8 |
+| Visual, Blender, animation, audio (10%) | 8 |
+| UI/UX and mobile (10%) | 8 |
+| Multiplayer, networking, performance (10%) | 7.5 |
+| Data, economy, exploit resistance (10%) | 8 |
+| Monetization and compliance (5%) | 8.5 |
+| Onboarding / first minute (5%) | 8 |
+| **Weighted total** | **8.08 / 10 - PASS** |
+
+Previous final (round 14, build 80cf75b, overnight):
 | Category (weight) | Score |
 |---|---:|
 | Functional correctness and reliability (20%) | 8 |
@@ -144,7 +158,7 @@ Overnight, Studio was not rendering, so client visuals were frozen and screensho
 
 The two small doc and dead-code fixes made after round 14 (`MoveGuard` header, unused `STALL_MAX`, checklist wording) were not re-audited.
 
-## 16. QA rounds completed: 14
+## 16. QA rounds completed: 15
 Each round was a fresh, separate auditor following `.claude/agents/independent-release-auditor.md`.
 
 Scores by round:
@@ -165,6 +179,7 @@ Scores by round:
 | R12 | 7.73 |
 | R13 | 7.38 |
 | R14 | 7.58 |
+| R15 | **8.08 PASS** |
 
 Every report is in `QA/`. The builder's retest evidence for each round is in `QA/test-log.md`.
 
