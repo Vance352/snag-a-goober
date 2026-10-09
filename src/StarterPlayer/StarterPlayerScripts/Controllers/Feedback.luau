@@ -227,7 +227,9 @@ function NOTIFY.Bucket(p)
 end
 
 function NOTIFY.EventLevel(p)
-	UI.Banner("EVENT LEVEL " .. p.level .. "!", "A new reward is waiting in the EVENT menu", Color3.fromRGB(255, 150, 40), 3.5)
+	local jumped = p.from and p.level - p.from > 1
+	UI.Banner(if jumped then ("EVENT LEVEL %d -> %d!"):format(p.from, p.level) else "EVENT LEVEL " .. p.level .. "!",
+		if jumped then "New rewards are waiting in the EVENT menu" else "A new reward is waiting in the EVENT menu", Color3.fromRGB(255, 150, 40), 3.5)
 	Effects.Play("EventLevel")
 	local b = UI.refs.menuHalloween and UI.refs.menuHalloween:FindFirstChild("Badge")
 	if b then
@@ -342,6 +344,8 @@ function EFFECT.RareSpawn(p)
 		if not onIsland() or not s or s.level < spawnLine.levelRequired then
 			return
 		end
+	elseif onIsland() and p.rarity == "Epic" then
+		return -- a Slop Line Epic is no use to you on the island
 	end
 	if p.rarity == "Legendary" or p.rarity == "Secret" then
 		local line = Config.Lines[p.line or "Main"]

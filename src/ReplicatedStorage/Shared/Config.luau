@@ -354,11 +354,11 @@ Config.Audio = {
 		Click = { 14.1503, 14.1853 },
 		Error = { 14.4853, 14.7453 },
 	},
-	-- Halloween update (tools/make_audio_halloween.py). Empty = not uploaded
-	-- yet: the game then keeps the original music and skips these sounds.
-	MainTheme = "", -- Assets/Audio/SAG_MainTheme.wav
-	HalloweenTheme = "", -- Assets/Audio/SAG_HalloweenTheme.wav
-	Sprite2 = "", -- Assets/Audio/SAG_SFX2.wav
+	-- Halloween update (tools/make_audio_halloween.py). Empty = not uploaded:
+	-- the game then keeps the original music and borrows similar old sounds.
+	MainTheme = "rbxassetid://115688752797061", -- Assets/Audio/SAG_MainTheme.wav
+	HalloweenTheme = "rbxassetid://128091419086773", -- Assets/Audio/SAG_HalloweenTheme.wav
+	Sprite2 = "rbxassetid://84417681107169", -- Assets/Audio/SAG_SFX2.wav
 	Regions2 = {
 		Portal = { 0.0, 1.39 },
 		Candy = { 1.69, 2.2701 },

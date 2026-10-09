@@ -167,9 +167,10 @@ local requested: { [string]: number } = {}
 local function refreshGates()
 	local s = data()
 	local level = s and s.level or 1
+	local evl = s and s.event and s.event.eventLevel or 0
 	for _, b in ipairs(CollectionService:GetTagged("GateBarrier")) do
 		if b:IsA("BasePart") then
-			local open = level >= (b:GetAttribute("Level") or 1)
+			local open = level >= (b:GetAttribute("Level") or 1) and evl >= (b:GetAttribute("EventLevel") or 0)
 			b.CanCollide = not open
 			b.LocalTransparencyModifier = if open then 1 else 0
 		end
@@ -282,8 +283,9 @@ function HalloweenClient.Start()
 
 	local lastLevel, lastFoundN = -1, -1
 	State.Changed.Event:Connect(function(s)
-		if s.level ~= lastLevel then
-			lastLevel = s.level
+		local key = s.level * 100 + (s.event and s.event.eventLevel or 0)
+		if key ~= lastLevel then
+			lastLevel = key
 			refreshGates()
 		end
 		local n = s.event and #s.event.candyFound or 0

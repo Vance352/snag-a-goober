@@ -110,6 +110,16 @@ function Session.Boosted(st: State): boolean
 	return st.data.boostUntil > os.time()
 end
 
+-- income without an active 2x boost (rewards paid in "seconds of income" use this,
+-- so buying a boost first can't double them)
+function Session.BaseRate(player: Player): number
+	local st = states[player]
+	if not st then
+		return 0
+	end
+	return (st.rate or 0) / (if Session.Boosted(st) then 2 else 1)
+end
+
 function Session.Multiplier(player: Player): number
 	local st = states[player]
 	if not st then

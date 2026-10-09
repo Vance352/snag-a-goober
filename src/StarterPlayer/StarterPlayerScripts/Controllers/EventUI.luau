@@ -49,12 +49,14 @@ end
 
 local KIND_ICON = { candy = "candy", coins = "coin", boost = "bolt", title = "scroll" }
 
-local function claimState(button: TextButton, state: string, label: string?)
+local function claimState(button: GuiObject, state: string, label: string?)
 	-- state: "claim" | "done" | "locked"
 	button.Text = label or (if state == "claim" then "CLAIM" elseif state == "done" then "CLAIMED" else "LOCKED")
 	button.BackgroundColor3 = if state == "claim" then C.lime elseif state == "done" then C.panel else C.gray
-	button.Active = state == "claim"
-	button.AutoButtonColor = false
+	if button:IsA("GuiButton") then
+		button.Active = state == "claim"
+		button.AutoButtonColor = false
+	end
 end
 
 local function list(parent: Instance, pad: number?)
@@ -107,17 +109,17 @@ local function buildEvent()
 
 	-- ------------------------------------------------------- track page
 	local tp = pages.Track
-	local lvl = Theme.label({ Size = UDim2.new(0.5, 0, 0, 32), Text = "EVENT LEVEL 0", TextColor3 = ORANGE, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 26, Parent = tp })
-	local timer = Theme.label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0.5, 0, 0, 32), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Right, MaxText = 16, Parent = tp })
-	local xpFill, xpText = bar(tp, UDim2.fromOffset(0, 36), UDim2.new(1, 0, 0, 22), ORANGE)
-	local nextCard = Theme.frame({ Position = UDim2.fromOffset(0, 66), Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = Color3.fromRGB(80, 40, 100), Parent = tp })
+	local lvl = Theme.label({ Size = UDim2.new(0.5, 0, 0, 28), Text = "EVENT LEVEL 0", TextColor3 = ORANGE, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 26, Parent = tp })
+	local timer = Theme.label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0.5, 0, 0, 28), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Right, MaxText = 16, MinText = 10, Parent = tp })
+	local xpFill, xpText = bar(tp, UDim2.fromOffset(0, 30), UDim2.new(1, 0, 0, 22), ORANGE)
+	local nextCard = Theme.frame({ Position = UDim2.fromOffset(0, 58), Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = Color3.fromRGB(80, 40, 100), Parent = tp })
 	Theme.corner(nextCard, 12)
 	Theme.stroke(nextCard, 2.5, ORANGE)
-	local nextIcon = Theme.icon("gift", { Position = UDim2.fromOffset(6, 4), Size = UDim2.fromOffset(44, 44), Parent = nextCard })
-	local nextText = Theme.label({ Position = UDim2.fromOffset(56, 4), Size = UDim2.new(1, -62, 1, -8), Text = "", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = nextCard })
+	local nextIcon = Theme.icon("gift", { Position = UDim2.fromOffset(6, 3), Size = UDim2.fromOffset(38, 38), Parent = nextCard })
+	local nextText = Theme.label({ Position = UDim2.fromOffset(50, 4), Size = UDim2.new(1, -56, 1, -8), Text = "", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, MinText = 10, Parent = nextCard })
 	local strip = Instance.new("ScrollingFrame")
-	strip.Position = UDim2.fromOffset(0, 126)
-	strip.Size = UDim2.new(1, 0, 0, 178)
+	strip.Position = UDim2.fromOffset(0, 108)
+	strip.Size = UDim2.new(1, 0, 0, 176)
 	strip.BackgroundTransparency = 1
 	strip.BorderSizePixel = 0
 	strip.ScrollingDirection = Enum.ScrollingDirection.X
@@ -134,7 +136,18 @@ local function buildEvent()
 	local cards = {}
 	for level = 1, Halloween.MaxEventLevel do
 		local reward, t = trackReward(level)
-		local card = Theme.frame({ Size = UDim2.fromOffset(112, 166), BackgroundColor3 = C.panel2, LayoutOrder = level, Parent = strip })
+		-- the whole card is the button (big touch target); the bar at the bottom shows its state
+		local card = Instance.new("TextButton")
+		card.Text = ""
+		card.AutoButtonColor = false
+		card.Size = UDim2.fromOffset(112, 164)
+		card.BackgroundColor3 = C.panel2
+		card.LayoutOrder = level
+		card.Parent = strip
+		card.Activated:Connect(function()
+			Effects.Play("Click")
+			Net.Event("ClaimEvent"):FireServer(level)
+		end)
 		Theme.corner(card, 14)
 		local stroke = Theme.stroke(card, 3)
 		Theme.label({ Position = UDim2.fromOffset(4, 2), Size = UDim2.new(1, -8, 0, 22), Text = "LV " .. level, TextColor3 = C.gold, MaxText = 18, Parent = card })
@@ -144,11 +157,12 @@ local function buildEvent()
 		else
 			Theme.icon(KIND_ICON[t.kind] or "gift", { Position = UDim2.new(0.5, -30, 0, 26), Size = UDim2.fromOffset(60, 60), Parent = card })
 		end
-		local rtext = Theme.label({ Position = UDim2.fromOffset(4, 90), Size = UDim2.new(1, -8, 0, 34), Text = UI.RewardText(reward), TextWrapped = true, MaxText = 14, Parent = card })
-		local btn = Theme.button({ Position = UDim2.new(0, 6, 1, -38), Size = UDim2.new(1, -12, 0, 32), Text = "LOCKED", Color = C.gray, MaxText = 15, Parent = card }, function()
-			Effects.Play("Click")
-			Net.Event("ClaimEvent"):FireServer(level)
-		end)
+		local rtext = Theme.label({ Position = UDim2.fromOffset(4, 88), Size = UDim2.new(1, -8, 0, 30), Text = UI.RewardText(reward, true), TextWrapped = true, MaxText = 14, MinText = 10, Parent = card })
+		local btn = Theme.label({ Position = UDim2.new(0, 6, 1, -42), Size = UDim2.new(1, -12, 0, 36), Text = "LOCKED", MaxText = 16, MinText = 10, Parent = card })
+		btn.BackgroundTransparency = 0
+		btn.BackgroundColor3 = C.gray
+		Theme.corner(btn, 10)
+		Theme.stroke(btn, 2.5)
 		cards[level] = { card = card, stroke = stroke, btn = btn, rtext = rtext, reward = reward }
 	end
 	Theme.label({ Position = UDim2.fromOffset(0, 310), Size = UDim2.new(1, 0, 0, 40), Text = "Earn Event XP: bring Halloween Goobers home, find hidden candy, grab Candy Buckets and finish quests.", TextWrapped = true, TextColor3 = C.sub, Font = Theme.Body, MaxText = 15, Parent = tp })
@@ -228,8 +242,12 @@ local function buildEvent()
 				xpFill.Size = UDim2.fromScale(math.clamp(ev.eventXp / ev.eventNeed, 0.02, 1), 1)
 				xpText.Text = ("%d / %d Event XP"):format(ev.eventXp, ev.eventNeed)
 			else
-				xpFill.Size = UDim2.fromScale(1, 1)
-				xpText.Text = "MAX LEVEL!"
+				-- track done: Event XP fills Bonus Chests
+				xpFill.Size = UDim2.fromScale(math.clamp((ev.bonusXp or 0) / (ev.bonusEvery or 1), 0.02, 1), 1)
+				xpText.Text = ("MAX! Bonus Chest %d / %d"):format(ev.bonusXp or 0, ev.bonusEvery or 0)
+			end
+			if (ev.placeLeft or 0) <= 0 and ev.active then
+				timer.Text = "Daily full XP used - dailies still pay!"
 			end
 			-- next-reward preview: the first unclaimed level at or above your level
 			local nextL
@@ -255,7 +273,7 @@ local function buildEvent()
 				c.stroke.Color = if ready then C.lime elseif l == ev.eventLevel + 1 then ORANGE else C.ink
 				c.card.BackgroundColor3 = if claimed then C.panel else C.panel2
 				if c.reward.coins then
-					c.rtext.Text = UI.RewardText(c.reward) -- coins scale with your income
+					c.rtext.Text = UI.RewardText(c.reward, true) -- coins scale with your income
 				end
 			end
 		elseif current == "Shop" then
@@ -383,9 +401,9 @@ local function buildLevels()
 		local row = Theme.frame({ Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = C.panel2, LayoutOrder = 2 + i, Parent = holder })
 		Theme.corner(row, 12)
 		local ic = Theme.icon("lock", { Position = UDim2.fromOffset(6, 4), Size = UDim2.fromOffset(36, 36), Parent = row })
-		Theme.label({ Position = UDim2.fromOffset(48, 3), Size = UDim2.new(1, -170, 1, -6), Text = ("<font color=\"#%s\">%s</font>"):format(a.color:ToHex(), a.name), TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = row })
-		local st = Theme.label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 3), Size = UDim2.new(0, 120, 1, -6), Text = "", TextXAlignment = Enum.TextXAlignment.Right, MaxText = 16, Parent = row })
-		areaRows[i] = { icon = ic, status = st, level = a.level }
+		Theme.label({ Position = UDim2.fromOffset(48, 3), Size = UDim2.new(1, -250, 1, -6), Text = ("<font color=\"#%s\">%s</font>"):format(a.color:ToHex(), a.name), TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = row })
+		local st = Theme.label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 3), Size = UDim2.new(0, 190, 1, -6), Text = "", TextXAlignment = Enum.TextXAlignment.Right, MaxText = 16, MinText = 10, Parent = row })
+		areaRows[i] = { icon = ic, status = st, level = a.level, eventLevel = a.eventLevel or 0 }
 	end
 	Theme.label({ Size = UDim2.new(1, 0, 0, 26), Text = "LEVEL REWARDS", TextColor3 = C.gold, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 20, LayoutOrder = 10, Parent = holder })
 	local mrows = {}
@@ -411,10 +429,18 @@ local function buildLevels()
 		lv.Text = ("LEVEL %d"):format(s.level)
 		fill.Size = UDim2.fromScale(math.clamp(s.xp / math.max(1, s.xpNeeded), 0.02, 1), 1)
 		txt.Text = ("%s / %s XP"):format(Util.Short(s.xp), Util.Short(s.xpNeeded))
+		local evl = s.event and s.event.eventLevel or 0
 		for _, r in ipairs(areaRows) do
-			local open = s.level >= r.level
+			local open = s.level >= r.level and evl >= r.eventLevel
 			r.icon.Image = if open then Icons.check else Icons.lock
-			r.status.Text = if open then "<font color=\"#7BE35A\">OPEN</font>" else ("Level %d"):format(r.level)
+			if open then
+				r.status.Text = "<font color=\"#7BE35A\">OPEN</font>"
+			elseif r.eventLevel > 0 then
+				r.status.Text = ("<font color=\"#%s\">Lv %d</font> + <font color=\"#%s\">Event %d</font>"):format(
+					if s.level >= r.level then "7BE35A" else "FFFFFF", r.level, if evl >= r.eventLevel then "7BE35A" else "FFB060", r.eventLevel)
+			else
+				r.status.Text = ("Level %d"):format(r.level)
+			end
 		end
 		local claimed = s.event and s.event.levelClaimed or {}
 		for _, r in ipairs(mrows) do
@@ -442,7 +468,7 @@ local function buildIntro()
 	local dots = Theme.label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -66), Size = UDim2.fromOffset(120, 16), Text = "", TextColor3 = C.sub, MaxText = 14, ZIndex = 42, Parent = p })
 	local PAGES = {
 		{ "pumpkin", "WELCOME TO HALLOWEEN ISLAND!", "Spooky Goobers ride the island's belts. Snag one, carry it back through the portal and it joins your base, earning Slop like any other Goober." },
-		{ "lock", "FIVE AREAS TO EXPLORE", "Halloween Village and the Pumpkin Patch are open to everyone. The Haunted Forest opens at Level 8, the Cursed Graveyard at Level 15 and the Phantom Castle at Level 25. Rarer Goobers live deeper in." },
+		{ "lock", "FIVE AREAS TO EXPLORE", "Halloween Village and the Pumpkin Patch are open to everyone. The Haunted Forest needs Level 8 + Event Level 3, the Cursed Graveyard Level 15 + Event 8, the Phantom Castle Level 25 + Event 14. Rarer Goobers live deeper in." },
 		{ "candy", "CANDY, QUESTS AND REWARDS", "Find 30 hidden candies, grab Candy Buckets and finish quests. Everything gives Event XP: level up the 25-step Event Track and spend Candy in the Candy Shop by the Great Pumpkin." },
 	}
 	local page = 1

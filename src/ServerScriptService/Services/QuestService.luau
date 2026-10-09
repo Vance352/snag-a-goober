@@ -7,8 +7,8 @@
 	stored in the save, so rejoining can't claim it twice.
 
 	Counting rules:
-	  * "candy" and "eventlevel" goals read the live totals (found candies,
-	    event level), so finding candy before the quest is active still counts.
+	  * "candy", "eventlevel" and "area" goals read live saved state (found
+	    candies, event level, areas visited), so doing them early still counts.
 	  * everything else counts only while the quest is active.
 ]]
 
@@ -74,7 +74,7 @@ local function ensureDaily(player: Player)
 		for _, q in ipairs(dailyFor(d)) do
 			local target = q.n
 			if q.scale then -- "collect N minutes of income": fixed when the day starts
-				target = math.max(200, math.floor((st.rate or 0) * q.scale))
+				target = math.max(200, math.floor(S.Session.BaseRate(player) * q.scale))
 			end
 			table.insert(daily.list, { id = q.id, progress = 0, target = target, claimed = false })
 		end
@@ -107,11 +107,15 @@ local function advance(q, kind: string, p): number
 end
 
 -- current progress of the chain quest (live totals for candy / eventlevel)
+local LIVE = { candy = true, eventlevel = true, area = true }
+
 local function chainProgress(st, q): number
 	if q.type == "candy" then
 		return candyCount(st.data)
 	elseif q.type == "eventlevel" then
 		return st.data.event.level
+	elseif q.type == "area" then
+		return if st.data.areasVisited[q.area] then 1 else 0
 	end
 	return st.data.quests.chainProgress
 end
@@ -126,7 +130,7 @@ local function onEvent(kind: string)
 		local q = Halloween.QuestChain[quests.chain]
 		if q then
 			local before = chainProgress(st, q)
-			if q.type ~= "candy" and q.type ~= "eventlevel" then
+			if not LIVE[q.type] then
 				local n = advance(q, kind, p)
 				if n > 0 then
 					quests.chainProgress = math.min(q.n, quests.chainProgress + n)

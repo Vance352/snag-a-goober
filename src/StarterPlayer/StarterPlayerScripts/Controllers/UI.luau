@@ -45,7 +45,7 @@ local function rarityColor(r: string): Color3
 end
 
 -- "+30 Candy  +40 Event XP  +$1.2K" for a reward table (coins are seconds of income)
-function UI.RewardText(reward): string
+function UI.RewardText(reward, short: boolean?): string
 	if not reward then
 		return ""
 	end
@@ -55,11 +55,12 @@ function UI.RewardText(reward): string
 		table.insert(parts, ("+%d Candy"):format(reward.candy))
 	end
 	if reward.coins then
-		local rate = s and s.rate or 0
+		-- same as the server: seconds of income without an active 2x boost
+		local rate = (s and s.rate or 0) / (if s and s.boostLeft > 0 then 2 else 1)
 		table.insert(parts, "+$" .. Util.Short(math.max(math.floor(rate * reward.coins), reward.coins * 2)))
 	end
 	if reward.exp then
-		table.insert(parts, ("+%d Event XP"):format(reward.exp))
+		table.insert(parts, (if short then "+%d EXP" else "+%d Event XP"):format(reward.exp))
 	end
 	if reward.xp then
 		table.insert(parts, ("+%d XP"):format(reward.xp))
@@ -103,7 +104,36 @@ function UI.GooberViewport(gid: string, parent: Instance, size: UDim2, silhouett
 		b.CFrame = CFrame.new(0, 1, 0)
 		b.Parent = model
 	end
+	if silhouette then
+		-- every part dark (native eyes too), so the silhouette gives nothing away
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Color = Color3.fromRGB(30, 18, 46)
+				d.Material = Enum.Material.SmoothPlastic
+				if d:IsA("MeshPart") then
+					d.TextureID = ""
+				end
+			elseif d:IsA("Decal") or d:IsA("Texture") or d:IsA("SurfaceAppearance") then
+				d:Destroy()
+			end
+		end
+	end
 	model.Parent = vp
+	-- hide until the meshes have loaded (otherwise only the native eyes show for a moment)
+	vp.Visible = false
+	task.spawn(function()
+		local done = false
+		task.delay(3, function()
+			if not done then
+				vp.Visible = true
+			end
+		end)
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync({ model })
+		end)
+		done = true
+		vp.Visible = true
+	end)
 	local cam = Instance.new("Camera")
 	local h = def.height
 	local center = Vector3.new(0, h * 0.5, 0)
@@ -172,13 +202,13 @@ local function buildHUD(root: Frame)
 	refs.xpFill = Theme.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = C.lime, Parent = bar })
 	Theme.corner(refs.xpFill, 12)
 	refs.level = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "Lv 1", MaxText = 16, ZIndex = 2, Parent = bar })
-	refs.nextUnlock = Theme.label({ Position = UDim2.fromOffset(10, 130), Size = UDim2.fromOffset(260, 16), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, Parent = root })
+	refs.nextUnlock = Theme.label({ Position = UDim2.fromOffset(10, 131), Size = UDim2.fromOffset(250, 19), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 15, MinText = 10, Parent = root })
 
 	-- chunky nav grid (3 columns)
-	-- (ends ~350 so the bottom-left stays free for the phone thumbstick)
-	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 150), Size = UDim2.fromOffset(222, 200), BackgroundTransparency = 1, Parent = root })
+	-- 4 x 2, ending at ~286 so the bottom-left stays free for the phone thumbstick
+	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 154), Size = UDim2.fromOffset(250, 132), BackgroundTransparency = 1, Parent = root })
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.fromOffset(70, 62)
+	grid.CellSize = UDim2.fromOffset(58, 62)
 	grid.CellPadding = UDim2.fromOffset(6, 6)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = menu
@@ -187,14 +217,14 @@ local function buildHUD(root: Frame)
 			Effects.Play("Click")
 			UI.Toggle(n.key)
 		end)
-		Theme.icon(n.icon, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.fromOffset(40, 40), Parent = b })
-		Theme.label({ Position = UDim2.new(0, 2, 1, -20), Size = UDim2.new(1, -4, 0, 18), Text = n.label, MaxText = 14, MinText = 7, Parent = b })
+		Theme.icon(n.icon, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 3), Size = UDim2.fromOffset(38, 38), Parent = b })
+		Theme.label({ Position = UDim2.new(0, 1, 1, -19), Size = UDim2.new(1, -2, 0, 16), Text = n.label, MaxText = 13, MinText = 7, Parent = b })
 		badge(b)
 		refs["menu" .. n.key] = b
 	end
 
 	-- travel tabs (top centre)
-	local tabs = Theme.frame({ Name = "Tabs", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(348, 46), BackgroundTransparency = 1, Parent = root })
+	local tabs = Theme.frame({ Name = "Tabs", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(372, 56), BackgroundTransparency = 1, Parent = root })
 	local tl = Instance.new("UIListLayout")
 	tl.FillDirection = Enum.FillDirection.Horizontal
 	tl.Padding = UDim.new(0, 6)
@@ -202,14 +232,15 @@ local function buildHUD(root: Frame)
 	tl.Parent = tabs
 	refs.tabs = {}
 	for i, tdef in ipairs(TABS) do
-		local b = Theme.button({ Name = tdef.key, Text = "", Color = C.panel2, LayoutOrder = i, Size = UDim2.fromOffset(112, 46), Radius = 14, Parent = tabs }, function()
+		local b = Theme.button({ Name = tdef.key, Text = "", Color = C.panel2, LayoutOrder = i, Size = UDim2.fromOffset(120, 56), Radius = 14, Parent = tabs }, function()
 			Effects.Play("Click")
 			if UI.OnTab then
 				UI.OnTab(tdef.key)
 			end
 		end)
-		Theme.icon(tdef.icon, { Position = UDim2.fromOffset(4, 3), Size = UDim2.fromOffset(40, 40), Parent = b })
-		Theme.label({ Position = UDim2.fromOffset(46, 4), Size = UDim2.new(1, -50, 1, -8), Text = tdef.label, MaxText = 18, MinText = 8, Parent = b })
+		Theme.icon(tdef.icon, { Position = UDim2.fromOffset(4, 6), Size = UDim2.fromOffset(42, 42), Parent = b })
+		-- one line high, so TextScaled shrinks the word instead of wrapping it
+		Theme.label({ AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 48, 0.5, 0), Size = UDim2.new(1, -52, 0, 22), Text = tdef.label, MaxText = 18, MinText = 8, Parent = b })
 		refs.tabs[tdef.key] = { button = b, color = tdef.color }
 	end
 	refs.tabsFrame = tabs
@@ -258,14 +289,18 @@ local function buildHUD(root: Frame)
 	refs.questFill = Theme.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(255, 140, 40), Parent = qbar })
 	Theme.corner(refs.questFill, 7)
 	refs.questCount = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "", MaxText = 12, ZIndex = 2, Parent = qbar })
-	refs.questReward = Theme.label({ Position = UDim2.fromOffset(8, 73), Size = UDim2.new(1, -110, 0, 20), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, MinText = 8, Parent = quest })
-	refs.questClaim = Theme.button({ AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -6, 1, -5), Size = UDim2.fromOffset(96, 32), Text = "CLAIM", Color = C.lime, MaxText = 16, Visible = false, Parent = quest }, function()
-		Effects.Play("Click")
-		Net.Event("ClaimQuest"):FireServer("chain")
-	end)
+	refs.questReward = Theme.label({ Position = UDim2.fromOffset(8, 73), Size = UDim2.new(1, -16, 0, 20), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, MinText = 10, Parent = quest })
+	-- when the quest is done the whole card is the CLAIM button (a big touch target)
+	refs.questClaim = Theme.label({ Position = UDim2.fromOffset(8, 73), Size = UDim2.new(1, -16, 0, 20), Text = "TAP TO CLAIM YOUR REWARD!", TextColor3 = C.lime, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 15, MinText = 10, Visible = false, Parent = quest })
 	quest.Activated:Connect(function()
 		Effects.Play("Click")
-		UI.Open("Quests")
+		local s = State.data
+		local cq = s and s.quests and s.quests.chain
+		if cq and cq.progress >= cq.target then
+			Net.Event("ClaimQuest"):FireServer("chain")
+		else
+			UI.Open("Quests")
+		end
 	end)
 	refs.quest = quest
 
@@ -442,7 +477,19 @@ local function panelShell(name: string, title: string, accent: Color3, iconName:
 		UI.Close()
 	end)
 	-- fills most of a phone screen, capped at 620x440 on bigger screens
-	local p = Theme.frame({ Name = "Panel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.96, 0.86), BackgroundColor3 = C.panel, ZIndex = 21, Active = true, Parent = dim })
+	-- a TextButton, not a Frame: buttons sink taps, so tapping inside the panel
+	-- never reaches the close-on-backdrop button underneath
+	local p = Instance.new("TextButton")
+	p.Name = "Panel"
+	p.Text = ""
+	p.AutoButtonColor = false
+	p.BorderSizePixel = 0
+	p.AnchorPoint = Vector2.new(0.5, 0.5)
+	p.Position = UDim2.fromScale(0.5, 0.5)
+	p.Size = UDim2.fromScale(0.96, 0.86)
+	p.BackgroundColor3 = C.panel
+	p.ZIndex = 21
+	p.Parent = dim
 	Theme.corner(p, 20)
 	Theme.stroke(p, 4)
 	local sizer = Instance.new("UISizeConstraint")
@@ -487,6 +534,7 @@ local function zify(root: Instance, z: number)
 end
 
 UI.tabSelect = {} :: { [string]: (string) -> () }
+UI.defaultTab = { Halloween = "Track" } :: { [string]: string }
 
 function UI.Open(name: string, tab: string?)
 	if UI.openPanel and UI.openPanel ~= name then
@@ -499,8 +547,12 @@ function UI.Open(name: string, tab: string?)
 	end
 	UI.openPanel = name
 	p.Visible = true
-	if tab and UI.tabSelect[name] then
-		UI.tabSelect[name](tab)
+	if UI.tabSelect[name] and (tab or UI.defaultTab[name]) then
+		UI.tabSelect[name](tab or UI.defaultTab[name])
+	end
+	local body = p:FindFirstChild("Panel") and p.Panel:FindFirstChild("Body")
+	if body then
+		body.CanvasPosition = Vector2.zero
 	end
 	if panelRefresh[name] then
 		panelRefresh[name]()
@@ -1064,9 +1116,11 @@ local function onState(s, prev)
 		refs.questText.Text = cq.text
 		refs.questCount.Text = ("%s/%s"):format(Util.Short(cq.progress), Util.Short(cq.target))
 		Theme.tween(refs.questFill, 0.3, { Size = UDim2.fromScale(math.clamp(cq.progress / math.max(1, cq.target), 0.03, 1), 1) })
-		refs.questReward.Text = "Reward: " .. UI.RewardText(cq.reward)
+		refs.questReward.Text = UI.RewardText(cq.reward, true)
 		refs.questClaim.Visible = done
+		refs.questReward.Visible = not done
 		refs.questStroke.Color = if done then C.lime else C.ink
+		refs.quest.BackgroundColor3 = if done then Color3.fromRGB(40, 92, 52) else Color3.fromRGB(70, 34, 86)
 		refs.quest.Visible = true
 	elseif q then
 		refs.questHead.Text = "QUESTS DONE!"
@@ -1093,7 +1147,11 @@ local function onState(s, prev)
 		refs.lockPill.BackgroundColor3 = Color3.fromRGB(200, 70, 90)
 	end
 	refs.lockPill.Visible = s.level >= Config.StealLevel or s.lockLeft > 0
-	refs.dropText.Text = "Personal Drop in " .. Util.Time(s.nextDropIn)
+	refs.dropText.Text = if UI.zone == "Island" then "Personal Drop waits for you" else "Personal Drop in " .. Util.Time(s.nextDropIn)
+	-- no island shortcut in the middle of the classic tutorial
+	if refs.tabs then
+		refs.tabs.Island.button.Visible = s.tutorial == Tutorial.DONE
+	end
 	refs.dropPill.Visible = s.tutorial == Tutorial.DONE
 	-- carry bar
 	if s.carry then
@@ -1166,12 +1224,19 @@ function UI.Start()
 		local s = math.clamp(math.min(vp.X / 900, vp.Y / 500), 0.62, 1.35)
 		scale.Scale = s
 		root.Size = UDim2.fromScale(1 / s, 1 / s)
+		-- phones: drop the player card so the right column ends above the jump button
+		UI.small = s < 0.9
+		local card = root:FindFirstChild("Status") and root.Status:FindFirstChild("Player")
+		if card then
+			card.Visible = not UI.small
+		end
 	end
 	rescale()
 	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 
 	loadLivePrices()
 	buildHUD(root)
+	rescale()
 	buildUpgrades()
 	buildDex()
 	buildRebirth()

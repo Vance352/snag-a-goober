@@ -26,7 +26,7 @@ local EventService = {}
 local S
 
 -- per-session (not saved): travel cooldown, areas entered (bucket cooldowns are saved)
-local sessionState: { [Player]: { travelAt: number, areasSeen: { [string]: boolean }, zone: string? } } = {}
+local sessionState: { [Player]: { travelAt: number, areasSeen: { [string]: boolean }, zone: string?, lastArea: string? } } = {}
 
 function EventService.Init(registry)
 	S = registry
@@ -60,6 +60,18 @@ function EventService.OnIsland(pos: Vector3): boolean
 	return math.abs(pos.X - o.X) <= size.X / 2 + 10 and math.abs(pos.Z - o.Z) <= size.Y / 2 + 10
 end
 
+-- can this player enter the area? (player level AND event level)
+function EventService.AreaOpen(st, area): boolean
+	return st.data.level >= area.level and st.data.event.level >= (area.eventLevel or 0)
+end
+
+function EventService.LockText(area): string
+	if (area.eventLevel or 0) > 0 then
+		return ("%s needs Level %d and Event Level %d."):format(area.name, area.level, area.eventLevel)
+	end
+	return ("%s unlocks at Level %d."):format(area.name, area.level)
+end
+
 function EventService.AreaAt(pos: Vector3)
 	if not EventService.OnIsland(pos) then
 		return nil
@@ -77,10 +89,10 @@ end
 -- coins rewards are "seconds of your current income" with a floor so new
 -- players still get something worthwhile
 local function coinsFor(player: Player, seconds: number): number
-	local st = S.Session.Get(player)
-	local rate = st and st.rate or 0
+	local rate = S.Session.BaseRate(player) -- not doubled by an active boost
 	return math.max(math.floor(rate * seconds), seconds * 2)
 end
+EventService.CoinsFor = coinsFor
 
 function EventService.AddCandy(player: Player, n: number)
 	local st = S.Session.Get(player)
@@ -117,7 +129,7 @@ local function grantGoober(player: Player, gid: string, source: string): boolean
 	if not uid then
 		return false
 	end
-	S.Progress.Discover(player, gid)
+	-- (Base.Place already records the discovery)
 	S.Session.ComputeRate(player)
 	S.Hooks.Fire("placed", player, { id = gid, source = source })
 	return true
@@ -163,22 +175,36 @@ end
 -- ------------------------------------------------------- event track
 function EventService.AddEventXP(player: Player, n: number)
 	local st = S.Session.Get(player)
-	if not st or n <= 0 then
+	if not st or n <= 0 or not Halloween.Active() then
 		return
 	end
 	local ev = st.data.event
 	if ev.level >= Halloween.MaxEventLevel then
+		-- track done: Event XP keeps filling Bonus Chests
+		ev.bonusXp += n
+		local chests = ev.bonusXp // Halloween.BonusEvery
+		if chests > 0 then
+			ev.bonusXp -= chests * Halloween.BonusEvery
+			EventService.AddCandy(player, chests * Halloween.BonusCandy)
+			S.Session.Notify(player, "Reward", { title = "BONUS CHEST", lines = { ("+%d Candy"):format(chests * Halloween.BonusCandy) } })
+		end
+		st.dirty = true
 		return
 	end
+	local from = ev.level
 	ev.xp += n
 	while ev.level < Halloween.MaxEventLevel and ev.xp >= Halloween.EventXPFor(ev.level) do
 		ev.xp -= Halloween.EventXPFor(ev.level)
 		ev.level += 1
-		S.Session.Notify(player, "EventLevel", { level = ev.level })
 		S.Hooks.Fire("eventlevel", player, { level = ev.level })
 	end
 	if ev.level >= Halloween.MaxEventLevel then
+		ev.bonusXp += ev.xp
 		ev.xp = 0
+	end
+	if ev.level > from then
+		-- one banner even when a big reward jumps several levels
+		S.Session.Notify(player, "EventLevel", { level = ev.level, from = from })
 	end
 	st.dirty = true
 end
@@ -234,7 +260,7 @@ function EventService.CollectCandy(player: Player, id: any)
 	local c = Halloween.CandyById[id]
 	local st = S.Session.Get(player)
 	local hrp = hrpOf(player)
-	if not c or not hrp or st.data.candyFound[id] then
+	if not c or not hrp or st.data.candyFound[id] or not Halloween.Active() then
 		return
 	end
 	if (hrp.Position - c.pos).Magnitude > Halloween.CandyRadius or not S.MoveGuard.Plausible(player) then
@@ -260,6 +286,9 @@ function EventService.Bucket(player: Player, id: any)
 	local hrp = hrpOf(player)
 	if not b or not hrp then
 		return
+	end
+	if not Halloween.Active() then
+		return fail(player, "The Halloween event is over - the buckets are empty!")
 	end
 	local st = S.Session.Get(player)
 	local ready = st.data.bucketReady
@@ -379,9 +408,15 @@ function EventService.Travel(player: Player, dest: any)
 	if not hrp or not hum or hum.Health <= 0 then
 		return
 	end
+	if not Halloween.Enabled and dest ~= "Base" and dest ~= "Plaza" and dest ~= "PortalOut" then
+		return fail(player, "Halloween Island is closed.")
+	end
 	local t = ss(player)
 	local now = os.clock()
 	if now - t.travelAt < Halloween.TravelCooldown then
+		if dest ~= "PortalIn" and dest ~= "PortalOut" then
+			fail(player, "Travel is recharging - try again in a moment.")
+		end
 		return
 	end
 	local target
@@ -446,6 +481,11 @@ function EventService.Snapshot(player: Player)
 		eventLevel = d.event.level,
 		eventXp = d.event.xp,
 		eventNeed = if d.event.level < Halloween.MaxEventLevel then Halloween.EventXPFor(d.event.level) else 0,
+		bonusXp = d.event.bonusXp,
+		bonusEvery = Halloween.BonusEvery,
+		placeLeft = math.max(0, Halloween.PlaceDailyFull - (if d.event.placeDay == os.time() // 86400 then d.event.placeCount else 0)),
+		areasVisited = d.areasVisited,
+		active = Halloween.Active(),
 		eventClaimed = d.event.claimed,
 		candyFound = found,
 		bucketCooldowns = EventService.BucketCooldowns(player),
@@ -462,8 +502,17 @@ function EventService.Start()
 	-- event XP for every Halloween Goober brought home from a belt
 	S.Hooks.On("placed", function(player, p)
 		local def = GooberData.ById[p.id]
-		if def and def.pool == "Halloween" and p.source == "belt" then
-			EventService.AddEventXP(player, Halloween.PlaceXP[def.rarity] or 0)
+		local st = S.Session.Get(player)
+		if def and st and def.pool == "Halloween" and p.source == "belt" then
+			local ev = st.data.event
+			local day = os.time() // 86400
+			if ev.placeDay ~= day then
+				ev.placeDay = day
+				ev.placeCount = 0
+			end
+			ev.placeCount += 1
+			local mult = if ev.placeCount <= Halloween.PlaceDailyFull then 1 else Halloween.PlaceTiredMult
+			EventService.AddEventXP(player, math.max(1, math.floor((Halloween.PlaceXP[def.rarity] or 0) * mult)))
 		end
 	end)
 	-- area gates + area-entered events, twice a second
@@ -476,15 +525,27 @@ function EventService.Start()
 					local t = ss(player)
 					local area = EventService.AreaAt(hrp.Position)
 					t.zone = if area then "Island" else "Main"
-					if area and st.data.level < area.level and area.gate then
-						-- under level: back out through the gate (hub side)
+					if area then
+						-- Personal Drops wait while you're on the island (they spawn on the Slop Line)
+						st.nextDropAt = math.max(st.nextDropAt, os.clock() + 6)
+					end
+					if area and area.gate and not EventService.AreaOpen(st, area) then
+						-- short of the player level or the event level: back out through the gate (hub side)
 						local out = area.gate + Vector3.new(if area.gate.X > Halloween.Origin.X then -8 else 8, 3, 0)
 						S.MoveGuard.ServerMove(player, CFrame.lookAt(out, out + Vector3.new(if area.gate.X > Halloween.Origin.X then -1 else 1, 0, 0)))
-						fail(player, ("%s unlocks at Level %d."):format(area.name, area.level))
-					elseif area and not t.areasSeen[area.key] then
-						t.areasSeen[area.key] = true
+						fail(player, EventService.LockText(area))
+						t.lastArea = nil
+					elseif area and t.lastArea ~= area.key then
+						t.lastArea = area.key
+						local first = not st.data.areasVisited[area.key]
+						st.data.areasVisited[area.key] = true
 						S.Hooks.Fire("area", player, { key = area.key })
-						S.Session.Notify(player, "AreaEnter", { key = area.key })
+						if not t.areasSeen[area.key] then
+							t.areasSeen[area.key] = true
+							S.Session.Notify(player, "AreaEnter", { key = area.key, first = first })
+						end
+					elseif not area then
+						t.lastArea = nil
 					end
 				end
 			end

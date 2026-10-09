@@ -10,9 +10,13 @@
 
 local Halloween = {}
 
-Halloween.Enabled = true
--- event runs until this UTC time (shown as a countdown; rewards stay claimable)
+Halloween.Enabled = true -- false: portal and tabs off, island belts removed
+-- The event runs until this UTC time. After it: no more Event XP or candy, but
+-- every reward you earned stays claimable and the Candy Shop stays open.
 Halloween.EndsAt = 1794268800 -- 2026-11-10 00:00 UTC
+function Halloween.Active(): boolean
+	return Halloween.Enabled and os.time() < Halloween.EndsAt
+end
 
 local O = Vector3.new(0, 0, 700)
 Halloween.Origin = O
@@ -36,18 +40,19 @@ Halloween.TravelCooldown = 4
 
 -- ----------------------------------------------------------------- areas
 -- Rectangles in world x/z. Locked areas are fenced; the gate is walk-through
--- only for players at the level (client collision) and the server moves
--- under-level players back out to the gate (so nobody can skip it).
+-- only for players at BOTH the player level and the event level (so veterans
+-- still unlock the island step by step), and the server moves anyone short of
+-- either back out to the gate (so nobody can skip it).
 Halloween.Areas = {
-	{ key = "Village", name = "Halloween Village", level = 1, min = at(-70, -150), max = at(70, 150), color = Color3.fromRGB(255, 140, 40),
+	{ key = "Village", name = "Halloween Village", level = 1, eventLevel = 0, min = at(-70, -150), max = at(70, 150), color = Color3.fromRGB(255, 140, 40),
 		blurb = "The event hub: the Great Pumpkin, the Candy Shop and the Quest Board." },
-	{ key = "Pumpkin", name = "Pumpkin Patch", level = 1, min = at(-190, -150), max = at(-70, 10), gate = at(-70, -60), color = Color3.fromRGB(255, 138, 31),
+	{ key = "Pumpkin", name = "Pumpkin Patch", level = 1, eventLevel = 0, min = at(-190, -150), max = at(-70, 10), gate = at(-70, -60), color = Color3.fromRGB(255, 138, 31),
 		blurb = "Cosy pumpkins and the friendliest Halloween Goobers." },
-	{ key = "Forest", name = "Haunted Forest", level = 8, min = at(70, -150), max = at(190, 10), gate = at(70, -60), color = Color3.fromRGB(91, 255, 160),
+	{ key = "Forest", name = "Haunted Forest", level = 8, eventLevel = 3, min = at(70, -150), max = at(190, 10), gate = at(70, -60), color = Color3.fromRGB(91, 255, 160),
 		blurb = "Glowing mushrooms, twisted trees - and rarer Goobers." },
-	{ key = "Graveyard", name = "Cursed Graveyard", level = 15, min = at(-190, 10), max = at(-70, 150), gate = at(-70, 70), color = Color3.fromRGB(150, 140, 190),
+	{ key = "Graveyard", name = "Cursed Graveyard", level = 15, eventLevel = 8, min = at(-190, 10), max = at(-70, 150), gate = at(-70, 70), color = Color3.fromRGB(150, 140, 190),
 		blurb = "Spooky Goobers rise from the graves. Epic and Legendary finds." },
-	{ key = "Castle", name = "Phantom Castle", level = 25, min = at(70, 10), max = at(190, 150), gate = at(70, 70), color = Color3.fromRGB(176, 75, 255),
+	{ key = "Castle", name = "Phantom Castle", level = 25, eventLevel = 14, min = at(70, 10), max = at(190, 150), gate = at(70, 70), color = Color3.fromRGB(176, 75, 255),
 		blurb = "The Phantom King's domain. Secret Goobers lurk here." },
 }
 Halloween.AreaByKey = {}
@@ -75,7 +80,7 @@ Halloween.Lines = {
 		startX = O.X - 172, endX = O.X - 82, z = O.Z + 62,
 	},
 	Castle = {
-		weights = { Common = 0, Uncommon = 0, Rare = 35, Epic = 40, Legendary = 21, Secret = 4 },
+		weights = { Common = 0, Uncommon = 0, Rare = 40, Epic = 44, Legendary = 14.5, Secret = 1.5 },
 		interval = 8.0, speed = 5, levelRequired = 25, area = "Castle", pool = "Halloween",
 		startX = O.X + 172, endX = O.X + 82, z = O.Z + 62,
 	},
@@ -124,14 +129,22 @@ Halloween.BucketXP = 5
 Halloween.BucketCooldown = 300 -- per player, per bucket
 
 -- ------------------------------------------------------------ event track
+-- Paced for the ~31-day event: 21,750 XP in all. A regular player gets there
+-- in roughly 2-3 weeks of daily play (dailies + ~30 full-XP Goobers a day).
 Halloween.MaxEventLevel = 25
 function Halloween.EventXPFor(level: number): number -- XP to go from `level` to `level + 1`
-	return 60 + 25 * level
+	return 150 + 60 * level
 end
--- event XP for bringing a Halloween Goober home (snag+drop can't farm it)
+-- event XP for bringing a Halloween Goober home from an island belt
 Halloween.PlaceXP = { Common = 15, Uncommon = 30, Rare = 60, Epic = 120, Legendary = 250, Secret = 500 }
+-- the first PlaceDailyFull belt Goobers each UTC day give full XP, the rest PlaceTiredMult
+Halloween.PlaceDailyFull = 30
+Halloween.PlaceTiredMult = 0.2
+-- past level 25, every BonusEvery Event XP opens a Bonus Chest of BonusCandy
+Halloween.BonusEvery = 600
+Halloween.BonusCandy = 40
 
--- reward kinds: candy (n), coins (n = seconds of your income, min 1000), boost
+-- reward kinds: candy (n), coins (n = seconds of your un-boosted income, at least 2 per second), boost
 -- (seconds of 2x income), goober (id), title (text)
 Halloween.Track = {
 	[1] = { kind = "candy", n = 30 },
@@ -198,7 +211,7 @@ Halloween.DexRewards = {
 Halloween.QuestChain = {
 	{ type = "visit", n = 1, text = "Step through the Spooky Portal", hint = "The glowing purple portal is by the Slop Vat, east of the belts.", reward = { candy = 20, exp = 40 } },
 	{ type = "halloween", n = 1, text = "Bring a Halloween Goober home", hint = "Snag one off the Pumpkin Patch belt and walk it back through the portal.", reward = { candy = 30, exp = 60 } },
-	{ type = "candy", n = 3, text = "Find 3 hidden candies", hint = "Wrapped candies are hidden all over the island. Look behind things!", reward = { candy = 30, exp = 60 } },
+	{ type = "candy", n = 3, text = "Find 3 hidden candies", hint = "Wrapped candies are tucked around every area. Follow the pink sparkles!", reward = { candy = 30, exp = 60 } },
 	{ type = "bucket", n = 2, text = "Grab candy from 2 Candy Buckets", hint = "Pumpkin buckets refill every 5 minutes.", reward = { candy = 25, exp = 50 } },
 	{ type = "halloween", n = 5, text = "Bring 5 Halloween Goobers home", hint = "Every Halloween Goober you bring home gives Event XP too.", reward = { candy = 50, coins = 300, exp = 100 } },
 	{ type = "eventlevel", n = 5, text = "Reach Event Level 5", hint = "Open the Halloween menu to claim your track rewards.", reward = { candy = 50, exp = 80 } },
@@ -212,40 +225,42 @@ Halloween.QuestChain = {
 
 -- daily quests: 3 a day, picked from this pool (same three for everyone on a given UTC day)
 Halloween.DailyPool = {
-	{ id = "d_snag", type = "snag", n = 8, text = "Bring 8 Goobers home", reward = { candy = 25, coins = 180, exp = 40 } },
-	{ id = "d_hal", type = "halloween", n = 4, text = "Bring 4 Halloween Goobers home", reward = { candy = 35, exp = 70 } },
-	{ id = "d_bucket", type = "bucket", n = 3, text = "Grab candy from 3 Candy Buckets", reward = { candy = 30, exp = 50 } },
-	{ id = "d_collect", type = "collect", n = 1, scale = 300, text = "Collect 5 minutes of income from your Cash Pad", reward = { candy = 20, coins = 120, exp = 40 } },
-	{ id = "d_rare", type = "halloween", n = 1, rarity = "Rare", text = "Bring home a Rare+ Halloween Goober", reward = { candy = 40, exp = 80 } },
-	{ id = "d_steal", type = "steal", n = 1, text = "Steal a Goober from another base", reward = { candy = 30, coins = 240, exp = 60 } },
+	{ id = "d_snag", type = "snag", n = 8, text = "Bring 8 Goobers home", reward = { candy = 25, coins = 180, exp = 160 } },
+	{ id = "d_hal", type = "halloween", n = 6, text = "Bring 6 Halloween Goobers home", reward = { candy = 35, exp = 220 } },
+	{ id = "d_bucket", type = "bucket", n = 3, text = "Grab candy from 3 Candy Buckets", reward = { candy = 30, exp = 150 } },
+	{ id = "d_collect", type = "collect", n = 1, scale = 300, text = "Collect 5 minutes of income from your Cash Pad", reward = { candy = 20, coins = 120, exp = 140 } },
+	{ id = "d_rare", type = "halloween", n = 1, rarity = "Rare", text = "Bring home a Rare+ Halloween Goober", reward = { candy = 40, exp = 200 } },
+	{ id = "d_steal", type = "steal", n = 1, text = "Steal a Goober from another base", reward = { candy = 30, coins = 240, exp = 200 } },
 }
 Halloween.DailyCount = 3
 
 -- --------------------------------------------------------- level milestones
 -- Claimable from the Progression screen (player level, not event level).
 Halloween.LevelMilestones = {
-	{ level = 3, text = "Stealing unlocked", reward = { candy = 20 } },
-	{ level = 5, text = "Base Lock upgrades", reward = { candy = 30, coins = 300 } },
-	{ level = 8, text = "Haunted Forest opens", reward = { candy = 50 } },
-	{ level = 10, text = "Gold Line unlocked", reward = { candy = 60, coins = 600 } },
-	{ level = 15, text = "Cursed Graveyard opens + Rebirth", reward = { candy = 100, boost = 900 } },
-	{ level = 20, text = "Big Goober boss", reward = { candy = 150, coins = 1200 } },
-	{ level = 25, text = "Phantom Castle opens", reward = { candy = 250, boost = 1800 } },
-	{ level = 30, text = "Goober tycoon", reward = { candy = 300, coins = 2400 } },
-	{ level = 40, text = "Slop legend", reward = { candy = 500, boost = 3600 } },
-	{ level = 50, text = "Goober royalty", reward = { candy = 1000, coins = 7200 } },
+	-- (small candy: veterans claim most of these at once, so they mustn't empty the shop on day one)
+	{ level = 3, text = "Stealing unlocked", reward = { candy = 15, coins = 120 } },
+	{ level = 5, text = "Base Lock upgrades", reward = { candy = 15, coins = 300 } },
+	{ level = 8, text = "Haunted Forest (with Event Lv 3)", reward = { candy = 20, boost = 300 } },
+	{ level = 10, text = "Gold Line unlocked", reward = { candy = 20, coins = 600 } },
+	{ level = 15, text = "Cursed Graveyard (with Event Lv 8) + Rebirth", reward = { candy = 30, boost = 900 } },
+	{ level = 20, text = "Big Goober boss", reward = { candy = 30, coins = 1200 } },
+	{ level = 25, text = "Phantom Castle (with Event Lv 14)", reward = { candy = 40, boost = 1800 } },
+	{ level = 30, text = "Goober tycoon", reward = { candy = 40, coins = 2400 } },
+	{ level = 40, text = "Slop legend", reward = { candy = 50, boost = 3600 } },
+	{ level = 50, text = "Goober royalty", reward = { candy = 80, coins = 7200 } },
 }
 
 -- ------------------------------------------------------------------ looks
 Halloween.Night = {
+	-- moonlit rather than sunset: cool ambient, bright enough that rarity colours read
 	ClockTime = 0.6,
-	Brightness = 1.6,
-	Ambient = Color3.fromRGB(70, 45, 95),
-	OutdoorAmbient = Color3.fromRGB(95, 60, 120),
-	FogColor = Color3.fromRGB(40, 22, 60),
-	FogStart = 80,
-	FogEnd = 420,
-	ColorShift = Color3.fromRGB(255, 140, 60),
+	Brightness = 2.2,
+	Ambient = Color3.fromRGB(96, 84, 130),
+	OutdoorAmbient = Color3.fromRGB(118, 108, 160),
+	FogColor = Color3.fromRGB(40, 24, 62),
+	FogStart = 90,
+	FogEnd = 460,
+	ColorShift = Color3.fromRGB(60, 44, 70),
 }
 
 return Halloween

@@ -208,6 +208,8 @@ function CarryService.LandPending(player: Player, p)
 	local def = GooberData.ById[p.id]
 	S.Session.AddXP(player, Config.Rarities[def.rarity].xp)
 	S.Session.Toast(player, def.name .. " made it home!", "green")
+	-- it was a belt snag that waddled home: same Event XP / quest credit as walking it
+	S.Hooks.Fire("placed", player, { id = p.id, source = "belt" })
 end
 
 -- called by DataService right before the final save

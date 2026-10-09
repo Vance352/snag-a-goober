@@ -94,6 +94,7 @@ local function defaults()
 		hdexClaimed = {}, -- [tostring(count)] = true (Halloween collection rewards)
 		flags = { islandIntro = false },
 		bucketReady = {}, -- [bucketId] = os.time() it refills (saved, so rejoining can't refill)
+		areasVisited = {}, -- [areaKey] = true once you've walked into it (area quests)
 	}
 end
 
@@ -150,6 +151,10 @@ local function sanitize(data)
 	data.hdexClaimed = tbl(data.hdexClaimed)
 	data.flags = tbl(data.flags)
 	data.bucketReady = tbl(data.bucketReady)
+	data.areasVisited = tbl(data.areasVisited)
+	data.event.placeDay = math.floor(tonumber(data.event.placeDay) or -1)
+	data.event.placeCount = math.floor(tonumber(data.event.placeCount) or 0)
+	data.event.bonusXp = tonumber(data.event.bonusXp) or 0
 	for id, t in pairs(data.bucketReady) do
 		if type(t) ~= "number" or t ~= t then
 			data.bucketReady[id] = nil
