@@ -126,8 +126,10 @@ function Session.ComputeRate(player: Player): number
 		return 0
 	end
 	local base = 0
+	local cap = Session.Capacity(player)
 	for uid, g in pairs(st.data.goobers) do
-		if not (st.inTransit and st.inTransit[uid]) then
+		-- (only stands you have count: a refunded More Stands pass doesn't keep paying)
+		if not (st.inTransit and st.inTransit[uid]) and (g.stand or 1) <= cap then
 			local def = GooberData.ById[g.id]
 			if def then
 				base += def.income

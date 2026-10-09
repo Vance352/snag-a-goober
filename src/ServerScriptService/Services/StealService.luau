@@ -214,11 +214,13 @@ function StealService.Fail(thief: Player, reason: string)
 	end
 end
 
--- A movement violation during a theft. A clear shortcut - far beyond the
--- allowance, flying, or a violation that lasts over a second (a sustained
--- speed hack or tween) - cancels the theft. A brief, lag-sized flag only
--- restarts the walk clock from the last trusted spot, so it never gets the
--- thief home sooner and the owner can still catch them.
+-- A movement violation during a theft, with how far beyond walking range the
+-- thief is right now (re-measured every tick). A clear shortcut - more than
+-- TELEPORT_EXCESS studs out (a teleport, or a tween/speed hack whose lead
+-- keeps growing), flying, or being out of range for 8 s - cancels the theft.
+-- A lag-sized flag (a few studs, shrinking as they walk) only restarts the
+-- walk clock from the last trusted spot, so it never gets the thief home
+-- sooner and the owner can still catch them.
 function StealService.Offence(thief: Player, from: { t: number, pos: Vector3 }?, excess: number?)
 	local ts = S.Session.Get(thief)
 	local carry = ts and ts.carry
@@ -227,7 +229,7 @@ function StealService.Offence(thief: Player, from: { t: number, pos: Vector3 }?,
 	end
 	local now = os.clock()
 	carry.badSince = carry.badSince or now
-	if (excess or 0) > S.MoveGuard.TELEPORT_EXCESS or now - carry.badSince > 1.0 then
+	if (excess or 0) > S.MoveGuard.TELEPORT_EXCESS or now - carry.badSince > 8 then
 		StealService.Fail(thief, "teleport")
 		return
 	end

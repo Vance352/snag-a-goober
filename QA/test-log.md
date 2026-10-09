@@ -139,3 +139,21 @@ State: sold 6 cheap Goobers (Toastie x2, Sir Puddle, Gumbo x3) to free base spac
 | Legit 70-stud carry | PASS, no warnings |
 | Console | no script errors |
 State: one Blorp (paid 10) sold to return the base to 21 Goobers after test carries.
+
+## 2026-10-09 - builder retest of round-10 findings (single-player Studio Play, Studio not rendering)
+MoveGuard lag handling redesigned: no credit bank. Frozen "stall" samples (stationary, straight out of walking pace,
+walking velocity, <= 3 s) and the catch-up samples in the 1 s after them are not used as constraints; the real
+samples before the stall bound everything to walking speed over a 20 s window. Tests in an open lane (z = -27):
+stall tests next to plot walls were invalid (client physics zeroed the velocity at the wall).
+| Test | Result |
+|---|---|
+| Stalls (velocity kept): 1.0 s, 1.5 s, 2.0 s, two 1.0 s 3.5 s apart, 1.5 s + 1.0 s, three 0.8 s | 0 refusals in nearly every run; a few runs (mostly the first after Play start) had the server never see walking velocity during the simulated stall - a limit of simulating a stall by pinning the client, since a real stall keeps the last velocity |
+| Walk-in + spoofed stall 1.8 s + 40-stud hop | plausible 0.57 s after the hop = 2.4 s incl. stall vs 2.0 s walk (no gain) |
+| Spoofed velocity while standing (no walk-in), or a 6 s "stall" | no credit (plausible ~1.6 s after a 40-stud hop) |
+| Hop chains 5 x (walk 0.5 s or 1.2 s, spoofed stall 1.75 s, 48-stud hop) | plausible only at walking time: 14.8 s vs 14.7 s, 18.1 s vs 18.3 s |
+| Sustained 1.2x / 1.3x / 1.5x | caught at 4.7 / 3.1 / 1.6 s |
+| Theft cancel rule | CODE-REVIEWED: Offence gets the current excess every tick (debt re-measured with ping slack); cancels at > 10 studs, flying, or 8 s out of range; lag-sized flags re-time |
+| ExtraSlots revoked with 21 Goobers | capacity 18; Goobers on stands 19-21 stop earning (3372 -> 3234/s), re-grant restores 3372 |
+| Legit 70-stud carry | PASS, no warnings |
+| Console | no script errors |
+State: sold one Toastie (paid 30) to return the base to 21 after a test carry.
