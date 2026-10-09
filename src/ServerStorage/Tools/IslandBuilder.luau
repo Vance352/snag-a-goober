@@ -581,8 +581,20 @@ local function buildScenery(root: Instance)
 		local m = place(s, "P_JackLantern", at(xz[1], xz[2]), Vector3.new(0, 0, -1), 0.8)
 		lightUp(m, Color3.fromRGB(150, 160, 255), 14)
 	end
-	-- phantom castle
+	-- phantom castle, with a lantern-lit avenue from the area gate to the gatehouse
 	buildCastle(s)
+	local av = s:FindFirstChild("CastleAvenue") or Instance.new("Folder")
+	av.Name = "CastleAvenue"
+	av.Parent = s
+	part({ Name = "Path", Size = Vector3.new(12, 0.24, 38), CFrame = CFrame.new(O.X + 141, O.Y + 0.22, O.Z + 86), Color = Color3.fromRGB(64, 58, 76), Material = Enum.Material.Slate, Parent = av })
+	part({ Name = "Path", Size = Vector3.new(74, 0.24, 10), CFrame = CFrame.new(O.X + 106, O.Y + 0.22, O.Z + 70), Color = Color3.fromRGB(64, 58, 76), Material = Enum.Material.Slate, Parent = av })
+	for _, z in ipairs({ 74, 86, 98 }) do
+		for _, sx in ipairs({ -1, 1 }) do
+			local m = place(av, "P_JackLantern", at(141 + sx * 8, z), Vector3.new(-sx, 0, 0), 0.9)
+			lightUp(m, Color3.fromRGB(190, 120, 255), 14)
+		end
+	end
+	scatter(s, "P_SpookyTree", { { 96, 120 }, { 186, 120 }, { 112, 84 }, { 172, 84 } }, nil, { 1.0, 1.3 })
 	scatter(s, "P_GlowShroom", grid(88, 20, 182, 98, 26, 6, 41, keepOut), nil, { 0.9, 1.4 })
 	for _, xz in ipairs({ { 90, 40 }, { 186, 40 }, { 90, 96 }, { 186, 96 } }) do
 		local m = place(s, "P_JackLantern", at(xz[1], xz[2]), Vector3.new(0, 0, -1))
@@ -608,11 +620,8 @@ local function buildScenery(root: Instance)
 			CFrame = CFrame.new(O.X + x + rng:NextNumber(-2, 2), O.Y + rng:NextNumber(-3, 1), O.Z + z + rng:NextNumber(-2, 2)) * CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, 6.28), rng:NextNumber(-0.4, 0.4)),
 			Color = Color3.fromRGB(56, 44, 66), Material = Enum.Material.Rock, Parent = s })
 	end
-	for _, m in ipairs({ { -176, -130, 14 }, { -100, -138, 10 }, { 170, -118, 12 }, { 108, -140, 9 }, { -176, 60, 11 }, { 60, -140, 8 }, { -60, -142, 8 } }) do
-		local mound = part({ Name = "Mound", Shape = Enum.PartType.Ball, Size = Vector3.new(m[3] * 2, m[3] * 2, m[3] * 2), CFrame = CFrame.new(O.X + m[1], O.Y - m[3] * 0.62, O.Z + m[2]),
-			Color = Color3.fromRGB(46, 36, 58), Material = Enum.Material.Grass, Parent = s })
-		mound.CanCollide = true
-	end
+	-- (no mounds: they read as grey blobs) - spooky trees soften the slab's corners instead
+	scatter(s, "P_SpookyTree", { { -60, -140 }, { 60, -140 }, { -62, 140 }, { 62, 142 }, { -186, -146 }, { 186, -146 } }, nil, { 0.9, 1.2 })
 end
 
 local function buildBuckets(root: Instance)

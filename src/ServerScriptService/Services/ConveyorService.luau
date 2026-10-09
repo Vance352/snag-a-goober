@@ -189,6 +189,19 @@ function ConveyorService.Snag(player: Player, uid: any)
 	if not hrp or not hum or hum.Health <= 0 then
 		return
 	end
+	if line.area then
+		-- island belts: the area's gate rules (player level AND event level), and you
+		-- must be inside the area (no reaching over the fence from the Village)
+		local Halloween = require(ReplicatedStorage.Shared.Halloween)
+		local area = Halloween.AreaByKey[line.area]
+		if not S.Event.AreaOpen(st, area) then
+			return fail(player, S.Event.LockText(area))
+		end
+		local here = S.Event.AreaAt(hrp.Position)
+		if not here or here.key ~= area.key then
+			return fail(player, ("Step into the %s to snag from its belt!"):format(area.name))
+		end
+	end
 	if not S.MoveGuard.Plausible(player) then
 		return fail(player, "Whoa, slow down!")
 	end

@@ -341,7 +341,9 @@ function EFFECT.RareSpawn(p)
 	local spawnLine = Config.Lines[p.line or "Main"]
 	if spawnLine and spawnLine.pool == "Halloween" then
 		local s = State.data
-		if not onIsland() or not s or s.level < spawnLine.levelRequired then
+		local area = HALLOWEEN.AreaByKey[spawnLine.area]
+		local evl = s and s.event and s.event.eventLevel or 0
+		if not onIsland() or not s or s.level < spawnLine.levelRequired or (area and evl < (area.eventLevel or 0) and HALLOWEEN.Active()) then
 			return
 		end
 	elseif onIsland() and p.rarity == "Epic" then

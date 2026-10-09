@@ -218,6 +218,7 @@ local function buildEvent()
 	local cgl = Instance.new("UIGridLayout")
 	cgl.CellSize = UDim2.fromOffset(92, 110)
 	cgl.CellPadding = UDim2.fromOffset(6, 6)
+	cgl.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	cgl.SortOrder = Enum.SortOrder.LayoutOrder
 	cgl.Parent = cg
 	local hcards = {}

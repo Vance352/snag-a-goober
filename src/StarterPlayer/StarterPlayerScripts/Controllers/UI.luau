@@ -163,7 +163,7 @@ local NAV = {
 	{ key = "Levels", icon = "trophy", label = "LEVELS", color = Color3.fromRGB(150, 110, 255) },
 	{ key = "Upgrades", icon = "upgrade", label = "UPGRADE", color = Color3.fromRGB(90, 200, 90) },
 	{ key = "Rebirth", icon = "rebirth", label = "REBIRTH", color = Color3.fromRGB(190, 100, 255) },
-	{ key = "Settings", icon = "gear", label = "SETTINGS", color = Color3.fromRGB(110, 95, 150) },
+	{ key = "Settings", icon = "gear", label = "OPTIONS", color = Color3.fromRGB(110, 95, 150) },
 }
 local TABS = {
 	{ key = "Base", icon = "house", label = "BASE", color = Color3.fromRGB(90, 200, 90) },
@@ -206,9 +206,9 @@ local function buildHUD(root: Frame)
 
 	-- chunky nav grid (3 columns)
 	-- 4 x 2, ending at ~286 so the bottom-left stays free for the phone thumbstick
-	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 154), Size = UDim2.fromOffset(250, 132), BackgroundTransparency = 1, Parent = root })
+	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 154), Size = UDim2.fromOffset(258, 132), BackgroundTransparency = 1, Parent = root })
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.fromOffset(58, 62)
+	grid.CellSize = UDim2.fromOffset(60, 62)
 	grid.CellPadding = UDim2.fromOffset(6, 6)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = menu
@@ -218,13 +218,13 @@ local function buildHUD(root: Frame)
 			UI.Toggle(n.key)
 		end)
 		Theme.icon(n.icon, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 3), Size = UDim2.fromOffset(38, 38), Parent = b })
-		Theme.label({ Position = UDim2.new(0, 1, 1, -19), Size = UDim2.new(1, -2, 0, 16), Text = n.label, MaxText = 13, MinText = 7, Parent = b })
+		Theme.label({ Position = UDim2.new(0, 1, 1, -20), Size = UDim2.new(1, -2, 0, 17), Text = n.label, MaxText = 14, MinText = 8, Parent = b })
 		badge(b)
 		refs["menu" .. n.key] = b
 	end
 
 	-- travel tabs (top centre)
-	local tabs = Theme.frame({ Name = "Tabs", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(372, 56), BackgroundTransparency = 1, Parent = root })
+	local tabs = Theme.frame({ Name = "Tabs", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.fromOffset(360, 60), BackgroundTransparency = 1, Parent = root })
 	local tl = Instance.new("UIListLayout")
 	tl.FillDirection = Enum.FillDirection.Horizontal
 	tl.Padding = UDim.new(0, 6)
@@ -232,7 +232,7 @@ local function buildHUD(root: Frame)
 	tl.Parent = tabs
 	refs.tabs = {}
 	for i, tdef in ipairs(TABS) do
-		local b = Theme.button({ Name = tdef.key, Text = "", Color = C.panel2, LayoutOrder = i, Size = UDim2.fromOffset(120, 56), Radius = 14, Parent = tabs }, function()
+		local b = Theme.button({ Name = tdef.key, Text = "", Color = C.panel2, LayoutOrder = i, Size = UDim2.fromOffset(116, 60), Radius = 14, Parent = tabs }, function()
 			Effects.Play("Click")
 			if UI.OnTab then
 				UI.OnTab(tdef.key)
@@ -329,7 +329,7 @@ local function buildHUD(root: Frame)
 	refs.carry = carry
 
 	-- tutorial hint (under the travel tabs)
-	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 58), Size = UDim2.fromOffset(370, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root })
+	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 68), Size = UDim2.fromOffset(370, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root })
 	Theme.corner(hint, 16)
 	Theme.stroke(hint, 3)
 	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -134, 1, -8), Text = "", MaxText = 22, Parent = hint })
@@ -340,7 +340,7 @@ local function buildHUD(root: Frame)
 	refs.hint = hint
 
 	-- toasts (under the hint)
-	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 126), Size = UDim2.fromOffset(360, 200), BackgroundTransparency = 1, Parent = root })
+	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 136), Size = UDim2.fromOffset(360, 200), BackgroundTransparency = 1, Parent = root })
 	local tll = Instance.new("UIListLayout")
 	tll.Padding = UDim.new(0, 6)
 	tll.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -1130,9 +1130,7 @@ local function onState(s, prev)
 		refs.questReward.Text = ""
 		refs.questClaim.Visible = false
 	end
-	if UI.OnStateExtra then
-		UI.OnStateExtra(s, prev)
-	end
+
 	-- status pills
 	refs.boostPill.Visible = s.boostLeft > 0
 	refs.boostText.Text = "2x Income  " .. Util.Time(s.boostLeft)
@@ -1150,7 +1148,7 @@ local function onState(s, prev)
 	refs.dropText.Text = if UI.zone == "Island" then "Personal Drop waits for you" else "Personal Drop in " .. Util.Time(s.nextDropIn)
 	-- no island shortcut in the middle of the classic tutorial
 	if refs.tabs then
-		refs.tabs.Island.button.Visible = s.tutorial == Tutorial.DONE
+		refs.tabs.Island.button.Visible = s.tutorial == Tutorial.DONE and require(ReplicatedStorage.Shared.Halloween).Enabled
 	end
 	refs.dropPill.Visible = s.tutorial == Tutorial.DONE
 	-- carry bar
@@ -1181,11 +1179,31 @@ local function onState(s, prev)
 		end
 	end
 	refs.menuUpgrades.Badge.Visible = anyUpgrade and UI.openPanel ~= "Upgrades"
+	if UI.OnStateExtra then
+		UI.OnStateExtra(s, prev)
+	end
+	UI.CapBadges()
 	Effects.SetSettings(s.settings)
 	if UI.openPanel and panelRefresh[UI.openPanel] and UI.openPanel ~= "Shop" and UI.openPanel ~= "Dex" then
 		panelRefresh[UI.openPanel]()
 	elseif UI.openPanel == "Dex" and prev and (prev.dex ~= s.dex) then
 		panelRefresh.Dex()
+	end
+end
+
+-- a wall of red dots means nothing: show the three most useful ones
+local BADGE_ORDER = { "Halloween", "Quests", "Rebirth", "Levels", "Dex", "Upgrades", "Shop", "Settings" }
+function UI.CapBadges()
+	local shown = 0
+	for _, key in ipairs(BADGE_ORDER) do
+		local b = refs["menu" .. key]
+		local badge = b and b:FindFirstChild("Badge")
+		if badge and badge.Visible then
+			shown += 1
+			if shown > 3 then
+				badge.Visible = false
+			end
+		end
 	end
 end
 

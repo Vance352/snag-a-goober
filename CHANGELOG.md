@@ -2,6 +2,9 @@
 
 Newest entry at the top.
 
+## 2026-10-09 (late night)
+- Review round 2 fixes (QA/halloween-review-r2.md, 6.5/10): island belts can only be snagged from inside an open area (no reaching over a locked fence); Grim Goober 6,000/s and Phantom King 5,000/s (on a par with Glitch, not above); Bonus Chests pay out at once; gated toasts respect event level; after the event the event-level part of the gates is waived and no new dailies roll; Enabled=false reaches the client; at most 3 menu badges; bigger travel tabs, nav labels; collection grid centred; grey mounds replaced with trees; lantern avenue to the castle; new WAVs moved back to Assets/Audio. Halloween loop "click" checked: the seam jump (2,152) is smaller than ~2,500 same-size jumps per second in the music itself, so no re-upload.
+
 ## 2026-10-09 (night)
 - Review round 1 fixes (QA/halloween-review-r1.md, 5.5/10): new music + SFX uploaded and live (main 115688752797061, island 128091419086773, SFX 84417681107169), crossfade verified; area quests use saved visits (no more quest-7/10 soft-lock); event track re-paced for the 31 days (21,750 XP, 30 full-XP Goobers a day then 20%, bigger dailies, Bonus Chests past 25, single merged level-up banner); areas need player level AND event level; milestone candy cut; coin rewards ignore active boosts; Personal Drops wait while you're on the island; waddle-home Goobers count; no double discovery; event end/Enabled handled; tapping inside a panel no longer closes it; 4x2 nav clear of the thumbstick, bigger tabs/claim targets, whole quest card and track cards are tap targets, island tab hidden in the tutorial, small-screen right column; dark silhouettes and mesh preloading in panels; Phantom Castle built (walls, gatehouse, towers, keep), graveyard paths, village dressing, edge rocks/mounds, moonlit night palette; decor collisions trimmed (1,203 -> 509 collidable meshes).
 

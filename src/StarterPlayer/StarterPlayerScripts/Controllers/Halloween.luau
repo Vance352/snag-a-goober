@@ -170,7 +170,7 @@ local function refreshGates()
 	local evl = s and s.event and s.event.eventLevel or 0
 	for _, b in ipairs(CollectionService:GetTagged("GateBarrier")) do
 		if b:IsA("BasePart") then
-			local open = level >= (b:GetAttribute("Level") or 1) and evl >= (b:GetAttribute("EventLevel") or 0)
+			local open = level >= (b:GetAttribute("Level") or 1) and (evl >= (b:GetAttribute("EventLevel") or 0) or not Halloween.Active())
 			b.CanCollide = not open
 			b.LocalTransparencyModifier = if open then 1 else 0
 		end
@@ -184,6 +184,9 @@ local function onPrompt(prompt: ProximityPrompt)
 		return
 	end
 	local dest = part:GetAttribute("Dest")
+	if dest == "PortalIn" and not Halloween.Enabled then
+		return
+	end
 	local bucket = part:GetAttribute("Bucket")
 	if dest then
 		HalloweenClient.Travel(dest)
@@ -332,7 +335,7 @@ function HalloweenClient.Start()
 				setZone(if onIsland(pos) then "Island" else "Main")
 				UI.SetZone(tabZone(pos))
 				-- walk-through portals
-				for dest, portal in pairs({ PortalIn = Halloween.MainPortal, PortalOut = Halloween.IslandPortal }) do
+				for dest, portal in pairs(if Halloween.Enabled then { PortalIn = Halloween.MainPortal, PortalOut = Halloween.IslandPortal } else { PortalOut = Halloween.IslandPortal }) do
 					local d = Vector2.new(pos.X - portal.pos.X, pos.Z - portal.pos.Z).Magnitude
 					if d < PORTAL_WALK and pos.Y - portal.pos.Y < 12 then
 						HalloweenClient.Travel(dest)

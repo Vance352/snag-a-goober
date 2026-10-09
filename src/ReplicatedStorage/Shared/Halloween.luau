@@ -215,10 +215,10 @@ Halloween.QuestChain = {
 	{ type = "bucket", n = 2, text = "Grab candy from 2 Candy Buckets", hint = "Pumpkin buckets refill every 5 minutes.", reward = { candy = 25, exp = 50 } },
 	{ type = "halloween", n = 5, text = "Bring 5 Halloween Goobers home", hint = "Every Halloween Goober you bring home gives Event XP too.", reward = { candy = 50, coins = 300, exp = 100 } },
 	{ type = "eventlevel", n = 5, text = "Reach Event Level 5", hint = "Open the Halloween menu to claim your track rewards.", reward = { candy = 50, exp = 80 } },
-	{ type = "area", area = "Forest", n = 1, text = "Enter the Haunted Forest", hint = "The Haunted Forest gate opens at player Level 8.", reward = { candy = 60, exp = 120 } },
+	{ type = "area", area = "Forest", n = 1, text = "Enter the Haunted Forest", hint = "The Haunted Forest gate opens at Level 8 + Event Level 3.", reward = { candy = 60, exp = 120 } },
 	{ type = "candy", n = 12, text = "Find 12 hidden candies", hint = "Each area hides its own candies.", reward = { candy = 80, exp = 150 } },
 	{ type = "halloween", n = 1, rarity = "Epic", text = "Bring home an Epic Halloween Goober", hint = "The Forest and Graveyard belts roll more Epics.", reward = { candy = 120, coins = 900, exp = 200 } },
-	{ type = "area", area = "Graveyard", n = 1, text = "Enter the Cursed Graveyard", hint = "Unlocks at player Level 15.", reward = { candy = 150, exp = 250 } },
+	{ type = "area", area = "Graveyard", n = 1, text = "Enter the Cursed Graveyard", hint = "The Cursed Graveyard needs Level 15 + Event Level 8.", reward = { candy = 150, exp = 250 } },
 	{ type = "eventlevel", n = 15, text = "Reach Event Level 15", hint = "Keep collecting candy and Halloween Goobers.", reward = { candy = 200, exp = 300 } },
 	{ type = "candy", n = 30, text = "Find all 30 hidden candies", hint = "Some are tucked away in the Graveyard and the Castle.", reward = { candy = 500, coins = 3600, exp = 600 } },
 }

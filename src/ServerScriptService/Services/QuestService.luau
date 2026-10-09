@@ -68,6 +68,10 @@ local function ensureDaily(player: Player)
 	local st = S.Session.Get(player)
 	local daily = st.data.quests.daily
 	local d = today()
+	if daily.day ~= d and not Halloween.Active() then
+		-- the event is over: keep whatever is left to claim, roll no new dailies
+		return daily
+	end
 	if daily.day ~= d then
 		daily.day = d
 		daily.list = {}

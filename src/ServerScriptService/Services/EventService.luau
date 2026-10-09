@@ -62,7 +62,8 @@ end
 
 -- can this player enter the area? (player level AND event level)
 function EventService.AreaOpen(st, area): boolean
-	return st.data.level >= area.level and st.data.event.level >= (area.eventLevel or 0)
+	local evOk = st.data.event.level >= (area.eventLevel or 0) or not Halloween.Active()
+	return st.data.level >= area.level and evOk
 end
 
 function EventService.LockText(area): string
@@ -179,15 +180,18 @@ function EventService.AddEventXP(player: Player, n: number)
 		return
 	end
 	local ev = st.data.event
-	if ev.level >= Halloween.MaxEventLevel then
+	local function chests()
 		-- track done: Event XP keeps filling Bonus Chests
-		ev.bonusXp += n
-		local chests = ev.bonusXp // Halloween.BonusEvery
-		if chests > 0 then
-			ev.bonusXp -= chests * Halloween.BonusEvery
-			EventService.AddCandy(player, chests * Halloween.BonusCandy)
-			S.Session.Notify(player, "Reward", { title = "BONUS CHEST", lines = { ("+%d Candy"):format(chests * Halloween.BonusCandy) } })
+		local c = ev.bonusXp // Halloween.BonusEvery
+		if c > 0 then
+			ev.bonusXp -= c * Halloween.BonusEvery
+			EventService.AddCandy(player, c * Halloween.BonusCandy)
+			S.Session.Notify(player, "Reward", { title = "BONUS CHEST", lines = { ("+%d Candy"):format(c * Halloween.BonusCandy) } })
 		end
+	end
+	if ev.level >= Halloween.MaxEventLevel then
+		ev.bonusXp += n
+		chests()
 		st.dirty = true
 		return
 	end
@@ -201,6 +205,7 @@ function EventService.AddEventXP(player: Player, n: number)
 	if ev.level >= Halloween.MaxEventLevel then
 		ev.bonusXp += ev.xp
 		ev.xp = 0
+		chests()
 	end
 	if ev.level > from then
 		-- one banner even when a big reward jumps several levels

@@ -80,8 +80,8 @@ local list: { Goober } = {
 	{ id = "H13_DollyDread", name = "Dolly Dread", rarity = "Legendary", income = 1_500, price = 250_000, height = 3.1, anim = "jitter", blurb = "Her eyes follow you. They're buttons. How?", pool = "Halloween" },
 	{ id = "H14_HeadlessGoobman", name = "Headless Goobman", rarity = "Legendary", income = 2_200, price = 400_000, height = 3.0, anim = "stomp", blurb = "Lost his head once. Now he carries it everywhere.", pool = "Halloween" },
 	-- Secret
-	{ id = "H15_PhantomKing", name = "Phantom King", rarity = "Secret", income = 7_000, price = 1_600_000, height = 3.6, anim = "float", blurb = "Rules the Phantom Castle. Mostly from the ceiling.", pool = "Halloween" },
-	{ id = "H16_GrimGoober", name = "Grim Goober", rarity = "Secret", income = 9_000, price = 2_400_000, height = 3.4, anim = "float", blurb = "It's not here for you. It's here for your Goobers' bedtime.", pool = "Halloween" },
+	{ id = "H15_PhantomKing", name = "Phantom King", rarity = "Secret", income = 5_000, price = 1_300_000, height = 3.6, anim = "float", blurb = "Rules the Phantom Castle. Mostly from the ceiling.", pool = "Halloween" },
+	{ id = "H16_GrimGoober", name = "Grim Goober", rarity = "Secret", income = 6_000, price = 1_600_000, height = 3.4, anim = "float", blurb = "It's not here for you. It's here for your Goobers' bedtime.", pool = "Halloween" },
 }
 
 local GooberData = {}
