@@ -181,7 +181,7 @@ speed 29.75, 5% at 26; three-stall cluster: 20% at 20, 32% at 26).
 | 1.0 s + 1.5 s stalls 0.6 s apart, all speeds | - | 0% |
 | Three stalls (1.0, 1.5, 2.0 s; 0.6/0.5 s apart), all speeds | 20-32% cancel | 0% |
 | Single 1.5 s, ticks 0.10-0.20 s; three stalls, ticks 0.10-0.35 s | - | 0% |
-| 1.5 s stall with velocity 0 (ReceiveAge cue on) | - | 0% |
+| 1.5 s stall with velocity 0, simulator pretending ReceiveAge grows (CORRECTION, audit 13: ReceiveAge does not grow in Studio, so this row is not evidence about real networks) | - | 0% |
 | 1.5 s stall with velocity 0 AND no ReceiveAge growth (no stall cue at all) | - | 27-70% cancel |
 Live (open lane z=-27): three-stall cluster 0/0 refusals; a stall at the very start of walking (round 12 m1) 0; single 2.0 s 0.
 Exploits live: stand + spoofed stall 2 s + 40-stud hop -> plausible 2.58 s after the spoof began (walk 2.0 s); hop chains
@@ -189,3 +189,26 @@ Exploits live: stand + spoofed stall 2 s + 40-stud hop -> plausible 2.58 s after
 the 1.05x original-start floor); 1.2x caught at 6.2 s, 1.5x at 1.6 s.
 BasePart.ReceiveAge is readable but hovered at 0.08-0.13 s while walking and did not grow when idle, so it is probably
 not a reliable stall signal; it is kept as a secondary cue (worst case it skips constraints, which is time-neutral).
+
+## 2026-10-09 - builder fix of round-13 C1 (spoofed idle -> teleport) + retest
+Cause: stalls re-armed every 3 s while standing still and the 20 s prune then dropped the last real sample, leaving
+nothing to bound a hop. Fix: the newest real sample is never pruned; stall + catch-up may skip at most 5 s past it
+(STALL_BUDGET); a new stall needs movement since the last one; catch-up window 0.6 s.
+tools/guard_sim.luau: ReceiveAge now behaves as measured live (does not grow) unless a test opts in; exploit mode
+(spoofed idle then hop, must be flagged); pcall + guaranteed cleanup of its temporary floor.
+| Test | Result |
+|---|---|
+| LIVE auditor C1 repro: pinned at (-190,3,-27) spoofing velocity 20 for 22 s, hop 286 studs, Snag x4 | "Whoa, slow down!" x4 |
+| Sim exploit: spoofed idle 22 s + hop 256 / 7 s + 140 / 6 s + 110 / 10 s + 150 (speeds 20, 29.75) | flagged 100% |
+| Sim legit: single 1.0 / 1.5 / 2.5 s stalls, speeds 13.6-29.75 | 0% cancel, 0 flags |
+| Sim legit: stall pair 1.0 s + 1.5 s, 0.6 s apart | 0% |
+| Sim legit: single 1.5 s with ticks 0.10-0.35 s | 0% |
+| Sim legit: single 1.5 s with 0.6 s lag | 0 cancels (43/100 brief flags at speed 29.75) |
+| Sim legit: three stalls (1.0, 1.5, 2.0 s) inside ~6 s | ~50% cancel - KNOWN LIMIT (exceeds the 5 s budget) |
+| Sim: velocity 0 during a stall (no stall cue) | still cancels - KNOWN LIMIT |
+| LIVE legit (lane z=-27): single 1.5 s, single 2.5 s, pair, stall at walk start | 0 refusals each |
+| LIVE speed hack 1.2x / 1.5x | caught at 5.2 s / 2.6 s |
+| Console | no script errors |
+Inherent trade-off (documented): while a client appears stalled, the server can't know where it is, so a cheater who
+fakes the stall pattern can appear anywhere within ~5 s of walking (~100 studs at speed 20) of their last confirmed
+spot, once per movement; never further, never chained.

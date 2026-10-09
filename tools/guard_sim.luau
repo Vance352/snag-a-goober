@@ -14,9 +14,12 @@
 		return run({ speeds = {17, 20, 26, 29.75}, stalls = { {1.5} }, trials = 150, dtMin = 0.10, dtMax = 0.12 })
 	Each stall entry is {duration, gapBeforeNext?}. Returns cancel/flag rates.
 	Options: lag (0.3), dtMin/dtMax (tick jitter), stallVel (velocity the
-	server sees during a stall; default = walking), receiveAge (false = don't
-	simulate BasePart.ReceiveAge growing during a stall), source (MoveGuard
-	source to test instead of the current one), seed.
+	server sees during a stall; default = walking), receiveAge (true = pretend
+	BasePart.ReceiveAge grows during a stall; it doesn't in Studio), source
+	(MoveGuard source to test instead of the current one), seed.
+	Exploit mode: opts.exploit = { idle = seconds, hop = studs } - the carrier
+	stands still spoofing walking velocity for `idle` s, then jumps `hop`
+	studs; the result counts how often that was flagged (it must be ~always).
 ]]
 
 return function(opts)
@@ -31,7 +34,9 @@ return function(opts)
 	MG.Init({ Session = { Get = function() return nil end }, Steal = { Offence = function() end } })
 	local stallStart -- for the simulated ReceiveAge
 	MG._receiveAge = function()
-		return if opts.receiveAge ~= false and stallStart then fake.now - stallStart else 0
+		-- live Studio measurement: ReceiveAge stays ~0.1 s during a stall, so it
+		-- only "grows" here if a test asks for it (opts.receiveAge = true)
+		return if opts.receiveAge == true and stallStart then fake.now - stallStart else 0.1
 	end
 
 	-- a temporary floor under the test lane (long walks leave the map, and
@@ -44,9 +49,10 @@ return function(opts)
 	floor.Transparency = 1
 	floor.Parent = workspace
 
+	local out = {}
+	local function body()
 	local rng = Random.new(opts.seed or 1)
 	local LAG = opts.lag or 0.3
-	local out = {}
 	for _, speed in ipairs(opts.speeds or { 20 }) do
 		local cancels, flagged = 0, 0
 		for trial = 1, opts.trials or 100 do
@@ -69,9 +75,16 @@ return function(opts)
 				table.insert(stallsAt, { t0, t0 + st[1], bursts = rng:NextInteger(1, 3) })
 				t0 += st[1] + (st[2] or 3)
 			end
-			local total = t0 + 2
+			local total = if opts.exploit then 1 + opts.exploit.idle + 1.5 else t0 + 2
 			local function clientX(t) return speed * math.max(t, 0) end
 			local function seen(t)
+				local ex = opts.exploit
+				if ex then
+					-- walk 1 s, stand still (spoofing) for ex.idle s, then hop
+					if t < 1 then return speed * t, false end
+					if t < 1 + ex.idle then return speed, true end
+					return speed + ex.hop, false
+				end
 				for _, st in ipairs(stallsAt) do
 					if t >= st[1] and t < st[2] then
 						return clientX(st[1] - LAG), true -- frozen at the last packet
@@ -102,7 +115,7 @@ return function(opts)
 				hrp.AssemblyLinearVelocity = Vector3.new(if frozen and opts.stallVel then opts.stallVel else speed, 0, 0)
 				fake.now = base + t
 				local ok, _, excess = MG.CarryStep(player, carry)
-				if opts.trace and trial == 1 then
+				if opts.trace and trial == (opts.traceTrial or 1) then
 					local last = carry.trail and carry.trail[#carry.trail]
 					table.insert(out, ("t=%.2f x=%.1f %s ok=%s ex=%.1f tag=%s n=%d"):format(t, x, if frozen then "F" else "-", tostring(ok), excess or 0,
 						last and (if last.stall then "S" elseif last.catchup then "C" else "") or "?", carry.trail and #carry.trail or 0))
@@ -126,6 +139,11 @@ return function(opts)
 		end
 		table.insert(out, ("speed %.2f: cancel %d/%d, flagged %d"):format(speed, cancels, opts.trials or 100, flagged))
 	end
-	floor:Destroy()
+	end
+	local ok, err = pcall(body)
+	floor:Destroy() -- always, so the helper part can never be saved into the place
+	if not ok then
+		error(err)
+	end
 	return out
 end

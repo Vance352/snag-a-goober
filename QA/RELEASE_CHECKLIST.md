@@ -9,7 +9,7 @@ The game stays **Private** until you approve this list. Nothing here costs money
 - [x] 6 gamepasses + 4 developer products live, prices match the in-game store (verifyMarketplace, re-checked every QA round).
 - [x] Original audio uploaded and approved; all meshes in use are moderation-approved (10 rejected Eye meshes replaced by native parts).
 - [x] Studio API access on (DataStores).
-- [x] 10 independent QA rounds (reports in `QA/`). Rounds 9 and 10 found no critical defects and no category below 7; every round so far failed only on the overall score (best 7.68 of the 8.0 needed). See "Why it isn't at 8.0 yet".
+- [x] 13 independent QA rounds (reports in `QA/`). Best score 7.73 / 8.0 (round 12: no critical defects, no category below 7). Round 13 found a critical movement-guard regression (spoofed idle -> teleport), fixed afterwards and retested by the builder (QA/test-log.md) but **not yet re-audited**. See "Why it isn't at 8.0 yet".
 
 ## Before going public
 - [ ] **Save + Publish in Studio**: File -> Save to Roblox, then File -> Publish to Roblox. Studio has many unsaved script changes from overnight (all also in git); players only get published code.
@@ -29,4 +29,4 @@ The auditor scores what it can see. With Studio not rendering and only one test 
 - 8-player load not tested (largest test: 3 clients in a Studio local server).
 - Sound quality unheard by the builder (files load and play; synthesized originals).
 - Studio cannot simulate real Robux purchases; receipts were tested with simulated receipts (idempotency verified).
-- Anti-cheat tolerance is deliberate: a lag stall of up to ~3 s is forgiven, and a cheater faking that pattern can at best match walking speed (measured: hop chains take as long as walking, speed hacks of 1.2x+ are caught within ~5 s). Real-network lag behaviour is untested.
+- Anti-cheat lag tolerance is a deliberate trade-off: a network stall (frozen position with walking velocity) of up to ~5 s is forgiven, so a cheater who fakes that pattern can appear anywhere within ~5 s of walking (~100 studs) of their last confirmed spot - once per movement, never chained (a 22 s fake idle + 286-stud hop is refused). Speed hacks of 1.2x+ are caught within ~5 s. Three or more long stalls inside ~6 s, or a stall in which the server sees zero velocity, can still cancel a theft. Real-network lag behaviour is untested.

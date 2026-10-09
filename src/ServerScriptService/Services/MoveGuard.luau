@@ -14,8 +14,9 @@
 	  * Lag: when a walking client's connection stalls, the server sees it
 	    frozen in place while its replicated velocity still says "walking",
 	    then catching up in a few bursts. Those frozen "stall" samples
-	    (stationary with walking velocity or no packets arriving, at most 3 s)
-	    and the catch-up in
+	    (stationary with walking velocity, at most 4 s past the last real
+	    sample, and only after real movement since the previous stall) and
+	    the catch-up in
 	    the second after them are not real positions in time, so they are
 	    not used as constraints; the samples
 	    from before the stall still bound the catch-up - and every trip - to
@@ -49,6 +50,8 @@ local STALL_MOVE = 1 -- studs per sample: a stall is a position that doesn't mov
 local STALL_MAX = 3.0 -- seconds: a "stall" longer than this is someone standing still
 local STALL_BACK = 0.4 -- seconds: frozen samples just before a stall is recognised still count as the stall
 local STALL_AGE = 0.3 -- seconds without physics packets from the owner = a stall
+local CATCHUP_WINDOW = 0.6 -- seconds after a stall in which positions may still lag (burst catch-up)
+local STALL_BUDGET = 5.0 -- seconds: stalls + catch-ups may skip at most this long past the newest real sample
 local HISTORY = 20.0 -- long window, so the constant slacks can't be turned into a speed
 local SETTLE_TIME = 1.0
 local SETTLE_RADIUS = 12
@@ -61,6 +64,8 @@ export type Sample = {
 	stallSince: number?, -- when the current stall began
 	stall: boolean?, -- a frozen position from a network stall: not used as a constraint
 	catchup: number?, -- a burst within 1 s after a stall (also lagging): when the stall ended
+	lastRealT: number?, -- time of the newest real (constraining) sample up to this one
+	armed: boolean?, -- a new stall may start (real movement since the last stall)
 }
 type Guard = {
 	history: { Sample },
@@ -128,24 +133,31 @@ end
 -- A stall is a position that stays put while the replicated velocity says
 -- "walking", or while no physics packets arrive from the owner (ReceiveAge) -
 -- what the server sees when a walking client's connection stalls. Its
--- samples, and the catch-up in the second after it, are skipped as
--- constraints. That is always safe: the last real sample before the stall
--- still bounds every later position to walking speed, so faking a stall
--- gains nothing.
+-- samples, and the catch-up just after it, are skipped as
+-- constraints. That is safe because of three limits:
+--   * the newest real sample is never pruned, so it always bounds later
+--     positions to walking speed from where the player really was;
+--   * stall + catch-up may last at most STALL_BUDGET past that real sample -
+--     after that every sample counts again;
+--   * a new stall can only start after movement (>= STALL_MOVE) since the
+--     last one, so stalls can't be chained while standing still.
 local function sample(list: { Sample }, pos: Vector3, speed: number, vel: Vector3, age: number): Sample
 	local now = os.clock()
 	local smp: Sample = { t = now, pos = pos, speed = speed }
 	local prev = list[#list]
 	if not prev then
+		smp.lastRealT, smp.armed = now, true
 		return smp
 	end
 	local spd = math.max(speed, prev.speed)
 	local moved = (flat(pos) - flat(prev.pos)).Magnitude
 	local stallEnd = if prev.stall then prev.t else prev.catchup
-	if moved < STALL_MOVE then
-		if prev.stall and now - (prev.stallSince or now) <= STALL_MAX then
+	local realT = prev.lastRealT or prev.t
+	local inBudget = now - realT <= STALL_BUDGET
+	if moved < STALL_MOVE and inBudget then
+		if prev.stall then
 			smp.stall, smp.stallSince = true, prev.stallSince -- (velocity flickers mid-stall)
-		elseif (vel.Magnitude >= STALL_VEL * spd or age >= STALL_AGE) and not prev.stall then
+		elseif prev.armed and (vel.Magnitude >= STALL_VEL * spd or age >= STALL_AGE) then
 			smp.stall, smp.stallSince = true, now
 			-- the first frozen samples may have shown a low velocity: they are
 			-- part of the same stall if they sit right here and are this recent
@@ -156,13 +168,23 @@ local function sample(list: { Sample }, pos: Vector3, speed: number, vel: Vector
 				end
 				x.stall = true
 				smp.stallSince = x.t
+				local before = list[i - 1]
+				realT = if before then before.lastRealT or before.t else x.t
 			end
 		end
 	end
-	if not smp.stall and stallEnd and now - stallEnd <= 1.0 then
+	if not smp.stall and inBudget and stallEnd and now - stallEnd <= CATCHUP_WINDOW then
 		-- the catch-up after a stall often arrives in a few bursts (with
 		-- pauses); those positions lag real time just like the stall did
 		smp.catchup = stallEnd
+	end
+	if smp.stall then
+		smp.lastRealT, smp.armed = realT, false
+	elseif smp.catchup then
+		smp.lastRealT, smp.armed = realT, moved >= STALL_MOVE -- moving again re-arms
+	else
+		smp.lastRealT = now
+		smp.armed = moved >= STALL_MOVE or (prev.armed == true and not prev.stall)
 	end
 	return smp
 end
@@ -199,7 +221,7 @@ local function reachable(list: { Sample }, pos: Vector3, speedNow: number, slack
 		local s = list[i]
 		speed = math.max(speed, s.speed)
 		-- stall and catch-up samples aren't real positions in time
-		if not (s.stall or s.catchup) or (i == 1 and checked == 0) then -- (but never check nothing)
+		if not (s.stall or s.catchup) or (i == 1 and checked == 0) then -- (prune keeps a real one; never check nothing)
 			checked += 1
 			local dt = now - s.t + REPL_LAG
 			local d = (flat(pos) - flat(s.pos)).Magnitude
@@ -212,9 +234,26 @@ local function reachable(list: { Sample }, pos: Vector3, speedNow: number, slack
 	return worst <= 0, worst
 end
 
+local function isReal(x: Sample): boolean
+	return not (x.stall or x.catchup)
+end
+
+-- Drop samples older than `keep`, but never the newest real one.
 local function prune(list: { Sample }, keep: number)
 	local now = os.clock()
 	while #list > 1 and now - list[1].t > keep do
+		if isReal(list[1]) then
+			local laterReal = false
+			for i = 2, #list do
+				if isReal(list[i]) then
+					laterReal = true
+					break
+				end
+			end
+			if not laterReal then
+				break
+			end
+		end
 		table.remove(list, 1)
 	end
 end
@@ -314,7 +353,7 @@ end
 
 local function anchorAt(player: Player, g: Guard, pos: Vector3)
 	local now = os.clock()
-	g.history = { { t = now, pos = pos, speed = MoveGuard.MaxSpeed(player) } }
+	g.history = { { t = now, pos = pos, speed = MoveGuard.MaxSpeed(player), lastRealT = now, armed = true } }
 	g.frozen = nil
 	g.debt = false
 	g.settleUntil = now + SETTLE_TIME
@@ -387,7 +426,7 @@ function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?, number?)
 	local speed = MoveGuard.MaxSpeed(player)
 	local trail = carry.trail
 	if not trail then
-		carry.trail = { { t = now, pos = pos, speed = speed } }
+		carry.trail = { { t = now, pos = pos, speed = speed, lastRealT = now, armed = true } }
 		carry.airSince = nil
 		carry.ground = table.clone(carry.trail[1])
 		return true
