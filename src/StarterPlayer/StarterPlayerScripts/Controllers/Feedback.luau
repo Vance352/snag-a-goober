@@ -323,8 +323,26 @@ function EFFECT.Coins(p)
 	end
 end
 
+local HALLOWEEN = require(ReplicatedStorage.Shared.Halloween)
+local function onIsland(): boolean
+	local hrp = myHrp()
+	if not hrp then
+		return false
+	end
+	local o, size = HALLOWEEN.Origin, HALLOWEEN.Size
+	return math.abs(hrp.Position.X - o.X) <= size.X / 2 + 12 and math.abs(hrp.Position.Z - o.Z) <= size.Y / 2 + 12
+end
+
 function EFFECT.RareSpawn(p)
 	local color = Config.Rarities[p.rarity].color
+	-- island belts only announce to players on the island who can use that belt
+	local spawnLine = Config.Lines[p.line or "Main"]
+	if spawnLine and spawnLine.pool == "Halloween" then
+		local s = State.data
+		if not onIsland() or not s or s.level < spawnLine.levelRequired then
+			return
+		end
+	end
 	if p.rarity == "Legendary" or p.rarity == "Secret" then
 		local line = Config.Lines[p.line or "Main"]
 		UI.Banner(("%s SPOTTED!"):format(p.rarity:upper()), ("%s just hit %s!"):format(nameOf(p.id), if line and line.displayName then "the " .. line.displayName:gsub("^The ", "") else "the belt"), color, 4)

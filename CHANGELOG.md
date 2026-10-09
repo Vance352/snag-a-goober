@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-09 (evening)
+- Island polish: belt rails no longer bloom like floodlights, belt odds boards moved onto gantries over the belt starts; island rare-spawn toasts only reach players on the island who can use that belt (the Castle belt was spamming everyone).
 - Halloween update, part 2: Halloween Island built (IslandBuilder: village hub with the Great Pumpkin, Candy Shop and Quest Board, Pumpkin Patch / Haunted Forest / Cursed Graveyard / Phantom Castle with level gates, four spooky belts, 30 candies, 6 buckets, both portals); event/quest/level server systems wired in; new client controller (portals, candy, gates, night lighting, music zones, intro); UI redesign (chunky icon nav, travel tabs, candy pill + event timer, player and quest cards, Event / Quests / Levels panels, Index Halloween tab); 26 original icons (tools/make_icons.py) replace every emoji; new main + Halloween music and Halloween SFX synthesised (tools/make_audio_halloween.py, upload pending); 10 builder playtests logged.
 
 ## 2026-10-09 (afternoon)

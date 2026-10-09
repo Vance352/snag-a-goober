@@ -29,7 +29,7 @@ local COL = {
 	graveyard = Color3.fromRGB(78, 76, 92),
 	castle = Color3.fromRGB(62, 50, 82),
 	belt = Color3.fromRGB(36, 30, 46),
-	rail = Color3.fromRGB(255, 138, 31),
+	rail = Color3.fromRGB(150, 62, 14), -- neon: dark so the bloom stays a glow, not a floodlight
 	stone = Color3.fromRGB(74, 68, 88),
 	booth = Color3.fromRGB(110, 60, 150),
 	roof = Color3.fromRGB(255, 120, 30),
@@ -276,8 +276,12 @@ local function belt(root: Instance, lineName: string, line)
 		end
 	end
 	table.insert(lines, { table.concat(odds, "  •  "), 0.3, Color3.fromRGB(255, 230, 170) })
-	local sp = Vector3.new(midX, O.Y + 9, line.z + 11)
-	sign(m, CFrame.lookAt(sp, sp + Vector3.new(0, 0, if line.z > O.Z then -1 else 1)), Vector3.new(34, 5.5, 0.6), lines)
+	-- odds board as a gantry over the start of the belt, facing down it toward the gate
+	local sp = Vector3.new(line.startX + dir * 4, O.Y + 14, line.z)
+	sign(m, CFrame.lookAt(sp, sp + Vector3.new(dir, 0, 0)), Vector3.new(26, 6, 0.6), lines)
+	for _, sz in ipairs({ -1, 1 }) do
+		part({ Name = "SignPost", Size = Vector3.new(1, 17, 1), CFrame = CFrame.new(sp.X, O.Y + 8.5, sp.Z + sz * 12.6), Color = Color3.fromRGB(46, 30, 24), Material = Enum.Material.Wood, Parent = m })
+	end
 	return m
 end
 
