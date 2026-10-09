@@ -69,6 +69,17 @@ def chain(*fns):
     return f
 
 
+# Slots built in Roblox from native parts (Part + sphere/block) instead of
+# uploaded meshes. Roblox's automated mesh moderation rejected several "Eye"
+# meshes (pairs of white spheres) as false positives, so eyes and pupils are
+# never uploaded as meshes: their shapes are exported as specs instead
+# (Assets/AssetDocumentation/native_parts.json) and rebuilt by
+# tools/process_import.luau. Set to False only for local preview renders.
+NATIVE_SLOTS = {"Eye", "Pupil"}
+NATIVE_EXPORT = True
+NATIVE = {}  # asset id -> [ {slot, shape, center, size} ] (asset-local Blender coords)
+
+
 class Asset:
     """Accumulates primitives per material slot, then builds objects."""
 
@@ -77,6 +88,7 @@ class Asset:
         self.colors = dict(SLOT_PREVIEW)
         self.colors.update(colors or {})
         self.slots = {}  # slot -> bmesh
+        self.native = []
         self.collection = collection or bpy.context.scene.collection
 
     # ---------------------------------------------------------------- core
@@ -95,6 +107,21 @@ class Asset:
         bmesh.ops.transform(bm, matrix=Matrix.Translation(Vector(loc)) @ rm, verts=bm.verts)
         for face in bm.faces:
             face.smooth = smooth
+        if slot in NATIVE_SLOTS:
+            # record the primitive's bounding box; also keep it as preview
+            # geometry unless we're building the upload export
+            xs = [v.co.x for v in bm.verts]
+            ys = [v.co.y for v in bm.verts]
+            zs = [v.co.z for v in bm.verts]
+            self.native.append({
+                "slot": slot,
+                "shape": "box" if len(bm.verts) == 8 else "ball",
+                "center": [round((min(xs) + max(xs)) / 2, 4), round((min(ys) + max(ys)) / 2, 4), round((min(zs) + max(zs)) / 2, 4)],
+                "size": [round(max(xs) - min(xs), 4), round(max(ys) - min(ys), 4), round(max(zs) - min(zs), 4)],
+            })
+            if NATIVE_EXPORT:
+                bm.free()
+                return
         tmp = bpy.data.meshes.new("_tmp")
         bm.to_mesh(tmp)
         bm.free()
@@ -219,6 +246,8 @@ class Asset:
 
     # ---------------------------------------------------------------- build
     def build(self, offset=(0, 0, 0)):
+        NATIVE[self.id] = list(self.native)
+        self.native = []
         root = bpy.data.objects.new(self.id, None)
         root.empty_display_type = "PLAIN_AXES"
         root.location = offset

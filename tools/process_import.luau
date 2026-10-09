@@ -18,6 +18,14 @@ local HS = game:GetService("HttpService")
 local RS = game:GetService("ReplicatedStorage")
 
 local palette = HS:JSONDecode(HS:GetAsync("http://127.0.0.1:34873/Assets/AssetDocumentation/palette.json?t=" .. os.clock(), true))
+-- Eyes/pupils are NOT uploaded meshes (Roblox moderation false-positives on
+-- paired spheres); they are rebuilt here from Blender specs as native parts.
+local nativeSpec = HS:JSONDecode(HS:GetAsync("http://127.0.0.1:34873/Assets/AssetDocumentation/native_parts.json?t=" .. os.clock(), true))
+local NATIVE_SLOTS = { Eye = true, Pupil = true }
+-- Blender (x, y, z) -> Roblox (-x, z, y)   (verified on the imported P_Gusher)
+local function b2r(v)
+	return Vector3.new(-v[1], v[3], v[2])
+end
 local GooberData = require(RS.Shared.GooberData:Clone())
 local Config = require(RS.Shared.Config:Clone())
 
@@ -63,7 +71,7 @@ end
 for _, d in ipairs(all) do
 	if d:IsA("MeshPart") then
 		local aid, slot = d.Name:match("^([GP][%w_]-)__(%w+)$")
-		if aid and palette.palette[aid] then
+		if aid and palette.palette[aid] and not NATIVE_SLOTS[slot] then
 			groups[aid] = groups[aid] or {}
 			table.insert(groups[aid], { part = d, slot = slot })
 			count += 1
@@ -108,6 +116,8 @@ for aid, parts in pairs(groups) do
 	end
 end
 table.sort(yawVotes)
+-- (Eye meshes are skipped now, so votes may be empty; the verified mapping
+-- already faces -Z, i.e. yaw 0)
 local yaw = yawVotes[math.max(1, math.floor(#yawVotes / 2))] or 0
 -- snap to the nearest 90 degrees (the exporter only swaps axes)
 yaw = math.round(yaw / (math.pi / 2)) * (math.pi / 2)
@@ -160,6 +170,43 @@ for aid, parts in pairs(groups) do
 		p.Parent = model
 		table.insert(copies, { part = p, slot = e.slot })
 	end
+	-- native eyes/pupils, placed relative to a reference mesh in import space
+	local specs = nativeSpec.native[aid]
+	local centers = nativeSpec.slotCenters[aid]
+	if specs and #specs > 0 and centers then
+		local ref
+		for _, e in ipairs(copies) do
+			if centers[e.slot] and (not ref or e.part.Size.Magnitude > ref.part.Size.Magnitude) then
+				ref = e
+			end
+		end
+		assert(ref, "no reference slot for " .. aid)
+		local refB = centers[ref.slot]
+		for _, spec in ipairs(specs) do
+			local d = { spec.center[1] - refB[1], spec.center[2] - refB[2], spec.center[3] - refB[3] }
+			local p = Instance.new("Part")
+			p.Name = spec.slot
+			p.Size = b2r({ spec.size[1], spec.size[2], spec.size[3] }):Abs()
+			p.CFrame = CFrame.new(ref.part.Position + b2r(d))
+			p.TopSurface = Enum.SurfaceType.Smooth
+			p.BottomSurface = Enum.SurfaceType.Smooth
+			if spec.shape == "ball" then
+				local m = Instance.new("SpecialMesh")
+				m.MeshType = Enum.MeshType.Sphere
+				m.Parent = p
+			end
+			local rgb = palette.palette[aid][spec.slot]
+			p.Color = if rgb then Color3.fromRGB(rgb[1], rgb[2], rgb[3]) else Color3.new(1, 1, 1)
+			p.Material = if spec.slot == "Eye" then Enum.Material.SmoothPlastic else Enum.Material.SmoothPlastic
+			p.Anchored = true
+			p.CanTouch = false
+			p.CastShadow = false
+			p.Parent = model
+			table.insert(copies, { part = p, slot = spec.slot })
+		end
+		report.native = (report.native or 0) + #specs
+	end
+
 	-- orient: rotate about the bbox centre, then sit on the origin facing -Z
 	local mn, mx = bbox(copies)
 	local center = (mn + mx) / 2
