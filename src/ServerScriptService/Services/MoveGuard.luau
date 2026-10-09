@@ -11,14 +11,14 @@
 	    time since that sample (+0.5 s for replication delay). A position is
 	    only trusted (recorded) after passing that check, so there is no
 	    unchecked window to abuse.
-	  * Lag credit: while a client is frozen the server sees it standing
-	    still, then catching up (often in a few bursts). Each sample carries a
-	    "bank": how many seconds the player is behind a full-speed walker
-	    (standing still adds time, moving faster than walking spends it,
-	    capped at 1.6 s). Samples extend their allowance by their bank (at
-	    most the current bank + 1 s, so a speed hack that drains the bank
-	    loses the credit everywhere). A catch-up after a ~1.5 s freeze
-	    passes, and it is time-fair: nobody gets anywhere faster than walking.
+	  * Lag credit: when a walking client's connection stalls, the server
+	    sees it frozen in place while its replicated velocity still says
+	    "walking", then catching up in a few bursts. Only that pattern fills a
+	    sample's "bank" (seconds behind a full-speed walker, max 1.6 s);
+	    simply standing still earns nothing, so waiting at the belt can't be
+	    turned into a teleport. Moving faster than walking spends the bank
+	    (x1.5), samples' credit is capped at the newest bank + 0.25 s, and
+	    after a catch-up burst the history re-bases at the caught-up spot.
 	  * On a violation the player is "in debt": the trusted samples freeze,
 	    and debt clears only once the current position is reachable by
 	    walking from every one of them. Multi-hop teleports and speed hacks
@@ -42,7 +42,10 @@ local CARRY_SLACK = 1.05 -- carry speed tolerance
 local DIST_SLACK = 2.5 -- studs of physics jitter
 local REPL_LAG = 0.5 -- seconds: replication delay varies (a catch-up after a freeze collapses it)
 local HITCH_CREDIT = 1.6 -- seconds of standing still credited for a lag catch-up
-local BANK_SPARE = 1.0 -- old samples keep at most (current bank + this) of their credit
+local BANK_SPARE = 0.25 -- old samples keep at most (newest bank + this) of their credit
+local STALL_VEL = 0.4 -- replicated speed (x walk speed) that marks a frozen position as a stall
+local REBASE_SPEND = 0.3 -- a sample that spends this much bank is a catch-up burst
+local TELEPORT_EXCESS = 10 -- studs beyond the allowance that count as a teleport, not lag
 local HISTORY = 10.0 -- long window, so the constant slacks don't let a steady speed hack through
 local SETTLE_TIME = 1.0
 local SETTLE_RADIUS = 12
@@ -60,6 +63,7 @@ type Guard = {
 	settlePos: Vector3?,
 	flaggedAt: number,
 	lastFlag: string?,
+	returning: boolean?,
 }
 local guards: { [Player]: Guard } = {}
 
@@ -109,18 +113,39 @@ function MoveGuard.Settling(player: Player): boolean
 	return os.clock() < guardOf(player).settleUntil
 end
 
--- The lag bank a sample at `pos` would have, carried forward from the newest one.
-local function bankAt(list: { Sample }, pos: Vector3, speed: number): number
+-- The lag bank a sample at `pos` would have, carried forward from the newest
+-- one. `vel` is the server's replicated horizontal speed of the character.
+local function bankAt(list: { Sample }, pos: Vector3, speed: number, vel: number): number
 	local prev = list[#list]
 	if not prev then
 		return 0
 	end
-	local walk = (flat(pos) - flat(prev.pos)).Magnitude / math.max(speed, prev.speed)
-	return math.clamp(prev.bank + (os.clock() - prev.t) - walk, 0, HITCH_CREDIT)
+	local spd = math.max(speed, prev.speed)
+	local gain = (os.clock() - prev.t) - (flat(pos) - flat(prev.pos)).Magnitude / spd
+	if gain < 0 then
+		return math.max(0, prev.bank + 1.5 * gain) -- faster than walking: spend
+	elseif vel >= STALL_VEL * spd then
+		return math.min(HITCH_CREDIT, prev.bank + gain) -- stalled mid-walk: earn
+	end
+	return prev.bank
 end
 
-local function sample(list: { Sample }, pos: Vector3, speed: number): Sample
-	return { t = os.clock(), pos = pos, bank = bankAt(list, pos, speed), speed = speed }
+local function sample(list: { Sample }, pos: Vector3, speed: number, vel: number): Sample
+	return { t = os.clock(), pos = pos, bank = bankAt(list, pos, speed, vel), speed = speed }
+end
+
+-- Record a trusted sample; a catch-up burst re-bases the list at it.
+local function record(list: { Sample }, smp: Sample): { Sample }
+	local prev = list[#list]
+	if prev and prev.bank - smp.bank >= REBASE_SPEND then
+		return { smp }
+	end
+	table.insert(list, smp)
+	return list
+end
+
+local function hvel(part: BasePart): number
+	return flat(part.AssemblyLinearVelocity).Magnitude
 end
 
 -- Reachable from every sample in `list`? Uses the highest walk speed in force
@@ -131,7 +156,8 @@ local function reachable(list: { Sample }, pos: Vector3, speedNow: number, slack
 	local speed = speedNow
 	local worst = 0
 	-- a speed hack spends the bank, so every sample's credit shrinks with it
-	local cap = bankAt(list, pos, speedNow) + BANK_SPARE
+	local newest = list[#list]
+	local cap = (if newest then newest.bank else 0) + BANK_SPARE
 	for i = #list, 1, -1 do
 		local s = list[i]
 		speed = math.max(speed, s.speed)
@@ -164,7 +190,7 @@ local function enterDebt(player: Player, g: Guard, excess: number, reason: strin
 	g.frozen = table.clone(g.history)
 	local st = S.Session.Get(player)
 	if st and st.carry and st.carry.source == "steal" then
-		S.Steal.Offence(player, g.frozen[#g.frozen])
+		S.Steal.Offence(player, g.frozen[#g.frozen], excess)
 	end
 end
 
@@ -172,11 +198,23 @@ local function check(player: Player, g: Guard, pos: Vector3): boolean
 	local speed = MoveGuard.MaxSpeed(player)
 	if g.debt then
 		local frozen = g.frozen or {}
-		if os.clock() - g.debtSince > DEBT_FORGIVE or #frozen == 0 or reachable(frozen, pos, speed, ACTION_SLACK, 0) then
+		if #frozen == 0 or reachable(frozen, pos, speed, ACTION_SLACK, 0) then
 			g.debt = false
-			g.history = if os.clock() - g.debtSince > DEBT_FORGIVE then {} else frozen
+			g.history = frozen
 			g.frozen = nil
 			return true
+		end
+		if os.clock() - g.debtSince > DEBT_FORGIVE and not g.returning then
+			-- safety valve for someone stuck in debt: put them back where we
+			-- last trusted them (never trust where they are now)
+			g.returning = true
+			local back = frozen[#frozen].pos
+			task.defer(function()
+				g.returning = false
+				if g.debt and player.Parent then
+					MoveGuard.ServerMove(player, CFrame.new(back))
+				end
+			end)
 		end
 		return false
 	end
@@ -214,6 +252,8 @@ function MoveGuard.LastFlag(player: Player): string?
 end
 
 -- Studio test harness only: a snapshot of the guard state.
+MoveGuard.TELEPORT_EXCESS = TELEPORT_EXCESS
+
 function MoveGuard.Debug(player: Player)
 	local g = guardOf(player)
 	local now = os.clock()
@@ -276,8 +316,9 @@ rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
 -- Per-tick validation of a carry's path (call ~10x/s while carrying).
 -- Returns false if the carrier teleported, sped or hovered, plus the last
--- trusted sample (where the walking clock should restart from), if known.
-function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?)
+-- trusted sample (where the walking clock should restart from), if known, and
+-- how far beyond the allowance they were (studs).
+function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?, number?)
 	local hrp = hrpOf(player)
 	if not hrp then
 		return true
@@ -287,7 +328,7 @@ function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?)
 	local pos = hrp.Position
 	if g.debt then
 		local f = g.frozen
-		return false, f and f[#f]
+		return false, f and f[#f], 0
 	end
 	if now < g.settleUntil and g.settlePos and (flat(pos) - flat(g.settlePos)).Magnitude > SETTLE_RADIUS then
 		return true -- server move still replicating; completion is blocked by Settling()
@@ -301,25 +342,26 @@ function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?)
 		return true
 	end
 	local last = trail[#trail]
-	if not reachable(trail, pos, speed, CARRY_SLACK, pingSlack(player, speed)) then
-		return false, last
+	local ok, excess = reachable(trail, pos, speed, CARRY_SLACK, pingSlack(player, speed))
+	if not ok then
+		return false, last, excess
 	end
 	-- hovering: more than 12 studs above whatever is below for > 0.6 s
 	rayParams.FilterDescendantsInstances = { player.Character, carry.model }
 	local hit = workspace:Raycast(pos, Vector3.new(0, -40, 0), rayParams)
 	local height = if hit then pos.Y - hit.Position.Y else 40
-	local s = sample(trail, pos, speed)
+	local s = sample(trail, pos, speed, hvel(hrp))
 	if height > 12 then
 		carry.airSince = carry.airSince or now
 		if now - carry.airSince > 0.6 then
-			return false, carry.ground -- restart from the last spot on the ground
+			return false, carry.ground, TELEPORT_EXCESS + 1 -- flying: restart from the last spot on the ground
 		end
 	else
 		carry.airSince = nil
 		carry.ground = table.clone(s)
 	end
-	table.insert(trail, s)
-	prune(trail, HISTORY)
+	carry.trail = record(trail, s)
+	prune(carry.trail, HISTORY)
 	return true
 end
 
@@ -333,14 +375,14 @@ function MoveGuard.Start()
 				if hrp then
 					local g = guardOf(player)
 					local pos = hrp.Position
-					local record
+					local ok
 					if now < g.settleUntil then
-						record = g.settlePos ~= nil and (flat(pos) - flat(g.settlePos)).Magnitude <= SETTLE_RADIUS
+						ok = g.settlePos ~= nil and (flat(pos) - flat(g.settlePos)).Magnitude <= SETTLE_RADIUS
 					else
-						record = check(player, g, pos)
+						ok = check(player, g, pos)
 					end
-					if record then
-						table.insert(g.history, sample(g.history, pos, MoveGuard.MaxSpeed(player)))
+					if ok then
+						g.history = record(g.history, sample(g.history, pos, MoveGuard.MaxSpeed(player), hvel(hrp)))
 						prune(g.history, HISTORY)
 					end
 				end

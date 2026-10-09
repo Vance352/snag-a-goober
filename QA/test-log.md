@@ -96,3 +96,20 @@ belt's analytic position (same formula as the server). Two-player paths not re-r
 | 1.5x carry straight home | placed ~2.4 s server-side vs 2.6 s straight walk (MinTravelTime floor, tightened to d/(1.05 v) - 0.1) |
 | Tutorial Skip | 112x54 design px (about 84x40 at phone scale 0.75; auditor's 57x26 was the 0.62 floor scale on a 1x1 viewport) |
 | Console | no script errors |
+
+## 2026-10-09 - builder retest of round-7 findings (single-player Studio Play, Studio not rendering)
+Verified first: the server sees a walking Humanoid's replicated velocity (~20 st/s), and a stalled client as a frozen
+position with walking velocity - the pattern the lag bank now requires. Two-player theft paths not re-run (CODE-REVIEWED).
+| Test | Result |
+|---|---|
+| Stall 0.5 / 1.0 / 1.5 s (position frozen, velocity kept) + catch-up, then walking | PASS - 0 refusals in 12 probes each |
+| Freeze 1.0 s with velocity 0 (not a real stall pattern) | 2 refusals (~1 s), then fine |
+| Stand 2.5 s, teleport 38 studs, snag | plausible only after 2.0 s (walk 1.9 s) - no gain (round 7: snag 0.43 s) |
+| Sustained 1.2x / 1.3x / 1.5x | caught at 6.2 s / 3.6 s / 2.1 s (round 7: 1.3x passed 8.1 s) |
+| Hold off-map 30 s (debt forgiveness), then teleport 120 studs | server returned the character to its last trusted spot at 30.5 s; teleport refused (Whoa x6) |
+| Hop-and-back then teleport 147 studs | plausible after 6.5 s (walk 7.3 s) |
+| Legit Humanoid carries (short, 70 studs out) | PASS, no warnings |
+| Teleport home while carrying (belt) | warning, placed at 4.0 s = walk time |
+| Theft teleport home | CODE-REVIEWED: excess > 10 studs during a theft calls Fail("teleport") immediately; hovering too |
+| Console | no script errors |
+State: sold 6 cheap Goobers (Toastie x2, Sir Puddle, Gumbo x3) to free base space for carry tests.

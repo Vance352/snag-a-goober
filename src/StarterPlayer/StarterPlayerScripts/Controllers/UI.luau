@@ -174,7 +174,7 @@ local function buildHUD(root: Frame)
 	refs.carry = carry
 
 	-- tutorial hint
-	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 122), Size = UDim2.fromOffset(480, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root })
+	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 122), Size = UDim2.fromOffset(370, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root }) -- clears the status column on 16:9 phones
 	Theme.corner(hint, 16)
 	Theme.stroke(hint, 3)
 	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -134, 1, -8), Text = "", MaxText = 22, Parent = hint })
@@ -185,7 +185,7 @@ local function buildHUD(root: Frame)
 	refs.hint = hint
 
 	-- toasts
-	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 188), Size = UDim2.fromOffset(460, 200), BackgroundTransparency = 1, Parent = root })
+	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 188), Size = UDim2.fromOffset(360, 200), BackgroundTransparency = 1, Parent = root })
 	local tl = Instance.new("UIListLayout")
 	tl.Padding = UDim.new(0, 6)
 	tl.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -227,7 +227,7 @@ function UI.Toast(text: string, color: string?, seconds: number?)
 		end)
 		items[1]:Destroy()
 	end
-	local f = Theme.frame({ Size = UDim2.fromOffset(440, 38), BackgroundColor3 = TOAST_COLORS[color or "purple"] or C.panel2, LayoutOrder = toastOrder, Parent = refs.toasts })
+	local f = Theme.frame({ Size = UDim2.new(1, 0, 0, 38), BackgroundColor3 = TOAST_COLORS[color or "purple"] or C.panel2, LayoutOrder = toastOrder, Parent = refs.toasts })
 	Theme.corner(f, 12)
 	Theme.stroke(f, 2.5)
 	Theme.label({ Position = UDim2.fromOffset(10, 3), Size = UDim2.new(1, -20, 1, -6), Text = text, MaxText = 19, Parent = f })
