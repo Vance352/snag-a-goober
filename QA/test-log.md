@@ -56,3 +56,14 @@ replaced with native parts; no rejected asset is referenced in the place.
 | Snag then reset (Health = 0) immediately | "waddling home on its own (2s)", landed ~2 s later, not instantly |
 | Reset after carrying for minutes | placed immediately (walk time already elapsed) - correct |
 | Chat window on desktop | ChatWindowConfiguration Left/Bottom (off the HUD menu) |
+
+## 2026-10-09 - builder retest of round-4 findings (single-player Studio Play, build after round-4 fixes)
+The 2-client session could not be restarted overnight (needs the owner), so two-player paths were not re-run this time.
+| Test | Result |
+|---|---|
+| Reset, then teleport 50 studs to the belt during the old 4 s respawn grace, snag x14 | BLOCKED - every attempt "Whoa, slow down!" (respawn now anchors at the server spawn; no grace) |
+| Legit walk to belt + snag | PASS |
+| Carry home by CFrame at 20.7 st/s after standing still 1.5 s (server WalkSpeed 16) | CAUGHT - "No shortcuts!", placed after 5.1 s vs ~1.5 s legit |
+| Same at server WalkSpeed 20 (Sprint Boots owned) | not flagged - correct (within 5% of real speed) |
+| Legit MoveTo carry at 16 | PASS, placed 1.7 s, no warning |
+| Single 15-stud bump then snag | first snag succeeds at 0.6 s (was ~6 s lockout) |

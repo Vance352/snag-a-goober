@@ -92,7 +92,7 @@ function Theme.label(props): TextLabel
 	end
 	local lim = Instance.new("UITextSizeConstraint")
 	lim.MaxTextSize = props.MaxText or 40
-	lim.MinTextSize = 8
+	lim.MinTextSize = 12
 	lim.Parent = t
 	t.Parent = props.Parent
 	return t

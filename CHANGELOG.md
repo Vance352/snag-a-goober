@@ -2,6 +2,9 @@
 
 Newest entry at the top.
 
+## 2026-10-09
+- QA round 4 fixes: no respawn grace (trust anchors at server spawn), settle windows for server moves, time-owed debt that pays down while walking, carry speed checked over every >=1 s sub-window (+5%), action window 1-2 s, steal prompts explain why, chat bottom-left on all devices, bigger phone UI text boxes/settings, banner spacing, real walking time for waddle-home, steal XP once per victim per 30 min.
+
 ## 2026-10-08
 - Store page art: title icon + 5 feature thumbnails rendered in Blender (Assets/StorePage); genre attempted (Simulation/Tycoon).
 - QA round 3 fixes: MoveGuard trust-anchor debt model, lag-tolerant carry checks, reset no longer skips the walk home, sell refunds on paid price, steal prompt countdowns, chat moved off the menu.

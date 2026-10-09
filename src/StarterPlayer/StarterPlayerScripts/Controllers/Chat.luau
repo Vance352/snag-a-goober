@@ -12,7 +12,7 @@ function Chat.Start()
 	-- keep Roblox's chat window off the top-left menu buttons on desktop
 	local cfg = TextChatService:FindFirstChildOfClass("ChatWindowConfiguration")
 	local UserInputService = game:GetService("UserInputService")
-	if cfg and not UserInputService.TouchEnabled then
+	if cfg then
 		pcall(function()
 			cfg.HorizontalAlignment = Enum.HorizontalAlignment.Left
 			cfg.VerticalAlignment = Enum.VerticalAlignment.Bottom

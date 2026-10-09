@@ -96,9 +96,10 @@ function CarryService.Settle(player: Player, reason: string)
 	if carry.source == "belt" then
 		local plot = S.Plot.Get(player)
 		local spawn = plot and plot:FindFirstChild("Spawn") :: BasePart
-		local remaining = if spawn and carry.startPos
-			then S.MoveGuard.MinTravelTime(player, carry.startPos, spawn.Position) - (os.clock() - carry.startT)
+		local walk = if spawn and carry.startPos
+			then (Vector3.new(carry.startPos.X, 0, carry.startPos.Z) - Vector3.new(spawn.Position.X, 0, spawn.Position.Z)).Magnitude / S.MoveGuard.MaxSpeed(player)
 			else 0
+		local remaining = walk - (os.clock() - carry.startT)
 		if reason ~= "left" and remaining > 0.5 then
 			-- resetting must not skip the walk: the Goober walks home on its own,
 			-- arriving no sooner than you could have carried it (its stand stays reserved)
@@ -160,6 +161,7 @@ function CarryService.Start()
 						plot
 						and hrp
 						and S.Plot.Inside(plot, hrp.Position)
+						and not S.MoveGuard.Settling(player)
 						-- you can't get home faster than you can walk there
 						and os.clock() - carry.startT >= S.MoveGuard.MinTravelTime(player, carry.startPos, hrp.Position)
 					then

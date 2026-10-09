@@ -140,7 +140,7 @@ local function buildHUD(root: Frame)
 	menuButton("Dex", "📖", "DEX", Color3.fromRGB(80, 160, 255), 2)
 	menuButton("Rebirth", "♻️", "REBIRTH", Color3.fromRGB(190, 100, 255), 3)
 	menuButton("Shop", "🛒", "SHOP", Color3.fromRGB(255, 170, 40), 4)
-	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(8, 164), Size = UDim2.fromOffset(56, 56), Text = "⚙️", Color = C.panel2, MaxText = 28, Parent = root }, function()
+	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(8, 164), Size = UDim2.fromOffset(66, 66), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
 		UI.Toggle("Settings")
 	end)
 
@@ -152,13 +152,13 @@ local function buildHUD(root: Frame)
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Parent = status
 	local function pill(name, order, color, h)
-		local f = Theme.frame({ Name = name, Size = UDim2.fromOffset(240, h or 40), BackgroundColor3 = color, LayoutOrder = order, Parent = status })
+		local f = Theme.frame({ Name = name, Size = UDim2.fromOffset(250, h or 44), BackgroundColor3 = color, LayoutOrder = order, Parent = status })
 		Theme.corner(f, 12)
 		Theme.stroke(f, 2.5)
 		local t = Theme.label({ Name = "Text", Size = UDim2.new(1, -12, 1, -6), Position = UDim2.fromOffset(6, 3), Text = "", MaxText = 18, Parent = f })
 		return f, t
 	end
-	refs.chaosPill, refs.chaosText = pill("Chaos", 1, C.panel, 48)
+	refs.chaosPill, refs.chaosText = pill("Chaos", 1, C.panel, 58)
 	refs.boostPill, refs.boostText = pill("Boost", 2, Color3.fromRGB(230, 150, 20))
 	refs.lockPill, refs.lockText = pill("Lock", 3, Color3.fromRGB(70, 110, 200))
 	refs.dropPill, refs.dropText = pill("Drop", 4, Color3.fromRGB(60, 140, 70))
@@ -193,7 +193,7 @@ local function buildHUD(root: Frame)
 	refs.toasts = toasts
 
 	-- banner
-	local banner = Theme.frame({ Name = "Banner", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.36), Size = UDim2.fromOffset(620, 110), BackgroundTransparency = 1, Visible = false, Parent = root })
+	local banner = Theme.frame({ Name = "Banner", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.44), Size = UDim2.fromOffset(620, 110), BackgroundTransparency = 1, Visible = false, Parent = root })
 	refs.bannerTitle = Theme.label({ Size = UDim2.new(1, 0, 0.62, 0), Text = "", MaxText = 64, Stroke = 4, Parent = banner })
 	refs.bannerSub = Theme.label({ Position = UDim2.fromScale(0, 0.62), Size = UDim2.new(1, 0, 0.36, 0), Text = "", MaxText = 28, Stroke = 3, Parent = banner })
 	refs.banner = banner
@@ -279,7 +279,8 @@ local function panelShell(name: string, title: string, accent: Color3): (Frame, 
 	close.Activated:Connect(function()
 		UI.Close()
 	end)
-	local p = Theme.frame({ Name = "Panel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(620, 440), BackgroundColor3 = C.panel, ZIndex = 21, Active = true, Parent = dim })
+	-- fills most of a phone screen, capped at 620x440 on bigger screens
+	local p = Theme.frame({ Name = "Panel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.96, 0.86), BackgroundColor3 = C.panel, ZIndex = 21, Active = true, Parent = dim })
 	Theme.corner(p, 20)
 	Theme.stroke(p, 4)
 	local sizer = Instance.new("UISizeConstraint")
@@ -647,7 +648,7 @@ local function buildShop()
 		order += 1
 		local g = Theme.frame({ Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order, Parent = holder })
 		local gl = Instance.new("UIGridLayout")
-		gl.CellSize = UDim2.new(0.5, -6, 0, 168)
+		gl.CellSize = UDim2.new(0.5, -6, 0, 206) -- tall enough that descriptions stay readable on phones
 		gl.CellPadding = UDim2.fromOffset(8, 8)
 		gl.SortOrder = Enum.SortOrder.LayoutOrder
 		gl.Parent = g
@@ -669,7 +670,7 @@ local function buildShop()
 			Theme.label({ Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(56, 56), Text = icon, Stroke = false, MaxText = 40, Parent = f })
 		end
 		Theme.label({ Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -78, 0, 28), Text = name, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 21, Parent = f })
-		local d = Theme.label({ Position = UDim2.fromOffset(70, 38), Size = UDim2.new(1, -78, 0, 66), Text = desc, TextWrapped = true, TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Font = Theme.Body, MaxText = 14, Parent = f })
+		local d = Theme.label({ Position = UDim2.fromOffset(70, 38), Size = UDim2.new(1, -78, 0, 106), Text = desc, TextWrapped = true, TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Font = Theme.Body, MaxText = 17, Parent = f })
 		local buy = Theme.button({ Position = UDim2.new(0, 8, 1, -52), Size = UDim2.new(1, if extra then -122 else -16, 0, 44), Text = "", Color = C.robux, MaxText = 22, Parent = f }, onBuy)
 		local ex
 		if extra then

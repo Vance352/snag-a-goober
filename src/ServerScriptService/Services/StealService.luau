@@ -238,7 +238,11 @@ local function succeed(thief: Player)
 	end
 	ts.data.stats.steals += 1
 	vs.data.stats.stolenFrom += 1
-	S.Session.AddXP(thief, Config.XP.steal)
+	ts.stealXpAt = ts.stealXpAt or {}
+	if os.clock() - (ts.stealXpAt[victim.UserId] or -1e9) >= 1800 then
+		ts.stealXpAt[victim.UserId] = os.clock()
+		S.Session.AddXP(thief, Config.XP.steal) -- once per victim per 30 min (no friend farming)
+	end
 	-- insurance pays at most once per compensationCooldown per victim, so
 	-- friends can't farm coins by stealing back and forth
 	local comp = 0
@@ -285,6 +289,7 @@ function StealService.Start()
 						elseif
 							plot
 							and S.Plot.Inside(plot, thrp.Position)
+							and not S.MoveGuard.Settling(thief)
 							and os.clock() - carry.startedAt >= C.minCarryTime
 							and os.clock() - carry.startT >= S.MoveGuard.MinTravelTime(thief, carry.startPos, thrp.Position)
 						then

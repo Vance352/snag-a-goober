@@ -168,29 +168,25 @@ end
 -- Client-side hint only; the server re-checks every rule.
 local function stealPromptState(model: Model): (boolean, string)
 	local s = State.data
-	if not s then
+	if not s or s.carry then
 		return false, ""
 	end
+	-- the prompt stays visible with the reason; the server re-checks every rule
 	if s.level < Config.StealLevel then
-		return false, ""
-	end
-	if s.carry then
-		return false, ""
+		return true, ("Steal (Lv %d)"):format(Config.StealLevel)
 	end
 	local ownerId = model:GetAttribute("OwnerId")
 	local owner = Players:GetPlayerByUserId(ownerId)
 	if owner and (owner:GetAttribute("Level") or 1) < Config.StealLevel then
-		return false, ""
+		return true, "New player - safe"
 	end
 	if plotLockedFor(ownerId) then
-		return false, ""
+		return true, "Base locked"
 	end
 	local prot = (model:GetAttribute("ProtectedUntil") or 0) - serverNow()
 	if prot > 0 then
-		return false, ""
+		return true, ("Protected %d:%02d"):format(prot // 60, math.ceil(prot) % 60)
 	end
-	-- during cooldowns the prompt stays visible with a countdown (the server
-	-- explains and refuses if it's triggered anyway)
 	local pair = s.pairCooldowns and s.pairCooldowns[tostring(ownerId)]
 	local wait = math.max(pair or 0, s.stealCooldown or 0)
 	if wait > 0 then
