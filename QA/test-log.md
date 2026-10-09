@@ -157,3 +157,15 @@ stall tests next to plot walls were invalid (client physics zeroed the velocity 
 | Legit 70-stud carry | PASS, no warnings |
 | Console | no script errors |
 State: sold one Toastie (paid 30) to return the base to 21 after a test carry.
+
+## 2026-10-09 - builder retest of round-11 findings (single-player Studio Play, Studio not rendering)
+| Test | Result |
+|---|---|
+| Auditor repro: walk 1.5 s, stall 1.0 s, walk 0.6 s, stall 1.5 s (open lane z=-27) | 0 refusals, twice (round 11: +17 studs -> theft cancel) |
+| Stalls 1.0 s + 1.0 s, 0.5 s apart | 0 refusals |
+| Hop chains 5 x (walk 0.5 / 1.2 s, spoofed stall 1.75 s, 48-stud hop) | plausible only at 14.5 s vs 14.7 s walk, 17.6 s vs 18.2 s walk |
+| 1.15x CFrame carry home from the belt | placed at 2.38 s = the d/(1.05 v) floor from the carry's original start (plot edge ~53 studs; honest 2.65 s) |
+| Legit 70-stud carry | PASS, no warnings |
+| Shutdown save: sell a Goober, stop play immediately, restart | the sale persisted (21 Goobers, sold uid gone) |
+| Console | no script errors |
+State: one Blorp (paid 10) and one Pebble Pete sold; base back to 21 (one legit test carry added a Goober).

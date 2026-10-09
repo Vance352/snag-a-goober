@@ -31,6 +31,9 @@ function CarryService.Begin(player: Player, carry)
 	local hrp0 = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart
 	carry.startT = os.clock()
 	carry.startPos = if hrp0 then hrp0.Position else Vector3.zero
+	-- the real start, kept even when a shortcut restarts the walk clock: a
+	-- carry can never finish sooner than walking from here
+	carry.origT, carry.origPos = carry.startT, carry.startPos
 	st.carry = carry
 	S.Model.SetMode(carry.model, "carried")
 	carry.model:SetAttribute("CarriedBy", player.UserId)
@@ -171,6 +174,7 @@ function CarryService.Start()
 						and not S.MoveGuard.Settling(player)
 						-- you can't get home faster than you can walk there
 						and os.clock() - carry.startT >= S.MoveGuard.MinTravelTime(player, carry.startPos, hrp.Position)
+						and os.clock() - carry.origT >= S.MoveGuard.MinTravelTime(player, carry.origPos, hrp.Position)
 					then
 						CarryService.PlaceHome(player)
 					elseif carry.model.Parent == nil then

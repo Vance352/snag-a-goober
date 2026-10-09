@@ -331,6 +331,7 @@ function StealService.Start()
 							and not S.MoveGuard.Settling(thief)
 							and os.clock() - carry.startedAt >= C.minCarryTime
 							and os.clock() - carry.startT >= S.MoveGuard.MinTravelTime(thief, carry.startPos, thrp.Position)
+							and os.clock() - carry.origT >= S.MoveGuard.MinTravelTime(thief, carry.origPos, thrp.Position)
 						then
 							succeed(thief)
 						end

@@ -155,8 +155,9 @@ local function sample(list: { Sample }, pos: Vector3, speed: number, vel: Vector
 		if stallEnd and now - stallEnd <= 1.0 then
 			smp.catchup = stallEnd
 		end
-		-- walking pace (a teleport, or a catch-up, is not "walking into" a stall)
-		smp.moving = moved >= 0.5 * spd * dt and moved <= 1.5 * spd * dt and not smp.catchup
+		-- walking pace (a teleport or catch-up burst is not "walking into" a
+		-- stall; walking on after a catch-up is, so clustered stalls count)
+		smp.moving = moved >= 0.5 * spd * dt and moved <= 1.5 * spd * dt
 	end
 	return smp
 end
@@ -335,6 +336,9 @@ function MoveGuard.ServerMove(player: Player, cf: CFrame)
 			end
 			if carry.startPos then
 				carry.startPos += delta
+			end
+			if carry.origPos then
+				carry.origPos += delta
 			end
 		end
 	end
