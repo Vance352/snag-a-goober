@@ -160,6 +160,17 @@ function TestHarness.Start(S)
 
 	function C.revokePass(key, id)
 		S.Session.Get(P(id)).passes[key] = nil
+		if key == "VIP" then
+			P(id):SetAttribute("VIP", false)
+			local hrp = P(id).Character and P(id).Character:FindFirstChild("HumanoidRootPart")
+			for _, n in ipairs({ "VIPTrail", "VIPSparkles", "VIPTrailA0", "VIPTrailA1" }) do
+				local x = hrp and hrp:FindFirstChild(n)
+				if x then
+					x:Destroy()
+				end
+			end
+			S.Character.RefreshTag(P(id))
+		end
 		S.Session.ComputeRate(P(id))
 		S.Base.RefreshStands(P(id))
 		S.Character.ApplySpeed(P(id))

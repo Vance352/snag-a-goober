@@ -63,6 +63,8 @@ local function spawnModel(player: Player, uid: string, gid: string, stand: numbe
 	local model = S.Model.Build(gid, uid, "stand")
 	model:SetAttribute("OwnerId", player.UserId)
 	model:SetAttribute("Stand", stand)
+	local rec = S.Session.Get(player) and S.Session.Get(player).data.goobers[uid]
+	model:SetAttribute("Paid", rec and rec.paid)
 	model:SetAttribute("ProtectedUntil", if protectFor then serverNow() + protectFor else 0)
 	S.Model.PlaceAt(model, S.Plot.StandCFrame(plot, stand))
 	model.Parent = baseFolder
@@ -108,7 +110,7 @@ function BaseService.FreeStand(player: Player): number?
 end
 
 -- Adds a Goober to the player's base. Returns uid or nil if no stand is free.
-function BaseService.Place(player: Player, gid: string, opts: { uid: string?, stolen: boolean? }?): string?
+function BaseService.Place(player: Player, gid: string, opts: { uid: string?, stolen: boolean?, paid: number? }?): string?
 	local st = S.Session.Get(player)
 	if not st or not GooberData.ById[gid] then
 		return nil
@@ -118,7 +120,11 @@ function BaseService.Place(player: Player, gid: string, opts: { uid: string?, st
 		return nil
 	end
 	local uid = (opts and opts.uid) or S.Data.NewUid()
-	st.data.goobers[uid] = { id = gid, stand = stand }
+	local def0 = GooberData.ById[gid]
+	-- remember what was paid so selling refunds half of *that*
+	-- (discounted Personal Drops / free stolen Goobers can't be flipped for profit)
+	local paid = if opts and opts.paid then opts.paid elseif opts and opts.stolen then math.floor(def0.price * 0.5) else def0.price
+	st.data.goobers[uid] = { id = gid, stand = stand, paid = paid }
 	spawnModel(player, uid, gid, stand, Config.Steal.placeProtection)
 	S.Progress.Discover(player, gid)
 	S.Session.ComputeRate(player)
@@ -200,7 +206,7 @@ function BaseService.Sell(player: Player, uid: string)
 		return
 	end
 	local def = GooberData.ById[g.id]
-	local refund = math.floor(def.price * Config.SellRefund)
+	local refund = math.floor((g.paid or def.price) * Config.SellRefund)
 	BaseService.RemoveRecord(player, uid)
 	S.Session.AddCoins(player, refund)
 	st.data.stats.sold += 1

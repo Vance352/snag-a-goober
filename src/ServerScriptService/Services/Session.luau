@@ -158,6 +158,9 @@ function Session.Used(player: Player): number
 	if st.carry and st.carry.source == "belt" then
 		n += 1
 	end
+	if st.pendingHome then
+		n += #st.pendingHome
+	end
 	return n
 end
 

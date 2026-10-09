@@ -126,7 +126,7 @@ local function setupStand(model: Model, info)
 	local owner = model:GetAttribute("OwnerId")
 	local def = GooberData.ById[model:GetAttribute("GooberId")]
 	if owner == player.UserId then
-		local refund = math.floor(def.price * Config.SellRefund)
+		local refund = math.floor((model:GetAttribute("Paid") or def.price) * Config.SellRefund)
 		local p = makePrompt(model, ("Sell  +$%s"):format(Util.Short(refund)), def.name, 0.8, Enum.KeyCode.F)
 		if p then
 			p.MaxActivationDistance = 7
@@ -189,12 +189,12 @@ local function stealPromptState(model: Model): (boolean, string)
 	if prot > 0 then
 		return false, ""
 	end
+	-- during cooldowns the prompt stays visible with a countdown (the server
+	-- explains and refuses if it's triggered anyway)
 	local pair = s.pairCooldowns and s.pairCooldowns[tostring(ownerId)]
-	if pair then
-		return false, ""
-	end
-	if s.stealCooldown > 0 then
-		return false, ""
+	local wait = math.max(pair or 0, s.stealCooldown or 0)
+	if wait > 0 then
+		return true, ("Steal in %d:%02d"):format(wait // 60, math.ceil(wait) % 60)
 	end
 	return true, "Steal!"
 end

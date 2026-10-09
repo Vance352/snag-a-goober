@@ -147,7 +147,7 @@ local function sanitize(data)
 			if not stand or stand < 1 or stand > Config.MaxStands or used[stand] then
 				stand = nil
 			end
-			fixed[tostring(uid)] = { id = g.id, stand = stand }
+			fixed[tostring(uid)] = { id = g.id, stand = stand, paid = if type(g.paid) == "number" and g.paid >= 0 then g.paid else nil }
 			if stand then
 				used[stand] = true
 			end

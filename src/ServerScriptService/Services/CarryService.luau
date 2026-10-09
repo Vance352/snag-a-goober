@@ -71,7 +71,7 @@ function CarryService.PlaceHome(player: Player)
 	end
 	carry.model:Destroy()
 	clear(player)
-	local uid = S.Base.Place(player, carry.id, { uid = carry.uid })
+	local uid = S.Base.Place(player, carry.id, { uid = carry.uid, paid = carry.price })
 	if not uid then
 		-- should not happen (slot reserved at snag); refund rather than lose it
 		S.Session.AddCoins(player, carry.price)
@@ -94,9 +94,21 @@ function CarryService.Settle(player: Player, reason: string)
 		return
 	end
 	if carry.source == "belt" then
-		CarryService.PlaceHome(player)
-		if reason == "died" then
-			S.Session.Toast(player, "Your Goober ran home without you!", "green")
+		local plot = S.Plot.Get(player)
+		local spawn = plot and plot:FindFirstChild("Spawn") :: BasePart
+		local remaining = if spawn and carry.startPos
+			then S.MoveGuard.MinTravelTime(player, carry.startPos, spawn.Position) - (os.clock() - carry.startT)
+			else 0
+		if reason ~= "left" and remaining > 0.5 then
+			-- resetting must not skip the walk: the Goober walks home on its own,
+			-- arriving no sooner than you could have carried it (its stand stays reserved)
+			st.pendingHome = st.pendingHome or {}
+			table.insert(st.pendingHome, { uid = carry.uid, id = carry.id, price = carry.price, at = os.clock() + remaining })
+			carry.model:Destroy()
+			clear(player)
+			S.Session.Toast(player, ("Your Goober is waddling home on its own (%ds)"):format(math.ceil(remaining)), "green")
+		else
+			CarryService.PlaceHome(player)
 		end
 	else
 		S.Steal.Fail(player, reason)
@@ -139,6 +151,10 @@ function CarryService.Start()
 						-- teleport home can never be faster than walking
 						carry.startT = os.clock()
 						carry.trail = nil
+						if os.clock() - (carry.warnedAt or -100) > 5 then
+							carry.warnedAt = os.clock()
+							S.Session.Toast(player, "No shortcuts! Walk your Goober home.", "red")
+						end
 					end
 					if
 						plot
@@ -153,9 +169,31 @@ function CarryService.Start()
 						CarryService.Settle(player, "lost")
 					end
 				end
+				-- Goobers walking home on their own
+				if st.pendingHome and #st.pendingHome > 0 then
+					for i = #st.pendingHome, 1, -1 do
+						local p = st.pendingHome[i]
+						if os.clock() >= p.at then
+							table.remove(st.pendingHome, i)
+							CarryService.LandPending(player, p)
+						end
+					end
+				end
 			end
 		end
 	end)
+end
+
+function CarryService.LandPending(player: Player, p)
+	local uid = S.Base.Place(player, p.id, { uid = p.uid, paid = p.price })
+	if not uid then
+		S.Session.AddCoins(player, p.price)
+		S.Session.Toast(player, "No free stand - refunded your coins.", "red")
+		return
+	end
+	local def = GooberData.ById[p.id]
+	S.Session.AddXP(player, Config.Rarities[def.rarity].xp)
+	S.Session.Toast(player, def.name .. " made it home!", "green")
 end
 
 -- called by DataService right before the final save
@@ -163,6 +201,13 @@ function CarryService.OnRemoving(player: Player)
 	local st = S.Session.Get(player)
 	if st and st.carry then
 		CarryService.Settle(player, "left")
+	end
+	-- anything still walking home lands now so it is saved
+	if st and st.pendingHome then
+		for _, p in ipairs(st.pendingHome) do
+			CarryService.LandPending(player, p)
+		end
+		st.pendingHome = nil
 	end
 end
 

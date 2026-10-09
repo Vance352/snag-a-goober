@@ -96,6 +96,9 @@ function StealService.HoldBegan(thief: Player, uid: any)
 	local victim = S.Base.OwnerOf(uid)
 	local model = victim and S.Base.ModelOf(victim, uid)
 	local hrp = hrpOf(thief)
+	if not S.MoveGuard.Plausible(thief) then
+		return -- arrived by teleport: still "walking" from the last trusted spot
+	end
 	if model and hrp and (hrp.Position - model:GetPivot().Position).Magnitude <= C.stealRange then
 		holds[thief] = { uid = uid, t = os.clock() }
 	end
