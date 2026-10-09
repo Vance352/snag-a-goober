@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-10
+- Experience renamed to "[🎃 HALLOWEEN] Snag A Goober" and the Halloween icon set as the game icon (Creator Dashboard). The Halloween thumbnail (JPG copy for upload) still has to be added by hand.
 - Halloween store art: game icon (Assets/StorePage/icon_halloween_512.png) and thumbnail (thumb_halloween_1920x1080.png), rendered from the in-game models by Assets/BlenderSource/scripts/halloween_store.py.
 - Final review round 3: 7.5/10 (QA/halloween-review-r3.md). Fixed its two regressions: the Index discovery badge now survives the 3-badge cap; the Quests panel says "the event is over" instead of a daily countdown after the event. Paler village path lanterns.
 - Two-player theft tests on the Halloween content (steal, portal refusal while stealing, victim defending from the island via the Base shortcut, thief disconnect) all pass (QA/test-log.md).
