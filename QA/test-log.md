@@ -37,3 +37,12 @@ replaced with native parts; no rejected asset is referenced in the place.
 - Server size: Roblox games API `games.roblox.com/v1/games?universeIds=10769928826` returns `maxPlayers: 8` (Studio local test sessions report their own default of 60).
 - Experience description set (games API returns it). Lucky pass description now states the exact example (18% -> 24.8%), verified by hand: rare+ weight 18 x 1.5 = 27 of 109 = 24.77%.
 - ServerStorage.RawImport removed from the place (re-import the FBX to reprocess).
+
+## 2026-10-08 - builder retest of round-2 exploits (new 2-client session, build 85e5891)
+| Test | Result |
+|---|---|
+| Teleport-home theft (real hold E, wait 3.2 s, one HRP CFrame write ~45 studs into own base) | BLOCKED - carry cancelled "no shortcuts!", victim keeps Fluffernaut |
+| Hover-glide theft (+11 studs, 12 st/s straight line through walls) | BLOCKED within 1.1 s, victim keeps Snorkel |
+| Legit belt carry walked home | PASS - Gumbo placed |
+| Steal prompt during pair cooldown | hidden on client until cooldown ended (208 s) |
+| Legit theft (real hold E, walked home) | PASS - Mushy transferred, Dex discovery |
