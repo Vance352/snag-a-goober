@@ -71,7 +71,7 @@ local function beltPromptText(model: Model): (string, boolean)
 	end
 	local price = model:GetAttribute("Price") or def.price
 	if s and s.coins < price then
-		return ("Need $%s"):format(Util.Short(price)), true
+		return ("Need $%s"):format(Util.Short(price)), false
 	end
 	return ("Snag  $%s"):format(Util.Short(price)), true
 end
@@ -189,8 +189,12 @@ local function stealPromptState(model: Model): (boolean, string)
 	if prot > 0 then
 		return false, ""
 	end
+	local pair = s.pairCooldowns and s.pairCooldowns[tostring(ownerId)]
+	if pair then
+		return false, ""
+	end
 	if s.stealCooldown > 0 then
-		return true, ("Steal (%ds)"):format(math.ceil(s.stealCooldown))
+		return false, ""
 	end
 	return true, "Steal!"
 end
@@ -390,7 +394,7 @@ function World.Start()
 			if mode == "belt" then
 				local x = model:GetAttribute("StartX") + model:GetAttribute("Dir") * model:GetAttribute("Speed") * (now - model:GetAttribute("SpawnT"))
 				local pos = Vector3.new(x, model:GetAttribute("BeltY"), model:GetAttribute("BeltZ"))
-				local face = if model:GetAttribute("Line") == "Main" then -1 else 1
+				local face = model:GetAttribute("Face") or 1
 				root.CFrame = CFrame.lookAt(pos, pos + Vector3.new(0, 0, face))
 				if refreshPrompts and info.prompt then
 					local text, enabled = beltPromptText(model)

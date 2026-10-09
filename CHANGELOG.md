@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-08
+- QA round 2 fixes: per-tick carry path validation (teleport/speed/hover cancel thefts, restart belt-carry timer), horizontal catch, VIP chat tag implemented, honest Lucky copy, unaffordable prompts disabled, proportional collect XP, client-visible pair cooldowns, tips after panels close, ground-level eject, belt Goobers face both sides, lock release on early leave, AutoCollect moves bank, bigger close buttons, experience description, RawImport removed.
 - Two-player theft tests (6 paths) pass in a Studio local server; audio verified loading on a client. QA/test-log.md + QA/round1-audit.md.
 - Moderation fix: Roblox rejected all 10 Eye meshes (false positive). Eyes/pupils now built from native Parts from Blender specs; no rejected mesh referenced; exports contain no eye meshes.
 - Blender assets imported (226 meshes -> 25 Goober + 12 prop templates via tools/process_import.luau); map rebuilt with real meshes. Original SFX sprite + music wired in.

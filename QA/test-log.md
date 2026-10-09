@@ -32,3 +32,8 @@ Players: Player1 (-1, base 1), Player2 (-2, base 2), later Player3 (-3, base 2 r
 Assets API moderation state for all 239 uploaded assets: 226 meshes (216 Approved,
 10 Rejected - all "Eye" meshes), 11 images Approved, 2 audio Approved. Eye meshes
 replaced with native parts; no rejected asset is referenced in the place.
+
+## 2026-10-08 - after QA round 2
+- Server size: Roblox games API `games.roblox.com/v1/games?universeIds=10769928826` returns `maxPlayers: 8` (Studio local test sessions report their own default of 60).
+- Experience description set (games API returns it). Lucky pass description now states the exact example (18% -> 24.8%), verified by hand: rare+ weight 18 x 1.5 = 27 of 109 = 24.77%.
+- ServerStorage.RawImport removed from the place (re-import the FBX to reprocess).

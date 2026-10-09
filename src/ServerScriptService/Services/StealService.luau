@@ -273,7 +273,11 @@ function StealService.Start()
 					else
 						local vhrp = hrpOf(victim)
 						local plot = S.Plot.Get(thief)
-						if vhrp and (vhrp.Position - thrp.Position).Magnitude <= C.catchRadius then
+						local gap = vhrp and (vhrp.Position - thrp.Position)
+						if not S.MoveGuard.CarryStep(thief, carry) then
+							-- teleport, speed hack or flying: the theft is cancelled
+							StealService.Fail(thief, "teleport")
+						elseif gap and Vector2.new(gap.X, gap.Z).Magnitude <= C.catchRadius and math.abs(gap.Y) <= 10 then
 							StealService.Fail(thief, "caught")
 						elseif
 							plot

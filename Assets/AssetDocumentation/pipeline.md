@@ -13,9 +13,9 @@
 3. **Metadata.** Blender writes `Assets/AssetDocumentation/palette.json`
    (slot colours + dimensions) and `native_parts.json` (eye/pupil specs).
 4. **Import (manual, Studio UI).** File → Import 3D → `SAG_AllAssets.fbx`.
-   Studio's importer can't be scripted. After processing, the raw import is kept
-   in `ServerStorage.RawImport` so `process_import` can be re-run without
-   re-importing.
+   Studio's importer can't be scripted. While processing, the raw import can sit
+   in Workspace or `ServerStorage.RawImport`; delete it afterwards (it is not
+   needed at runtime - re-import the FBX if you need to reprocess).
 5. **Process.** Run `tools/process_import.luau` in Edit mode (local server on
    :34873). It colours parts from the palette, verifies orientation/scale, builds
    the Root/Pivot/Anim skeleton and writes templates to

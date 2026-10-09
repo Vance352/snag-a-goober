@@ -67,6 +67,12 @@ function MonetizationService.ApplyPass(player: Player, key: string)
 		S.Character.ApplySpeed(player)
 	elseif key == "ExtraSlots" then
 		S.Base.RefreshStands(player)
+	elseif key == "AutoCollect" then
+		if st.data.bank >= 1 then
+			local amount = math.floor(st.data.bank)
+			st.data.bank -= amount
+			S.Session.AddCoins(player, amount)
+		end
 	elseif key == "DoubleCoins" then
 		S.Session.ComputeRate(player)
 	elseif key == "VIP" then

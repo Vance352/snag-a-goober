@@ -17,13 +17,14 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Util = require(ReplicatedStorage.Shared.Util)
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local MoveGuard = {}
 local S
 
 local WINDOW = 1.0 -- seconds of history compared
-local SPEED_SLACK = 1.35 -- tolerate 35% over max walk speed
-local DIST_SLACK = 8 -- studs of lag / physics jitter
+local SPEED_SLACK = 1.25 -- tolerate 25% over max walk speed
+local DIST_SLACK = 6 -- studs of lag / physics jitter
 local FLAG_BLOCK = 3 -- seconds actions stay blocked after a flag
 
 type Sample = { t: number, pos: Vector3 }
@@ -49,7 +50,65 @@ function MoveGuard.MaxSpeed(player: Player): number
 	if not st then
 		return 16
 	end
-	return Util.WalkSpeed(st.data.upgrades.Speed, st.passes.SprintBoots == true)
+	local speed = Util.WalkSpeed(st.data.upgrades.Speed, st.passes.SprintBoots == true)
+	if st.carry and st.carry.source == "steal" then
+		speed *= Config.Steal.carrySpeedMult -- thieves are slowed
+	end
+	return speed
+end
+
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+-- Per-tick validation of a carry's path (call ~10x/s while carrying).
+-- Returns false if the carrier teleported, sped or hovered. Keeps its own
+-- short trail on the carry table.
+function MoveGuard.CarryStep(player: Player, carry): boolean
+	local hrp = hrpOf(player)
+	if not hrp then
+		return true
+	end
+	local now = os.clock()
+	if now < (graceUntil[player] or 0) then
+		carry.trail = nil
+		return true
+	end
+	local pos = hrp.Position
+	local speed = MoveGuard.MaxSpeed(player) * SPEED_SLACK
+	local trail = carry.trail
+	if not trail then
+		carry.trail = { { t = now, pos = pos } }
+		carry.airSince = nil
+		return true
+	end
+	local last = trail[#trail]
+	-- single-tick jump (teleport)
+	if (flat(pos) - flat(last.pos)).Magnitude > speed * math.max(0.1, now - last.t) + 3 then
+		return false
+	end
+	-- sustained speed over ~0.6 s
+	table.insert(trail, { t = now, pos = pos })
+	while #trail > 2 and now - trail[2].t >= 0.6 do
+		table.remove(trail, 1)
+	end
+	local first = trail[1]
+	local dt = now - first.t
+	if dt >= 0.5 and (flat(pos) - flat(first.pos)).Magnitude > speed * dt + 2.5 then
+		return false
+	end
+	-- hovering: more than 12 studs above whatever is below for > 0.6 s
+	rayParams.FilterDescendantsInstances = { player.Character, carry.model }
+	local hit = workspace:Raycast(pos, Vector3.new(0, -40, 0), rayParams)
+	local height = if hit then pos.Y - hit.Position.Y else 40
+	if height > 12 then
+		carry.airSince = carry.airSince or now
+		if now - carry.airSince > 0.6 then
+			return false
+		end
+	else
+		carry.airSince = nil
+	end
+	return true
 end
 
 -- Move a character on the server without tripping the guard.

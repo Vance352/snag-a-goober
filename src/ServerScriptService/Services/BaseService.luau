@@ -242,8 +242,8 @@ function BaseService.EjectIntruders(owner: Player)
 			local char = other.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
 			if hrp and S.Plot.Inside(plot, hrp.Position) then
-				local out = b.CFrame * CFrame.new(0, 0, -b.Size.Z / 2 - 6)
-				S.MoveGuard.ServerMove(other, CFrame.new(out.Position + Vector3.new(0, 3, 0)))
+				local out = b.CFrame * CFrame.new(0, -b.Size.Y / 2, -b.Size.Z / 2 - 6) -- ground level outside the entrance
+				S.MoveGuard.ServerMove(other, CFrame.new(out.Position + Vector3.new(0, 3.5, 0)))
 			end
 		end
 	end
@@ -281,8 +281,14 @@ function BaseService.Collect(player: Player)
 	end
 	st.data.bank -= amount
 	S.Session.AddCoins(player, amount)
-	local xp = math.clamp(math.floor(amount / Config.XP.collectPer), 1, Config.XP.collectMax)
-	S.Session.AddXP(player, xp)
+	-- XP is proportional to coins collected (fractions carry over), so
+	-- standing on the pad never farms XP faster than earning coins
+	st.collectXpAcc = (st.collectXpAcc or 0) + amount / Config.XP.collectPer
+	local xp = math.min(math.floor(st.collectXpAcc), Config.XP.collectMax)
+	st.collectXpAcc -= xp
+	if xp > 0 then
+		S.Session.AddXP(player, xp)
+	end
 	local plot = S.Plot.Get(player)
 	local pad = plot and plot:FindFirstChild("CashPad") :: BasePart
 	S.Session.Effect("Collect", { amount = amount, pos = pad and pad.Position, owner = player.UserId })
@@ -305,8 +311,11 @@ function BaseService.Start()
 							st.autoTick = (st.autoTick or 0) + 1
 							if st.autoTick >= 10 then
 								st.autoTick = 0
-								S.Session.AddXP(player, math.clamp(math.floor(st.autoAcc / Config.XP.collectPer), 1, Config.XP.collectMax))
-								st.autoAcc = 0
+								local xp = math.min(math.floor(st.autoAcc / Config.XP.collectPer), Config.XP.collectMax)
+								if xp > 0 then
+									S.Session.AddXP(player, xp)
+								end
+								st.autoAcc -= xp * Config.XP.collectPer
 							end
 							S.Progress.TutorialEvent(player, "Collected")
 						else

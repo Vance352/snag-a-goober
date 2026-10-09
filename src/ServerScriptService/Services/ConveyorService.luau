@@ -107,6 +107,9 @@ function ConveyorService.Spawn(gid: string, lineName: string, reservedFor: Playe
 	model:SetAttribute("BeltY", M.beltY)
 	model:SetAttribute("Line", lineName)
 	model:SetAttribute("Price", b.price)
+	-- half the Goobers face each row of bases, so every base sees faces
+	local face = if rng:NextNumber() < 0.5 then 1 else -1
+	model:SetAttribute("Face", face)
 	if reservedFor then
 		model:SetAttribute("ReservedFor", reservedFor.UserId)
 		model:SetAttribute("ReservedName", reservedFor.DisplayName)
@@ -117,7 +120,7 @@ function ConveyorService.Spawn(gid: string, lineName: string, reservedFor: Playe
 		end
 	end
 	local pos = ConveyorService.PositionOf(b)
-	S.Model.PlaceAt(model, CFrame.lookAt(pos, pos + Vector3.new(0, 0, if lineName == "Main" then -1 else 1)))
+	S.Model.PlaceAt(model, CFrame.lookAt(pos, pos + Vector3.new(0, 0, face)))
 	model.Parent = folder
 	belt[uid] = b
 	local rarity = GooberData.ById[gid].rarity

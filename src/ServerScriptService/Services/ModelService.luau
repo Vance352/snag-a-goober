@@ -96,7 +96,7 @@ local function tagGui(def, mode: string): BillboardGui
 	gui.Size = UDim2.fromOffset(150, 50) -- constant on-screen size (never fills the screen up close)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, def.height * rarity.scale + 1.4, 0)
 	gui.LightInfluence = 0
-	gui.MaxDistance = if mode == "belt" then 70 else 30
+	gui.MaxDistance = if mode == "belt" then 55 else 30
 	gui.AlwaysOnTop = false
 	gui.ResetOnSpawn = false
 

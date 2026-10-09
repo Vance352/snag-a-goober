@@ -351,6 +351,18 @@ DataService._reconcile = reconcile
 local function onPlayerAdded(player: Player)
 	local ok, data, locked = loadData(player)
 	if not player.Parent then
+		if ok and store then
+			-- they left while we were loading: give the lock back right away
+			pcall(function()
+				store:UpdateAsync(keyFor(player), function(old)
+					if type(old) == "table" and old.lock and old.lock.job == game.JobId then
+						old.lock = nil
+						return old
+					end
+					return nil
+				end)
+			end)
+		end
 		return
 	end
 	if not ok then

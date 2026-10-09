@@ -278,6 +278,15 @@ function Session.Snapshot(player: Player)
 		graceLeft = math.max(0, st.joinGraceUntil - now),
 		stealCooldown = math.max(0, st.stealCooldownUntil - now),
 		carry = carry,
+		pairCooldowns = (function()
+			local out = {}
+			for victimId, untilT in pairs(st.pairCooldown) do
+				if untilT > now then
+					out[tostring(victimId)] = math.ceil(untilT - now)
+				end
+			end
+			return out
+		end)(),
 		multiplier = Session.Multiplier(player),
 		personalLuck = Session.PersonalLuck(player),
 		nextDropIn = math.max(0, st.nextDropAt - now),

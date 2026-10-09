@@ -289,7 +289,7 @@ local function panelShell(name: string, title: string, accent: Color3): (Frame, 
 	Theme.corner(head, 20)
 	Theme.frame({ Position = UDim2.new(0, 0, 1, -20), Size = UDim2.new(1, 0, 0, 20), BackgroundColor3 = accent, ZIndex = 22, Parent = head })
 	Theme.label({ Position = UDim2.fromOffset(18, 6), Size = UDim2.new(1, -90, 1, -12), Text = title, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 34, ZIndex = 23, Stroke = 3, Parent = head })
-	local x = Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(46, 46), Text = "X", Color = C.red, ZIndex = 24, MaxText = 26, Parent = head }, function()
+	local x = Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(60, 50), Text = "X", Color = C.red, ZIndex = 24, MaxText = 28, Parent = head }, function()
 		Effects.Play("Click")
 		UI.Close()
 	end)

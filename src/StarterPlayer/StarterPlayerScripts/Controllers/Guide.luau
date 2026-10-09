@@ -126,8 +126,8 @@ local function findGrabTarget(): BasePart?
 end
 
 local function showTips()
-	if tipsShown then
-		return
+	if tipsShown or UI.openPanel ~= nil then
+		return -- wait until the player closes the panel they're in
 	end
 	tipsShown = true
 	UI.Banner("YOU'RE A GOOBER BOSS!", "Rarer Goobers earn way more  •  Steal from other bases at Lv 3  •  Rebirth at Lv 15", Color3.fromRGB(150, 255, 110), 7)
