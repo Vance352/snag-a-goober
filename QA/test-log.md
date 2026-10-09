@@ -125,3 +125,17 @@ State: sold 6 cheap Goobers (Toastie x2, Sir Puddle, Gumbo x3) to free base spac
 | Legit 70-stud carry | PASS, no warnings |
 | Teleport home while carrying (belt) | warning, placed at 4.1 s (walk 4.0 s) |
 | Console | no script errors |
+
+## 2026-10-09 - builder retest of round-9 findings (single-player Studio Play, Studio not rendering)
+| Test | Result |
+|---|---|
+| Walking with stalls: 1.0 s; 1.5 s; two 1.0 s 3.5 s apart; 1.5 s + 1.0 s 5 s apart; three 0.8 s | PASS - 0 refusals in 18 probes each (round 9: repeated stalls flagged) |
+| Faked stall with velocity sideways + 45-stud hop | plausible 1.75 s after the hop (walk 2.25 s) - no stall credit |
+| Faked stall with velocity aimed at the hop + 45-stud hop | 0.47 s after the hop = 2.27 s incl. the stall (time-neutral; documented residual) |
+| Hop chain 5 x (1.75 s faked stall aimed at the hop + 48-stud hop) | 244 studs plausible after 11.1 s vs 12.2 s walk (~1.1x = slack bound) |
+| Sustained 1.2x / 1.3x / 1.5x | caught at 6.2 / 3.6 / 2.1 s |
+| Rebirth remote fired without the confirm flag (x2) | ignored, rebirths 0 -> 0 |
+| Theft: lag-sized flag vs shortcut | CODE-REVIEWED: excess > 10 studs, flying, or a violation lasting > 1 s cancels; a brief flag re-times from the last trusted spot |
+| Legit 70-stud carry | PASS, no warnings |
+| Console | no script errors |
+State: one Blorp (paid 10) sold to return the base to 21 Goobers after test carries.

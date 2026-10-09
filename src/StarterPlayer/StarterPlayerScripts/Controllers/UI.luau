@@ -519,7 +519,7 @@ local function buildRebirth()
 		end
 		if os.clock() < confirmUntil then
 			confirmUntil = 0
-			Net.Event("Rebirth"):FireServer()
+			Net.Event("Rebirth"):FireServer(true) -- confirmed
 			UI.Close()
 		else
 			confirmUntil = os.clock() + 3

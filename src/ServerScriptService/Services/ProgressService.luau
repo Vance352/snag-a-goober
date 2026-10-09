@@ -146,8 +146,9 @@ function ProgressService.CanRebirth(player: Player): (boolean, string?)
 	return true
 end
 
-function ProgressService.Rebirth(player: Player)
-	if not S.Session.RateOk(player, "Rebirth", 1, 2) then
+function ProgressService.Rebirth(player: Player, confirmed: any)
+	-- the client sends `true` only after the player tapped the button twice
+	if confirmed ~= true or not S.Session.RateOk(player, "Rebirth", 1, 2) then
 		return
 	end
 	local ok, reason = ProgressService.CanRebirth(player)

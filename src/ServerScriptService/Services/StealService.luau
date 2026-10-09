@@ -214,16 +214,32 @@ function StealService.Fail(thief: Player, reason: string)
 	end
 end
 
--- A movement violation during a theft (teleport, speed, flying) cancels it:
--- the Goober goes back to its owner. Lag doesn't count as a violation (see
--- MoveGuard's stall credit), so only shortcuts end a theft.
-function StealService.Offence(thief: Player)
+-- A movement violation during a theft. A clear shortcut - far beyond the
+-- allowance, flying, or a violation that lasts over a second (a sustained
+-- speed hack or tween) - cancels the theft. A brief, lag-sized flag only
+-- restarts the walk clock from the last trusted spot, so it never gets the
+-- thief home sooner and the owner can still catch them.
+function StealService.Offence(thief: Player, from: { t: number, pos: Vector3 }?, excess: number?)
 	local ts = S.Session.Get(thief)
 	local carry = ts and ts.carry
 	if not carry or carry.source ~= "steal" then
 		return
 	end
-	StealService.Fail(thief, "teleport")
+	local now = os.clock()
+	carry.badSince = carry.badSince or now
+	if (excess or 0) > S.MoveGuard.TELEPORT_EXCESS or now - carry.badSince > 1.0 then
+		StealService.Fail(thief, "teleport")
+		return
+	end
+	if from then
+		carry.startPos = from.pos
+		carry.startT = from.t
+	end
+	carry.trail = nil
+	if now - (carry.warnedAt or -100) > 3 then
+		carry.warnedAt = now
+		S.Session.Toast(thief, "Careful! Walk it home - no shortcuts.", "red")
+	end
 end
 
 local function succeed(thief: Player)
@@ -295,15 +311,18 @@ function StealService.Start()
 						local plot = S.Plot.Get(thief)
 						local gap = vhrp and (vhrp.Position - thrp.Position)
 						local caught = gap ~= nil and Vector2.new(gap.X, gap.Z).Magnitude <= C.catchRadius and math.abs(gap.Y) <= 10
-						local ok = true
+						local ok, from, excess = true, nil, nil
 						if not caught then
-							ok = S.MoveGuard.CarryStep(thief, carry)
+							ok, from, excess = S.MoveGuard.CarryStep(thief, carry)
+							if ok then
+								carry.badSince = nil
+							end
 						end
 						if caught then
 							-- the owner's tag always wins
 							StealService.Fail(thief, "caught")
 						elseif not ok then
-							StealService.Offence(thief)
+							StealService.Offence(thief, from, excess)
 						elseif
 							plot
 							and S.Plot.Inside(plot, thrp.Position)

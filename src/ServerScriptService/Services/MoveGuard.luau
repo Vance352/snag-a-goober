@@ -15,15 +15,18 @@
 	    sees it frozen in place while its replicated velocity still says
 	    "walking", then catching up in a few bursts. Only that pattern fills a
 	    sample's "bank" (seconds behind a full-speed walker, max 1.6 s);
-	    simply standing still earns nothing, so waiting at the belt can't be
-	    turned into a teleport. Moving faster than walking spends the bank
-	    (x1.5), samples' credit is capped at the newest bank + 0.25 s, and
-	    after a catch-up burst the history re-bases at the caught-up spot and
-	    no new credit can be earned for 10 s (faked stalls can't be chained).
+	    simply standing still earns nothing. (A client that fakes the stall
+	    pattern can at best turn stall time into the same walk distance -
+	    never faster than walking.) Moving faster than walking spends the bank
+	    (x1.5), credit is capped at the newest bank + 0.25 s and only spent
+	    by a catch-up heading the way the player was walking. After the burst
+	    the frozen stall samples are dropped; the samples from before the
+	    stall still bound the whole trip to walking speed.
 	  * On a violation the player is "in debt": the trusted samples freeze,
 	    and debt clears only once the current position is reachable by
 	    walking from every one of them. Multi-hop teleports and speed hacks
-	    therefore gain nothing. A safety valve forgives debt after 30 s.
+	    therefore gain nothing. After 30 s in debt the server moves the
+	    player back to the last trusted spot (it never trusts where they are).
 	  * Respawns and server teleports re-anchor at the server's own target
 	    with a 1 s settle window in which only positions near the target count
 	    and nothing can complete.
@@ -47,7 +50,7 @@ local BANK_SPARE = 0.25 -- old samples keep at most (newest bank + this) of thei
 local STALL_VEL = 0.4 -- replicated speed (x walk speed) that marks a frozen position as a stall
 local REBASE_SPEND = 0.3 -- a sample that spends this much bank is a catch-up burst
 local STALL_MOVE = 1 -- studs per sample: a stall is a position that doesn't move
-local BANK_COOLDOWN = 10 -- after a catch-up burst, no new credit for this long
+local STALL_DIR = 0.7 -- a catch-up must head this close (cosine) to the stalled walking direction
 local HISTORY = 10.0 -- long window, so the constant slacks don't let a steady speed hack through
 local SETTLE_TIME = 1.0
 local SETTLE_RADIUS = 12
@@ -55,7 +58,7 @@ local DEBT_FORGIVE = 30
 
 -- bank: seconds the player is behind a full-speed walker (standing still adds,
 -- moving faster than walking spends), capped at HITCH_CREDIT
-export type Sample = { t: number, pos: Vector3, bank: number, speed: number, noEarnUntil: number? }
+export type Sample = { t: number, pos: Vector3, bank: number, speed: number, dir: Vector3? }
 type Guard = {
 	history: { Sample },
 	frozen: { Sample }?,
@@ -116,42 +119,52 @@ function MoveGuard.Settling(player: Player): boolean
 end
 
 -- The lag bank a sample at `pos` would have, carried forward from the newest
--- one. `vel` is the server's replicated horizontal speed of the character.
-local function bankAt(list: { Sample }, pos: Vector3, speed: number, vel: number): number
+-- one, plus the walking direction it was earned in. `vel` is the server's
+-- replicated horizontal velocity of the character.
+local function bankAt(list: { Sample }, pos: Vector3, speed: number, vel: Vector3): (number, Vector3?)
 	local prev = list[#list]
 	if not prev then
-		return 0
+		return 0, nil
 	end
 	local spd = math.max(speed, prev.speed)
 	local moved = (flat(pos) - flat(prev.pos)).Magnitude
 	local gain = (os.clock() - prev.t) - moved / spd
 	if gain < 0 then
-		return math.max(0, prev.bank + 1.5 * gain) -- faster than walking: spend
-	elseif moved < STALL_MOVE and vel >= STALL_VEL * spd and os.clock() >= (prev.noEarnUntil or 0) then
-		return math.min(HITCH_CREDIT, prev.bank + gain) -- stalled mid-walk: earn
+		local left = math.max(0, prev.bank + 1.5 * gain) -- faster than walking: spend
+		return left, if left > 0 then prev.dir else nil
+	elseif moved < STALL_MOVE and vel.Magnitude >= STALL_VEL * spd then
+		return math.min(HITCH_CREDIT, prev.bank + gain), vel.Unit -- stalled mid-walk: earn
 	end
-	return prev.bank
+	return prev.bank, prev.dir
 end
 
-local function sample(list: { Sample }, pos: Vector3, speed: number, vel: number): Sample
-	local prev = list[#list]
-	return { t = os.clock(), pos = pos, bank = bankAt(list, pos, speed, vel), speed = speed, noEarnUntil = prev and prev.noEarnUntil }
+local function sample(list: { Sample }, pos: Vector3, speed: number, vel: Vector3): Sample
+	local bank, dir = bankAt(list, pos, speed, vel)
+	return { t = os.clock(), pos = pos, bank = bank, speed = speed, dir = dir }
 end
 
--- Record a trusted sample. A catch-up burst re-bases the list at it, and no
--- new credit can be earned for BANK_COOLDOWN (so faked stalls can't chain).
+-- Record a trusted sample. After a catch-up burst the frozen stall samples
+-- (the ones that earned credit) are dropped: they were never real positions.
+-- The samples from before the stall stay, so over the whole window nobody
+-- gets anywhere faster than walking, however often they stall.
 local function record(list: { Sample }, smp: Sample): { Sample }
 	local prev = list[#list]
 	if prev and prev.bank - smp.bank >= REBASE_SPEND then
-		smp.noEarnUntil = os.clock() + BANK_COOLDOWN
-		return { smp }
+		local kept = {}
+		for _, x in ipairs(list) do
+			if x.bank <= 0.05 then
+				table.insert(kept, x)
+			end
+		end
+		table.insert(kept, smp)
+		return kept
 	end
 	table.insert(list, smp)
 	return list
 end
 
-local function hvel(part: BasePart): number
-	return flat(part.AssemblyLinearVelocity).Magnitude
+local function hvel(part: BasePart): Vector3
+	return flat(part.AssemblyLinearVelocity)
 end
 
 -- Reachable from every sample in `list`? Uses the highest walk speed in force
@@ -164,6 +177,14 @@ local function reachable(list: { Sample }, pos: Vector3, speedNow: number, slack
 	-- a speed hack spends the bank, so every sample's credit shrinks with it
 	local newest = list[#list]
 	local cap = (if newest then newest.bank else 0) + BANK_SPARE
+	if newest and newest.bank > 0 and newest.dir then
+		-- a real catch-up continues the way the player was walking when the
+		-- connection stalled; a jump anywhere else gets no lag credit
+		local move = flat(pos) - flat(newest.pos)
+		if move.Magnitude > DIST_SLACK and move.Unit:Dot(newest.dir) < STALL_DIR then
+			cap = 0
+		end
+	end
 	for i = #list, 1, -1 do
 		local s = list[i]
 		speed = math.max(speed, s.speed)
@@ -196,7 +217,7 @@ local function enterDebt(player: Player, g: Guard, excess: number, reason: strin
 	g.frozen = table.clone(g.history)
 	local st = S.Session.Get(player)
 	if st and st.carry and st.carry.source == "steal" then
-		S.Steal.Offence(player)
+		S.Steal.Offence(player, g.frozen[#g.frozen], excess)
 	end
 end
 
@@ -256,6 +277,9 @@ end
 function MoveGuard.LastFlag(player: Player): string?
 	return guardOf(player).lastFlag
 end
+
+-- How far beyond the allowance counts as a clear shortcut, not lag (studs).
+MoveGuard.TELEPORT_EXCESS = 10
 
 -- Studio test harness only: a snapshot of the guard state.
 function MoveGuard.Debug(player: Player)
@@ -332,7 +356,7 @@ function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?, number?)
 	local pos = hrp.Position
 	if g.debt then
 		local f = g.frozen
-		return false, f and f[#f], 0
+		return false, f and f[#f], 0 -- (the excess was reported when the debt began)
 	end
 	if now < g.settleUntil and g.settlePos and (flat(pos) - flat(g.settlePos)).Magnitude > SETTLE_RADIUS then
 		return true -- server move still replicating; completion is blocked by Settling()
@@ -358,7 +382,7 @@ function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?, number?)
 	if height > 12 then
 		carry.airSince = carry.airSince or now
 		if now - carry.airSince > 0.6 then
-			return false, carry.ground, excess -- flying: restart from the last spot on the ground
+			return false, carry.ground, math.huge -- flying is never lag
 		end
 	else
 		carry.airSince = nil
