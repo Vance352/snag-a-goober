@@ -113,3 +113,15 @@ position with walking velocity - the pattern the lag bank now requires. Two-play
 | Theft teleport home | CODE-REVIEWED: excess > 10 studs during a theft calls Fail("teleport") immediately; hovering too |
 | Console | no script errors |
 State: sold 6 cheap Goobers (Toastie x2, Sir Puddle, Gumbo x3) to free base space for carry tests.
+
+## 2026-10-09 - builder retest of round-8 findings (single-player Studio Play, Studio not rendering)
+| Test | Result |
+|---|---|
+| Theft + smooth 3x move home | CODE-REVIEWED: any MoveGuard violation during a stolen carry (debt entry or CarryStep failure) now calls Fail("teleport") - no re-time path left |
+| Faked stall (pinned, velocity 20) 1.8 s + 45-stud hop | plausible 0.45 s after the hop = 2.25 s total = walking time (time-neutral; once per 10 s) |
+| Hop chain 5 x (1.75 s faked stall + 48-stud hop) | 242 studs plausible only after 12.6 s vs 12.1 s walk (round 8: 9.45 s) |
+| Real-stall pattern 0.5 / 1.0 / 1.5 s while walking | PASS, 0 refusals in 12 probes each |
+| Tutorial hints (all 6 texts) at 0.62 scale | TextFits = true for every one |
+| Legit 70-stud carry | PASS, no warnings |
+| Teleport home while carrying (belt) | warning, placed at 4.1 s (walk 4.0 s) |
+| Console | no script errors |

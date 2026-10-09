@@ -18,7 +18,8 @@
 	    simply standing still earns nothing, so waiting at the belt can't be
 	    turned into a teleport. Moving faster than walking spends the bank
 	    (x1.5), samples' credit is capped at the newest bank + 0.25 s, and
-	    after a catch-up burst the history re-bases at the caught-up spot.
+	    after a catch-up burst the history re-bases at the caught-up spot and
+	    no new credit can be earned for 10 s (faked stalls can't be chained).
 	  * On a violation the player is "in debt": the trusted samples freeze,
 	    and debt clears only once the current position is reachable by
 	    walking from every one of them. Multi-hop teleports and speed hacks
@@ -45,7 +46,8 @@ local HITCH_CREDIT = 1.6 -- seconds of standing still credited for a lag catch-u
 local BANK_SPARE = 0.25 -- old samples keep at most (newest bank + this) of their credit
 local STALL_VEL = 0.4 -- replicated speed (x walk speed) that marks a frozen position as a stall
 local REBASE_SPEND = 0.3 -- a sample that spends this much bank is a catch-up burst
-local TELEPORT_EXCESS = 10 -- studs beyond the allowance that count as a teleport, not lag
+local STALL_MOVE = 1 -- studs per sample: a stall is a position that doesn't move
+local BANK_COOLDOWN = 10 -- after a catch-up burst, no new credit for this long
 local HISTORY = 10.0 -- long window, so the constant slacks don't let a steady speed hack through
 local SETTLE_TIME = 1.0
 local SETTLE_RADIUS = 12
@@ -53,7 +55,7 @@ local DEBT_FORGIVE = 30
 
 -- bank: seconds the player is behind a full-speed walker (standing still adds,
 -- moving faster than walking spends), capped at HITCH_CREDIT
-export type Sample = { t: number, pos: Vector3, bank: number, speed: number }
+export type Sample = { t: number, pos: Vector3, bank: number, speed: number, noEarnUntil: number? }
 type Guard = {
 	history: { Sample },
 	frozen: { Sample }?,
@@ -121,23 +123,27 @@ local function bankAt(list: { Sample }, pos: Vector3, speed: number, vel: number
 		return 0
 	end
 	local spd = math.max(speed, prev.speed)
-	local gain = (os.clock() - prev.t) - (flat(pos) - flat(prev.pos)).Magnitude / spd
+	local moved = (flat(pos) - flat(prev.pos)).Magnitude
+	local gain = (os.clock() - prev.t) - moved / spd
 	if gain < 0 then
 		return math.max(0, prev.bank + 1.5 * gain) -- faster than walking: spend
-	elseif vel >= STALL_VEL * spd then
+	elseif moved < STALL_MOVE and vel >= STALL_VEL * spd and os.clock() >= (prev.noEarnUntil or 0) then
 		return math.min(HITCH_CREDIT, prev.bank + gain) -- stalled mid-walk: earn
 	end
 	return prev.bank
 end
 
 local function sample(list: { Sample }, pos: Vector3, speed: number, vel: number): Sample
-	return { t = os.clock(), pos = pos, bank = bankAt(list, pos, speed, vel), speed = speed }
+	local prev = list[#list]
+	return { t = os.clock(), pos = pos, bank = bankAt(list, pos, speed, vel), speed = speed, noEarnUntil = prev and prev.noEarnUntil }
 end
 
--- Record a trusted sample; a catch-up burst re-bases the list at it.
+-- Record a trusted sample. A catch-up burst re-bases the list at it, and no
+-- new credit can be earned for BANK_COOLDOWN (so faked stalls can't chain).
 local function record(list: { Sample }, smp: Sample): { Sample }
 	local prev = list[#list]
 	if prev and prev.bank - smp.bank >= REBASE_SPEND then
+		smp.noEarnUntil = os.clock() + BANK_COOLDOWN
 		return { smp }
 	end
 	table.insert(list, smp)
@@ -190,7 +196,7 @@ local function enterDebt(player: Player, g: Guard, excess: number, reason: strin
 	g.frozen = table.clone(g.history)
 	local st = S.Session.Get(player)
 	if st and st.carry and st.carry.source == "steal" then
-		S.Steal.Offence(player, g.frozen[#g.frozen], excess)
+		S.Steal.Offence(player)
 	end
 end
 
@@ -252,8 +258,6 @@ function MoveGuard.LastFlag(player: Player): string?
 end
 
 -- Studio test harness only: a snapshot of the guard state.
-MoveGuard.TELEPORT_EXCESS = TELEPORT_EXCESS
-
 function MoveGuard.Debug(player: Player)
 	local g = guardOf(player)
 	local now = os.clock()
@@ -354,7 +358,7 @@ function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?, number?)
 	if height > 12 then
 		carry.airSince = carry.airSince or now
 		if now - carry.airSince > 0.6 then
-			return false, carry.ground, TELEPORT_EXCESS + 1 -- flying: restart from the last spot on the ground
+			return false, carry.ground, excess -- flying: restart from the last spot on the ground
 		end
 	else
 		carry.airSince = nil

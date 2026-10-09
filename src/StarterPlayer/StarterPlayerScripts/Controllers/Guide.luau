@@ -169,7 +169,7 @@ function Guide.Start()
 			local pad = plot:FindFirstChild("CashPad") :: BasePart
 			target = pad and pad.Position
 			if s.bank < 1 then
-				hintText = "Your Goober is making Slop Coins! Step on the Cash Pad soon."
+				hintText = "Your Goober makes coins! Visit the Cash Pad."
 			end
 		elseif step == Tutorial.Upgrade and plot then
 			local st = plot:FindFirstChild("UpgradeStation")
@@ -177,7 +177,7 @@ function Guide.Start()
 			target = console and console.Position
 			local cheapest = 50
 			if s.coins < cheapest then
-				hintText = ("Collect $%d, then buy Zoomies at the Slop-O-Matic!"):format(cheapest)
+				hintText = ("Get $%d, then buy Zoomies!"):format(cheapest)
 			end
 		end
 		UI.refs.hint.Visible = true
