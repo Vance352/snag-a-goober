@@ -46,3 +46,13 @@ replaced with native parts; no rejected asset is referenced in the place.
 | Legit belt carry walked home | PASS - Gumbo placed |
 | Steal prompt during pair cooldown | hidden on client until cooldown ended (208 s) |
 | Legit theft (real hold E, walked home) | PASS - Mushy transferred, Dex discovery |
+
+## 2026-10-08 - builder retest of round-3 exploits (2-client session, build 8f3f851)
+| Exploit (auditor round 3) | Result |
+|---|---|
+| Teleport 55 studs to belt, wait 3.4 s, snag | snag allowed at 3.4 s = same time as walking (debt model works; tightened afterwards so teleporting is strictly slower: d/(speed*1.1)+1.5 s) |
+| Teleport 48 studs into victim base, wait 3.3 s, steal | allowed at ~walking time (tightened as above) |
+| Carry stolen Goober at 20 st/s along an open path | CANCELLED after 1.5 s ("no shortcuts!"), victim keeps Disco Dan |
+| Snag then reset (Health = 0) immediately | "waddling home on its own (2s)", landed ~2 s later, not instantly |
+| Reset after carrying for minutes | placed immediately (walk time already elapsed) - correct |
+| Chat window on desktop | ChatWindowConfiguration Left/Bottom (off the HUD menu) |

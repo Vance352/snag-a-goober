@@ -125,7 +125,9 @@ local function debtPaid(player: Player, g: Guard, pos: Vector3): boolean
 	if not a then
 		return true
 	end
-	return os.clock() >= a.t + MoveGuard.MinTravelTime(player, a.pos, pos) + 1.0
+	-- strictly slower than walking: real walk speed + 10%, plus a 1.5 s penalty
+	local d = (flat(a.pos) - flat(pos)).Magnitude
+	return os.clock() >= a.t + d / (MoveGuard.MaxSpeed(player) * 1.1) + 1.5
 end
 
 -- True if the player's current position is trustworthy right now.
