@@ -212,3 +212,17 @@ tools/guard_sim.luau: ReceiveAge now behaves as measured live (does not grow) un
 Inherent trade-off (documented): while a client appears stalled, the server can't know where it is, so a cheater who
 fakes the stall pattern can appear anywhere within ~5 s of walking (~100 studs at speed 20) of their last confirmed
 spot, once per movement; never further, never chained.
+
+## 2026-10-09 (morning) - TWO-PLAYER theft tests (Studio Test, 1 server + 2 clients, latest server code)
+Server confirmed running the latest MoveGuard (STALL_BUDGET 5.0, no STALL_MAX). The client HUD in this session was the
+previous layout (session not restarted after the mobile HUD change). Player1 = id -1 (plot 1), Player2 = id -2 (plot 2).
+Movement driven by Humanoid:MoveTo from each client's own window; steals through the real StealHold/Steal remotes.
+| Test | Result |
+|---|---|
+| Catch: P2 steals P1's Fluffernaut while P1 stands at his spawn (inside 7-stud catch radius) | P2 "Caught" 1.1 s after StealStart; P1 got StealAlert + CaughtThief; Goober back on P1's stand at its original spot, owner P1; P2 got nothing, ~70 s cooldown |
+| Successful theft: P2 away at the belt; P1 steals P2's Disco Dan (paid 3000) and walks home | placed after a 4.3 s carry (StealSuccess); P2 lost the record and model; P1 got a new record paid=1500 (half, no laundering); P2 compensated exactly +750 (25%) and base auto-locked 120 s; P2 saw StealAlert + StolenFrom |
+| Teleport-home cheat: P2 steals P1's Captain Spork, then pins his HRP at his own spawn | cancelled 0.2 s after the teleport ("The Goober slipped away - no shortcuts!"); Spork back on P1's stand |
+| Lag stall mid-theft: P1 (fast thief, carry speed 26.35) steals P2's Snorkel; 1.0 s stall (frozen position, walking velocity) + catch-up halfway home | theft completed normally (StealSuccess), no warning |
+| Thief leaves mid-steal: P2 steals the Spork, server kicks P2 while carrying | P1 keeps it (record + 1 model, back on its stand, StealFailed note); P2's saved profile: 12 Goobers, no Spork (no duplication), session lock released |
+Cooldowns respected between tests (pair 300 s, thief 60 s); one attempt was silently ignored while the owner was also
+using Player1's window. Not covered: victim leaving mid-theft, 3+ players, the lock pad / eject during a theft.

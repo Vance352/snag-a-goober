@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-09 (morning)
+- Two-player theft tests in a real 2-client Studio session: catch, successful theft (transfer, half-value record, 25% compensation, shield), teleport-home cancel, lag stall at high thief speed, thief leaving mid-steal - all correct (QA/test-log.md).
 - Mobile: coins + level moved from the top centre to a compact top-left block above the menu (they sat in the middle of phone screens); tutorial hint and toasts moved up into the freed top centre.
 
 ## 2026-10-09
