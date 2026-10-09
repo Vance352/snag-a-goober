@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-08
+- Store page art: title icon + 5 feature thumbnails rendered in Blender (Assets/StorePage); genre attempted (Simulation/Tycoon).
 - QA round 3 fixes: MoveGuard trust-anchor debt model, lag-tolerant carry checks, reset no longer skips the walk home, sell refunds on paid price, steal prompt countdowns, chat moved off the menu.
 - QA round 2 fixes: per-tick carry path validation (teleport/speed/hover cancel thefts, restart belt-carry timer), horizontal catch, VIP chat tag implemented, honest Lucky copy, unaffordable prompts disabled, proportional collect XP, client-visible pair cooldowns, tips after panels close, ground-level eject, belt Goobers face both sides, lock release on early leave, AutoCollect moves bank, bigger close buttons, experience description, RawImport removed.
 - Two-player theft tests (6 paths) pass in a Studio local server; audio verified loading on a client. QA/test-log.md + QA/round1-audit.md.

@@ -27,6 +27,8 @@ exec(open(g["__file__"]).read(), g)
 e = {"__file__": os.path.join(SCRIPT_DIR, "environment.py"), "__name__": "env_r"}
 exec(open(e["__file__"]).read(), e)
 ROSTER, PROPS = g["ROSTER"], e["PROPS"]
+# renders show eyes as real geometry (in game they are native parts)
+goober_lib.NATIVE_EXPORT = False
 
 
 def shot_collection():
@@ -330,6 +332,165 @@ def _boost(col):
     ob.location = (0, 0, 0.2)
     col.objects.link(ob)
     text(col, "2x", (1.5, -0.8, 0.9), 1.3, hex_rgb("#C8FF6A"))
+
+
+# ------------------------------------------------------- store page art
+RARITY_HEX = {"Common": "#C9CED6", "Uncommon": "#5BD45B", "Rare": "#3DA5FF", "Epic": "#B05BFF", "Legendary": "#FFB627", "Secret": "#FF3DA5"}
+RARITY_OF = {
+    "G01_Blorp": "Common", "G02_SirPuddle": "Common", "G03_Toastie": "Common", "G04_Gumbo": "Common", "G05_PebblePete": "Common", "G06_Nugget": "Common",
+    "G07_Wobblesworth": "Uncommon", "G08_ConeHead": "Uncommon", "G09_Snorkel": "Uncommon", "G10_Mushy": "Uncommon", "G11_BeanBoi": "Uncommon",
+    "G12_CaptainSpork": "Rare", "G13_Fluffernaut": "Rare", "G14_DiscoDan": "Rare", "G15_Chonk": "Rare", "G16_BubblesMcGee": "Rare",
+    "G17_GrandpaGoob": "Epic", "G18_MoaiGoob": "Epic", "G19_OctoGoob": "Epic", "G20_SlimeKing": "Epic",
+    "G21_Gooberzilla": "Legendary", "G22_GoldenNugget": "Legendary", "G23_WizardGoob": "Legendary",
+    "G24_Glitch": "Secret", "G25_ChaosGoob": "Secret",
+}
+
+
+def stand(col, loc, rarity=None, scale=1.0):
+    root = place(col, "P_Stand", loc, scale=scale)
+    if rarity:
+        for ch in root.children:
+            if ch.name.endswith("__Rim"):
+                ch.data.materials.clear()
+                ch.data.materials.append(mat("Rim_" + rarity, hex_rgb(RARITY_HEX[rarity]), emission=0.6))
+    return root
+
+
+def avatar(col, loc, rot_z, shirt, pants, arms_up=False, lean=0, stride=22, name="Avatar"):
+    """A simple blocky player character (our own model) for action shots.
+    Front faces -Y; mid-stride legs; arms either raised (carrying) or reaching."""
+    a = Asset(name, collection=col)
+    a.colors.update({"Shirt": hex_rgb(shirt), "Pants": hex_rgb(pants), "Skin": hex_rgb("#F2C79A"), "Pupil": hex_rgb("#1E1B2E"), "Mouth": hex_rgb("#7A2E3A")})
+    for sx, sgn in ((-0.5, 1), (0.5, -1)):
+        a.box("Pants", size=(0.95, 0.95, 2.0), loc=(sx, sgn * 0.35, 1.0), rot=(sgn * stride, 0, 0), round_e=0.3)
+    a.box("Shirt", size=(2.0, 1.0, 2.0), loc=(0, 0, 3.0), round_e=0.3)
+    if arms_up:
+        for sx in (-1, 1):
+            a.box("Shirt", size=(0.95, 0.95, 2.0), loc=(sx * 1.5, 0, 4.6), rot=(0, sx * -10, 0), round_e=0.3)
+    else:
+        for sx in (-1, 1):
+            a.box("Shirt", size=(0.95, 0.95, 2.0), loc=(sx * 1.5, -0.8, 3.5), rot=(75, 0, 0), round_e=0.3)
+    a.box("Skin", size=(1.2, 1.2, 1.2), loc=(0, 0, 4.65), round_e=0.35)
+    for sx in (-1, 1):
+        a.sphere("Pupil", r=0.11, loc=(sx * 0.25, -0.6, 4.8), scale=(1, 0.5, 1.4), seg=10, rings=6)
+    a.smile((0, -0.61, 4.45), width=0.45, thick=0.06, frown=not arms_up)
+    root, _ = a.build(offset=loc)
+    root.rotation_euler = Euler((math.radians(lean), 0, math.radians(rot_z)))
+    return root
+
+
+def thumb(name, build, cam_loc, target, lens=40):
+    col = shot_collection()
+    build(col)
+    setup((1920, 1080), False, cam_loc=cam_loc, target=target, lens=lens)
+    return render(os.path.join(ROOT, "Assets", "ReferenceRenders", "store", name + ".png"))
+
+
+def _icon_title(col):
+    backdrop(col, hex_rgb("#7A3FC2"), hex_rgb("#FF5FA2"), size=30, y=6)
+    place(col, "G01_Blorp", (0, -0.5, 0.4), rot_z=-10, scale=2.2)
+    for x, z, r in ((-2.9, 3.6, 0.55), (2.9, 4.0, 0.6), (2.5, 1.0, 0.5), (-2.6, 1.2, 0.45)):
+        coin(col, (x, -1.0, z), r=r, rot=(80, 20, x * 10))
+    text(col, "SNAG A", (0, -2.2, 7.7), 1.15, hex_rgb("#FFFFFF"))
+    text(col, "GOOBER", (0, -2.2, 6.25), 1.65, hex_rgb("#C8FF6A"))
+
+
+def _collect(col):
+    backdrop(col, hex_rgb("#3B2A7A"), hex_rgb("#7ED6FF"), size=90, y=16)
+    ids = sorted(RARITY_OF.keys())
+    rows = [ids[0:9], ids[9:17], ids[17:25]]
+    for r, row in enumerate(rows):
+        y = r * 4.2
+        z = r * 1.6
+        n = len(row)
+        for i, gid in enumerate(row):
+            x = (i - (n - 1) / 2) * 3.9
+            stand(col, (x, y, z), RARITY_OF[gid], scale=0.85)
+            place(col, gid, (x, y, z + 0.95), rot_z=0, scale=0.95)
+        if r < 2:
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, y + 2.1, z + 0.8))
+            step = bpy.context.active_object
+            step.scale = (40, 4.2, 1.6)
+            step.data.materials.append(mat("Step", hex_rgb("#5B3E8C"), rough=0.5))
+            for c in step.users_collection:
+                c.objects.unlink(step)
+            col.objects.link(step)
+    text(col, "25 GOOBERS TO COLLECT!", (0, 6, 11.2), 2.4, hex_rgb("#FFE27A"))
+
+
+def _steal(col):
+    backdrop(col, hex_rgb("#FF8C42"), hex_rgb("#FF5FA2"), size=80, y=14)
+    # the victim's base: stands, one now empty
+    for x, gid in ((-11, "G13_Fluffernaut"), (-7, None), (-3, "G16_BubblesMcGee")):
+        stand(col, (x, 5, 0.0), "Rare" if gid else "Legendary")
+        if gid:
+            place(col, gid, (x, 5, 1.0), rot_z=0)
+    # thief sprinting toward the camera with a Legendary held overhead
+    avatar(col, (5.5, -1.5, 0), 25, "#2E9E3A", "#1E1B2E", arms_up=True, lean=-6, name="Thief")
+    place(col, "G21_Gooberzilla", (5.5, -1.5, 5.9), rot_z=20, scale=0.85)
+    # owner chasing from behind
+    avatar(col, (-1.5, 1.0, 0), 35, "#3DA5FF", "#5B3E8C", arms_up=False, lean=-12, name="Owner")
+    text(col, "STEAL...", (-5.0, -2, 10.2), 1.9, hex_rgb("#FFFFFF"))
+    text(col, "OR GET CAUGHT!", (-3.2, -2, 8.3), 1.9, hex_rgb("#C8FF6A"))
+
+
+def _base(col):
+    backdrop(col, hex_rgb("#7A3FC2"), hex_rgb("#7ED6FF"), size=90, y=22)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 6, 0.3))
+    floor = bpy.context.active_object
+    floor.scale = (34, 26, 0.6)
+    floor.data.materials.append(mat("PlotFloor", hex_rgb("#FFB3C7"), rough=0.6))
+    for c in floor.users_collection:
+        c.objects.unlink(floor)
+    col.objects.link(floor)
+    picks = ["G21_Gooberzilla", "G22_GoldenNugget", "G23_WizardGoob", "G20_SlimeKing", "G19_OctoGoob", "G17_GrandpaGoob",
+             "G15_Chonk", "G14_DiscoDan", "G12_CaptainSpork", "G13_Fluffernaut", "G10_Mushy", "G08_ConeHead"]
+    i = 0
+    for row, y in enumerate((14, 9, 4)):
+        for x in (-12, -6, 6, 12):
+            gid = picks[i]
+            i += 1
+            stand(col, (x, y, 0.6), RARITY_OF[gid], scale=0.95)
+            place(col, gid, (x, y, 1.55), rot_z=0, scale=1.0)
+    place(col, "P_Trophy", (0, 16, 0.6), scale=1.3)
+    # cash pad bursting with coins
+    bpy.ops.mesh.primitive_cylinder_add(radius=3.2, depth=0.3, location=(0, -2, 0.75))
+    pad = bpy.context.active_object
+    pad.data.materials.append(mat("Pad", hex_rgb("#7BE35A"), emission=1.4))
+    for c in pad.users_collection:
+        c.objects.unlink(pad)
+    col.objects.link(pad)
+    rnd = __import__("random").Random(5)
+    for k in range(14):
+        coin(col, (rnd.uniform(-3, 3), rnd.uniform(-3.5, -0.5), rnd.uniform(2.5, 7.5)), r=rnd.uniform(0.4, 0.6), rot=(rnd.uniform(0, 180), rnd.uniform(0, 180), 0))
+    text(col, "BUILD YOUR GOOBER EMPIRE!", (0, 2, 11.4), 2.2, hex_rgb("#FFE27A"))
+
+
+def _chaos(col):
+    backdrop(col, hex_rgb("#14081F"), hex_rgb("#C04BFF"), size=80, y=16)
+    place(col, "P_ChaosRift", (0, 6, 0), scale=0.85)
+    place(col, "G25_ChaosGoob", (0, -1.5, 2.2), rot_z=0, scale=1.9)
+    place(col, "G24_Glitch", (-7, 0, 0.5), rot_z=25, scale=1.25)
+    place(col, "G23_WizardGoob", (7, 0, 0), rot_z=-25, scale=1.15)
+    text(col, "GOOBER CHAOS EVENTS!", (0, -2, 10.4), 2.2, hex_rgb("#FF8FE0"))
+    text(col, "chaos rifts  •  slop storms  •  golden hours", (0, -2, 8.7), 0.8, hex_rgb("#FFFFFF"))
+
+
+def render_store_page():
+    out = []
+    col = shot_collection()
+    _icon_title(col)
+    setup((512, 512), False, cam_loc=(0, -13.5, 4.6), target=(0, 0, 4.0), lens=45)
+    out.append(render(os.path.join(ROOT, "Assets", "ReferenceRenders", "store", "icon_title_512.png")))
+    out.append(thumbnail())
+    out.append(thumb("thumb2_collect", _collect, cam_loc=(0, -30, 13), target=(0, 3, 4.6), lens=36))
+    out.append(thumb("thumb3_steal", _steal, cam_loc=(0, -24, 7.5), target=(0, 0, 5.4), lens=38))
+    out.append(thumb("thumb4_base", _base, cam_loc=(0, -27, 18), target=(0, 6, 5.0), lens=36))
+    out.append(thumb("thumb5_chaos", _chaos, cam_loc=(0, -25, 7.5), target=(0, 0, 5.4), lens=38))
+    clear_collection("Shot")
+    for c in bpy.data.collections:
+        c.hide_render = False
+    return out
 
 
 STORE = {
