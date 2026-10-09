@@ -298,6 +298,8 @@ function Session.Snapshot(player: Player)
 		restrictedRandom = st.restrictedRandom,
 		title = d.title,
 		settings = d.settings,
+		event = S.Event and S.Event.Snapshot(player),
+		quests = S.Quest and S.Quest.Snapshot(player),
 		temporary = S.Data.IsTemporary(player),
 		stats = d.stats,
 	}

@@ -46,7 +46,9 @@ function Util.Time(seconds: number): string
 	seconds = math.max(0, math.floor(seconds))
 	local m = seconds // 60
 	local s = seconds % 60
-	if m >= 60 then
+	if m >= 48 * 60 then
+		return string.format("%dd %dh", m // 1440, (m % 1440) // 60)
+	elseif m >= 60 then
 		return string.format("%dh %02dm", m // 60, m % 60)
 	end
 	return string.format("%d:%02d", m, s)

@@ -98,7 +98,8 @@ function NOTIFY.LevelUp(p)
 end
 
 function NOTIFY.Discovered(p)
-	UI.Toast(("📖 NEW: <font color=\"#%s\">%s</font> (%d/%d)"):format(rarityHex(p.id), nameOf(p.id), p.count, p.total), "blue", 3.5)
+	local halloween = p.pool == "Halloween"
+	UI.Toast(("NEW%s: <font color=\"#%s\">%s</font> (%d/%d)"):format(if halloween then " HALLOWEEN" else "", rarityHex(p.id), nameOf(p.id), p.count, p.total), if halloween then "gold" else "blue", 3.5, if halloween then "pumpkin" else "book")
 	local b = UI.refs.menuDex and UI.refs.menuDex:FindFirstChild("Badge")
 	if b then
 		b.Visible = true
@@ -111,7 +112,7 @@ function NOTIFY.DexMilestone(p)
 end
 
 function NOTIFY.Upgraded(p)
-	UI.Toast(("⬆️ %s → Lv %d"):format(p.name, p.level), "green", 2)
+	UI.Toast(("%s → Lv %d"):format(p.name, p.level), "green", 2, "upgrade")
 	Effects.Play("Upgrade")
 	local hrp = myHrp()
 	if hrp then
@@ -120,7 +121,7 @@ function NOTIFY.Upgraded(p)
 end
 
 function NOTIFY.StealAlert(p)
-	UI.Banner("🚨 THIEF! 🚨", ("%s is stealing your %s! Tag them to get it back!"):format(p.thief, nameOf(p.id)), Color3.fromRGB(255, 70, 90), 4)
+	UI.Banner("THIEF!", ("%s is stealing your %s! Tag them to get it back!"):format(p.thief, nameOf(p.id)), Color3.fromRGB(255, 70, 90), 4)
 	Effects.Play("StealAlarm")
 	Effects.Kick(0.6)
 	pointAt(p.thiefId)
@@ -181,7 +182,7 @@ end
 function NOTIFY.PersonalDrop(p)
 	local s = State.data
 	if s and s.tutorial >= 4 then
-		UI.Toast(("🎁 Your Personal Drop is on the belt: <font color=\"#%s\">%s</font>!"):format(rarityHex(p.id), nameOf(p.id)), "gold", 3)
+		UI.Toast(("Your Personal Drop is on the belt: <font color=\"#%s\">%s</font>!"):format(rarityHex(p.id), nameOf(p.id)), "gold", 3, "gift")
 	end
 end
 
@@ -195,6 +196,79 @@ function NOTIFY.Reborn(p)
 	UI.Banner("REBORN! ★" .. p.rebirths, ("Your Goobers now earn x%.1f forever!"):format(p.multiplier), Color3.fromRGB(200, 130, 255), 5)
 	Effects.Play("Rebirth")
 	Effects.Kick(1)
+end
+
+-- ---------------------------------------------------------- Halloween
+local AREA_NAME = {}
+for _, a in ipairs(require(ReplicatedStorage.Shared.Halloween).Areas) do
+	AREA_NAME[a.key] = a
+end
+
+function NOTIFY.CandyFound(p)
+	UI.Toast(("Candy found! <font color=\"#FFAADC\">+%d Candy</font>  (%d/%d)"):format(p.candy, p.found, p.total), "purple", 2.6, "candy")
+	Effects.Play("Candy")
+	local hrp = myHrp()
+	if hrp then
+		Effects.Burst(hrp.Position + Vector3.new(0, 2, 0), Color3.fromRGB(255, 130, 210), 30, 0.8)
+		Effects.FloatText(hrp.Position + Vector3.new(0, 4, 0), "+" .. p.candy .. " Candy", Color3.fromRGB(255, 160, 220), true)
+	end
+	if p.found == p.total then
+		UI.Banner("EVERY CANDY FOUND!", "You found all " .. p.total .. " hidden candies!", Color3.fromRGB(255, 150, 220), 4)
+	end
+end
+
+function NOTIFY.Bucket(p)
+	UI.Toast(("+%d Candy from the bucket. It refills in %s."):format(p.candy, Util.Time(p.refill)), "purple", 2.6, "candy")
+	Effects.Play("Bucket")
+	local hrp = myHrp()
+	if hrp then
+		Effects.Burst(hrp.Position + Vector3.new(0, 2, 0), Color3.fromRGB(255, 160, 60), 20, 0.7)
+	end
+end
+
+function NOTIFY.EventLevel(p)
+	UI.Banner("EVENT LEVEL " .. p.level .. "!", "A new reward is waiting in the EVENT menu", Color3.fromRGB(255, 150, 40), 3.5)
+	Effects.Play("EventLevel")
+	local b = UI.refs.menuHalloween and UI.refs.menuHalloween:FindFirstChild("Badge")
+	if b then
+		b.Visible = true
+	end
+	local hrp = myHrp()
+	if hrp then
+		Effects.Burst(hrp.Position + Vector3.new(0, 2, 0), Color3.fromRGB(255, 150, 40), 40, 1)
+	end
+end
+
+function NOTIFY.QuestDone(p)
+	UI.Toast(("Quest complete: %s  Claim your reward!"):format(p.text), "green", 3.5, "scroll")
+	Effects.Play("Quest")
+	local b = UI.refs.menuQuests and UI.refs.menuQuests:FindFirstChild("Badge")
+	if b then
+		b.Visible = true
+	end
+end
+
+function NOTIFY.Reward(p)
+	UI.Banner(p.title or "REWARD!", table.concat(p.lines or {}, "  •  "), Color3.fromRGB(255, 200, 80), 3.5)
+	Effects.Play("Reward")
+	local hrp = myHrp()
+	if hrp then
+		Effects.Coins(hrp.Position + Vector3.new(0, 3, 0), 24)
+	end
+end
+
+function NOTIFY.AreaEnter(p)
+	local a = AREA_NAME[p.key]
+	if a then
+		UI.Banner(string.upper(a.name), a.blurb, a.color, 3)
+		Effects.Play("Area")
+	end
+end
+
+function NOTIFY.IslandIntro()
+	if UI.ShowIntro then
+		task.delay(0.9, UI.ShowIntro)
+	end
 end
 
 local EFFECT = {}
@@ -252,10 +326,13 @@ end
 function EFFECT.RareSpawn(p)
 	local color = Config.Rarities[p.rarity].color
 	if p.rarity == "Legendary" or p.rarity == "Secret" then
-		UI.Banner(("%s SPOTTED!"):format(p.rarity:upper()), ("%s just hit %s!"):format(nameOf(p.id), if p.line == "Gold" then "the Gold Line" else "the Slop Line"), color, 4)
+		local line = Config.Lines[p.line or "Main"]
+		UI.Banner(("%s SPOTTED!"):format(p.rarity:upper()), ("%s just hit %s!"):format(nameOf(p.id), if line and line.displayName then "the " .. line.displayName:gsub("^The ", "") else "the belt"), color, 4)
 		Effects.Play(if p.rarity == "Secret" then "Legendary" else "Rare")
 	else
-		UI.Toast(("✨ EPIC <font color=\"#%s\">%s</font> is on the belt!"):format(color:ToHex(), nameOf(p.id)), "purple", 2.5)
+		local line = Config.Lines[p.line or "Main"]
+		local where = if line and line.area then "the " .. line.displayName .. " belt" else "the belt"
+		UI.Toast(("EPIC <font color=\"#%s\">%s</font> is on %s!"):format(color:ToHex(), nameOf(p.id), where), "purple", 2.5, "swirl")
 	end
 end
 
@@ -280,7 +357,7 @@ end
 local savedLighting = nil
 function EFFECT.ChaosStart(p)
 	local def = Config.Chaos.types[p.type]
-	UI.Banner("🌀 GOOBER CHAOS: " .. p.title .. "!", p.desc, def.color, 5)
+	UI.Banner("GOOBER CHAOS: " .. p.title .. "!", p.desc, def.color, 5)
 	Effects.Play("Event")
 	Effects.Kick(0.5)
 	local cc = Lighting:FindFirstChild("Grade") :: ColorCorrectionEffect

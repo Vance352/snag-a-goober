@@ -367,12 +367,38 @@ function World.Start()
 		apply()
 	end)
 
+	-- belt chevrons scroll at their line's speed (model "<Line>Line")
 	local chevrons = {}
-	for _, d in ipairs(map:GetDescendants()) do
-		if d:IsA("Texture") and d.Name == "Chevrons" then
-			table.insert(chevrons, d)
+	local function addChevrons(root: Instance)
+		for _, d in ipairs(root:GetDescendants()) do
+			if d:IsA("Texture") and d.Name == "Chevrons" then
+				local holder = d.Parent and d.Parent.Parent
+				local key = holder and holder.Name:match("^(.-)Line$")
+				local line = Config.Lines[key or ""] or Config.Lines.Main
+				table.insert(chevrons, { tex = d, speed = line.speed })
+			end
 		end
 	end
+	addChevrons(map)
+	-- island belts stream in and out, so they're found by tag
+	local function addTagged(tex: Instance)
+		if tex:IsA("Texture") then
+			local line = Config.Lines[tex:GetAttribute("Line") or ""] or Config.Lines.Main
+			table.insert(chevrons, { tex = tex, speed = line.speed })
+		end
+	end
+	for _, tex in ipairs(CollectionService:GetTagged("BeltChevrons")) do
+		addTagged(tex)
+	end
+	CollectionService:GetInstanceAddedSignal("BeltChevrons"):Connect(addTagged)
+	CollectionService:GetInstanceRemovedSignal("BeltChevrons"):Connect(function(tex)
+		for i, c in ipairs(chevrons) do
+			if c.tex == tex then
+				table.remove(chevrons, i)
+				break
+			end
+		end
+	end)
 
 	local promptTimer = 0
 	RunService.RenderStepped:Connect(function(dt)
@@ -411,10 +437,10 @@ function World.Start()
 				info.weld.C0 = animOffset(model:GetAttribute("Anim") or "wobble", t, info.phase, mode == "carried")
 			end
 		end
-		for _, tex in ipairs(chevrons) do
-			local dir = tex.Parent:GetAttribute("Dir") or 1
-			local speed = if tex.Parent.Parent and tex.Parent.Parent.Name == "GoldLine" then Config.Lines.Gold.speed else Config.Lines.Main.speed
-			tex.OffsetStudsU = (now * speed * dir) % tex.StudsPerTileU
+		for _, c in ipairs(chevrons) do
+			local tex = c.tex
+			local dir = tex.Parent and tex.Parent:GetAttribute("Dir") or 1
+			tex.OffsetStudsU = (now * c.speed * dir) % tex.StudsPerTileU
 		end
 	end)
 end

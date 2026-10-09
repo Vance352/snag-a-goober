@@ -35,7 +35,6 @@ type BeltGoober = {
 local belt: { [string]: BeltGoober } = {}
 local folder: Folder
 local M = Config.Map
-local LENGTH = M.beltEndX - M.beltStartX
 
 local rng = Random.new()
 
@@ -52,13 +51,15 @@ end
 
 function ConveyorService.PositionOf(b: BeltGoober, t: number?): Vector3
 	local dt = (t or now()) - b.spawnT
-	return Vector3.new(b.startX + b.dir * b.speed * dt, M.beltY, b.z)
+	return Vector3.new(b.startX + b.dir * b.speed * dt, b.y or M.beltY, b.z)
 end
 
 -- Weighted rarity roll, then a uniform pick inside that rarity.
 function ConveyorService.Roll(lineName: string, luck: number, chaos): string
+	local line = Config.Lines[lineName]
+	local poolName = line.pool or "Classic"
 	local odds = Util.Odds(lineName, luck, chaos and chaos.secretMult)
-	if chaos and chaos.chaosGoobChance and rng:NextNumber() < chaos.chaosGoobChance then
+	if poolName == "Classic" and chaos and chaos.chaosGoobChance and rng:NextNumber() < chaos.chaosGoobChance then
 		return "G25_ChaosGoob"
 	end
 	local r = rng:NextNumber() * 100
@@ -71,18 +72,26 @@ function ConveyorService.Roll(lineName: string, luck: number, chaos): string
 			break
 		end
 	end
-	local pool = GooberData.ByRarity[picked]
+	local byRarity = GooberData.ByPool[poolName]
+	local pool = byRarity[picked]
 	if not pool or #pool == 0 then
-		pool = GooberData.ByRarity.Common
+		-- fall back to the nearest rarity this pool actually has
+		for _, rarity in ipairs(Config.RarityOrder) do
+			if byRarity[rarity] and #byRarity[rarity] > 0 then
+				pool = byRarity[rarity]
+				break
+			end
+		end
 	end
 	return pool[rng:NextInteger(1, #pool)].id
 end
 
 function ConveyorService.Spawn(gid: string, lineName: string, reservedFor: Player?): BeltGoober
 	local line = Config.Lines[lineName]
-	local dir = if lineName == "Main" then 1 else -1
-	local startX = if dir == 1 then M.beltStartX else M.beltEndX
-	local z = if lineName == "Main" then M.mainZ else M.goldZ
+	local dir = if line.endX > line.startX then 1 else -1
+	local startX = line.startX
+	local z = line.z
+	local y = line.y or M.beltY
 	local uid = S.Data.NewUid()
 	local model = S.Model.Build(gid, uid, "belt")
 	local b: BeltGoober = {
@@ -94,6 +103,8 @@ function ConveyorService.Spawn(gid: string, lineName: string, reservedFor: Playe
 		startX = startX,
 		dir = dir,
 		z = z,
+		y = y,
+		length = math.abs(line.endX - line.startX),
 		reservedFor = reservedFor and reservedFor.UserId,
 		-- Personal Drops are half price for their owner
 		price = if reservedFor then math.floor(GooberData.ById[gid].price * Config.PersonalDrop.discount) else GooberData.ById[gid].price,
@@ -104,7 +115,7 @@ function ConveyorService.Spawn(gid: string, lineName: string, reservedFor: Playe
 	model:SetAttribute("StartX", startX)
 	model:SetAttribute("Dir", dir)
 	model:SetAttribute("BeltZ", z)
-	model:SetAttribute("BeltY", M.beltY)
+	model:SetAttribute("BeltY", y)
 	model:SetAttribute("Line", lineName)
 	model:SetAttribute("Price", b.price)
 	-- half the Goobers face each row of bases, so every base sees faces
@@ -170,7 +181,7 @@ function ConveyorService.Snag(player: Player, uid: any)
 	end
 	local line = Config.Lines[b.line]
 	if st.data.level < line.levelRequired then
-		return fail(player, ("The Gold Line unlocks at Level %d."):format(line.levelRequired))
+		return fail(player, ("%s unlocks at Level %d."):format(line.displayName or "This line", line.levelRequired))
 	end
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
@@ -205,7 +216,10 @@ end
 
 -- --------------------------------------------------------------- loops
 function ConveyorService.Start()
-	local acc = { Main = 0, Gold = 0 }
+	local acc = {}
+	for lineName in pairs(Config.Lines) do
+		acc[lineName] = 0
+	end
 	local last = os.clock()
 	task.spawn(function()
 		while true do
@@ -242,7 +256,7 @@ function ConveyorService.Start()
 			-- despawn at the end of the line
 			local nowT = now()
 			for uid, b in pairs(belt) do
-				if nowT - b.spawnT > LENGTH / b.speed then
+				if nowT - b.spawnT > b.length / b.speed then
 					belt[uid] = nil
 					b.model:Destroy()
 				end

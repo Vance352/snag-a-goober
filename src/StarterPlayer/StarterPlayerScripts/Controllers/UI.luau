@@ -36,12 +36,45 @@ local panels: { [string]: Frame } = {}
 local panelRefresh: { [string]: () -> () } = {}
 
 -- ------------------------------------------------------------ helpers
-local UPGRADE_ICON = { Speed = "👟", Slots = "🪑", Income = "🧪", Lock = "🔒" }
-local PASS_ICON = { VIP = "👑", DoubleCoins = "💰", ExtraSlots = "🪑", SprintBoots = "👟", AutoCollect = "🧲", Lucky = "🍀" }
-local PRODUCT_ICON = { CoinsSmall = "💰", CoinsMedium = "🛢️", CoinsLarge = "🚛", Boost = "⚡" }
+local UPGRADE_ICON = { Speed = "shoe", Slots = "stand", Income = "flask", Lock = "lock" }
+local PASS_ICON = { VIP = "trophy", DoubleCoins = "coin", ExtraSlots = "stand", SprintBoots = "shoe", AutoCollect = "coin", Lucky = "gift" }
+local PRODUCT_ICON = { CoinsSmall = "coin", CoinsMedium = "coin", CoinsLarge = "coin", Boost = "bolt" }
 
 local function rarityColor(r: string): Color3
 	return Config.Rarities[r].color
+end
+
+-- "+30 Candy  +40 Event XP  +$1.2K" for a reward table (coins are seconds of income)
+function UI.RewardText(reward): string
+	if not reward then
+		return ""
+	end
+	local s = State.data
+	local parts = {}
+	if reward.candy then
+		table.insert(parts, ("+%d Candy"):format(reward.candy))
+	end
+	if reward.coins then
+		local rate = s and s.rate or 0
+		table.insert(parts, "+$" .. Util.Short(math.max(math.floor(rate * reward.coins), reward.coins * 2)))
+	end
+	if reward.exp then
+		table.insert(parts, ("+%d Event XP"):format(reward.exp))
+	end
+	if reward.xp then
+		table.insert(parts, ("+%d XP"):format(reward.xp))
+	end
+	if reward.boost then
+		table.insert(parts, "2x income " .. Util.Time(reward.boost))
+	end
+	if reward.goober then
+		local def = GooberData.ById[reward.goober]
+		table.insert(parts, if def then def.name else "a Goober")
+	end
+	if reward.title then
+		table.insert(parts, ('title "%s"'):format(reward.title))
+	end
+	return table.concat(parts, "  ")
 end
 
 function UI.GooberViewport(gid: string, parent: Instance, size: UDim2, silhouette: boolean?): ViewportFrame
@@ -88,79 +121,167 @@ function UI.GooberViewport(gid: string, parent: Instance, size: UDim2, silhouett
 end
 
 -- --------------------------------------------------------------- HUD
+-- Layout (900x500 reference, scaled): currencies + level top-left, the
+-- chunky nav grid under them, travel tabs top-centre, player card + quest
+-- card + status pills top-right. The bottom corners stay free for the
+-- thumbstick and jump button.
+local NAV = {
+	{ key = "Halloween", icon = "pumpkin", label = "EVENT", color = Color3.fromRGB(255, 128, 30) },
+	{ key = "Shop", icon = "shop", label = "SHOP", color = Color3.fromRGB(255, 196, 50) },
+	{ key = "Dex", icon = "book", label = "INDEX", color = Color3.fromRGB(70, 160, 255) },
+	{ key = "Quests", icon = "scroll", label = "QUESTS", color = Color3.fromRGB(255, 95, 162) },
+	{ key = "Levels", icon = "trophy", label = "LEVELS", color = Color3.fromRGB(150, 110, 255) },
+	{ key = "Upgrades", icon = "upgrade", label = "UPGRADE", color = Color3.fromRGB(90, 200, 90) },
+	{ key = "Rebirth", icon = "rebirth", label = "REBIRTH", color = Color3.fromRGB(190, 100, 255) },
+	{ key = "Settings", icon = "gear", label = "SETTINGS", color = Color3.fromRGB(110, 95, 150) },
+}
+local TABS = {
+	{ key = "Base", icon = "house", label = "BASE", color = Color3.fromRGB(90, 200, 90) },
+	{ key = "Plaza", icon = "belt", label = "BELT", color = Color3.fromRGB(70, 160, 255) },
+	{ key = "Island", icon = "ghost", label = "SPOOKY", color = Color3.fromRGB(255, 128, 30) },
+}
+
+local function badge(parent: GuiObject)
+	local b = Theme.frame({ Name = "Badge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 5, 0, -5), Size = UDim2.fromOffset(20, 20), BackgroundColor3 = C.red, Visible = false, ZIndex = 3, Parent = parent })
+	Theme.corner(b, 10)
+	Theme.stroke(b, 2.5)
+	return b
+end
+
 local function buildHUD(root: Frame)
-	-- coins pill (top-left corner, so the middle of a phone screen stays clear)
-	local coins = Theme.frame({
-		Name = "Coins",
-		Position = UDim2.fromOffset(8, 6),
-		Size = UDim2.fromOffset(214, 52),
-		BackgroundColor3 = C.panel,
-		Parent = root,
-	})
+	-- coins pill
+	local coins = Theme.frame({ Name = "Coins", Position = UDim2.fromOffset(8, 6), Size = UDim2.fromOffset(222, 52), BackgroundColor3 = C.panel, Parent = root })
 	Theme.corner(coins, 26)
 	Theme.stroke(coins, 3)
-	local icon = Theme.frame({ Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(6, 6), BackgroundColor3 = C.gold, Parent = coins })
-	Theme.corner(icon, 20)
-	Theme.stroke(icon, 2.5)
-	Theme.label({ Size = UDim2.fromScale(1, 1), Text = "$", MaxText = 30, Parent = icon })
-	refs.coins = Theme.label({ Position = UDim2.fromOffset(52, 2), Size = UDim2.new(1, -60, 0, 30), Text = "0", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 30, Parent = coins })
-	refs.rate = Theme.label({ Position = UDim2.fromOffset(52, 31), Size = UDim2.new(1, -60, 0, 18), Text = "+0/s", TextColor3 = C.lime, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = coins })
+	Theme.icon("coin", { Size = UDim2.fromOffset(46, 46), Position = UDim2.fromOffset(3, 3), Parent = coins })
+	refs.coins = Theme.label({ Position = UDim2.fromOffset(54, 2), Size = UDim2.new(1, -62, 0, 30), Text = "0", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 30, Parent = coins })
+	refs.rate = Theme.label({ Position = UDim2.fromOffset(54, 31), Size = UDim2.new(1, -62, 0, 18), Text = "+0/s", TextColor3 = C.lime, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = coins })
 
-	-- level bar (under the coins)
-	local bar = Theme.frame({ Name = "Level", Position = UDim2.fromOffset(8, 64), Size = UDim2.fromOffset(214, 24), BackgroundColor3 = C.ink, Parent = root })
+	-- candy pill (event currency) with the event countdown
+	local candy = Theme.frame({ Name = "Candy", Position = UDim2.fromOffset(8, 62), Size = UDim2.fromOffset(222, 38), BackgroundColor3 = Color3.fromRGB(92, 40, 92), Parent = root })
+	Theme.corner(candy, 19)
+	Theme.stroke(candy, 3)
+	Theme.icon("candy", { Size = UDim2.fromOffset(36, 36), Position = UDim2.fromOffset(4, 1), Parent = candy })
+	refs.candy = Theme.label({ Position = UDim2.fromOffset(44, 3), Size = UDim2.new(0.42, -10, 1, -6), Text = "0", TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(255, 170, 220), MaxText = 24, Parent = candy })
+	refs.eventTimer = Theme.label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 4), Size = UDim2.new(0.52, 0, 1, -8), Text = "", TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = C.sub, MaxText = 14, Parent = candy })
+
+	-- level bar
+	local bar = Theme.frame({ Name = "Level", Position = UDim2.fromOffset(8, 104), Size = UDim2.fromOffset(222, 24), BackgroundColor3 = C.ink, Parent = root })
 	Theme.corner(bar, 12)
 	Theme.stroke(bar, 2.5)
 	refs.xpFill = Theme.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = C.lime, Parent = bar })
 	Theme.corner(refs.xpFill, 12)
 	refs.level = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "Lv 1", MaxText = 16, ZIndex = 2, Parent = bar })
-	refs.nextUnlock = Theme.label({ Position = UDim2.fromOffset(10, 90), Size = UDim2.fromOffset(240, 16), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, Parent = root })
+	refs.nextUnlock = Theme.label({ Position = UDim2.fromOffset(10, 130), Size = UDim2.fromOffset(260, 16), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, Parent = root })
 
-	-- menu buttons (2x2, left, under the coins)
-	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 110), Size = UDim2.fromOffset(176, 176), BackgroundTransparency = 1, Parent = root })
+	-- chunky nav grid (3 columns)
+	-- (ends ~350 so the bottom-left stays free for the phone thumbstick)
+	local menu = Theme.frame({ Name = "Menu", Position = UDim2.fromOffset(8, 150), Size = UDim2.fromOffset(222, 200), BackgroundTransparency = 1, Parent = root })
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.fromOffset(84, 84)
-	grid.CellPadding = UDim2.fromOffset(8, 8)
+	grid.CellSize = UDim2.fromOffset(70, 62)
+	grid.CellPadding = UDim2.fromOffset(6, 6)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = menu
-	local function menuButton(name, emoji, label, color, order)
-		local b = Theme.button({ Name = name, Text = "", Color = color, LayoutOrder = order, Parent = menu }, function()
+	for i, n in ipairs(NAV) do
+		local b = Theme.button({ Name = n.key, Text = "", Color = n.color, LayoutOrder = i, Radius = 16, Parent = menu }, function()
 			Effects.Play("Click")
-			UI.Toggle(name)
+			UI.Toggle(n.key)
 		end)
-		Theme.label({ Size = UDim2.new(1, 0, 0.62, 0), Position = UDim2.fromScale(0, 0.04), Text = emoji, Stroke = false, MaxText = 36, Parent = b })
-		Theme.label({ Size = UDim2.new(1, -4, 0.3, 0), Position = UDim2.new(0, 2, 0.66, 0), Text = label, MaxText = 16, Parent = b })
-		local badge = Theme.frame({ Name = "Badge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 4, 0, -4), Size = UDim2.fromOffset(18, 18), BackgroundColor3 = C.red, Visible = false, Parent = b })
-		Theme.corner(badge, 9)
-		Theme.stroke(badge, 2)
-		refs["menu" .. name] = b
-		return b
+		Theme.icon(n.icon, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.fromOffset(40, 40), Parent = b })
+		Theme.label({ Position = UDim2.new(0, 2, 1, -20), Size = UDim2.new(1, -4, 0, 18), Text = n.label, MaxText = 14, MinText = 7, Parent = b })
+		badge(b)
+		refs["menu" .. n.key] = b
 	end
-	menuButton("Upgrades", "⬆️", "UPGRADES", Color3.fromRGB(90, 200, 90), 1)
-	menuButton("Dex", "📖", "DEX", Color3.fromRGB(80, 160, 255), 2)
-	menuButton("Rebirth", "♻️", "REBIRTH", Color3.fromRGB(190, 100, 255), 3)
-	menuButton("Shop", "🛒", "SHOP", Color3.fromRGB(255, 170, 40), 4)
-	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(192, 110), Size = UDim2.fromOffset(60, 60), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
-		UI.Toggle("Settings")
-	end)
 
-	-- top-right status column
-	local status = Theme.frame({ Name = "Status", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 6), Size = UDim2.fromOffset(240, 220), BackgroundTransparency = 1, Parent = root })
+	-- travel tabs (top centre)
+	local tabs = Theme.frame({ Name = "Tabs", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(348, 46), BackgroundTransparency = 1, Parent = root })
+	local tl = Instance.new("UIListLayout")
+	tl.FillDirection = Enum.FillDirection.Horizontal
+	tl.Padding = UDim.new(0, 6)
+	tl.SortOrder = Enum.SortOrder.LayoutOrder
+	tl.Parent = tabs
+	refs.tabs = {}
+	for i, tdef in ipairs(TABS) do
+		local b = Theme.button({ Name = tdef.key, Text = "", Color = C.panel2, LayoutOrder = i, Size = UDim2.fromOffset(112, 46), Radius = 14, Parent = tabs }, function()
+			Effects.Play("Click")
+			if UI.OnTab then
+				UI.OnTab(tdef.key)
+			end
+		end)
+		Theme.icon(tdef.icon, { Position = UDim2.fromOffset(4, 3), Size = UDim2.fromOffset(40, 40), Parent = b })
+		Theme.label({ Position = UDim2.fromOffset(46, 4), Size = UDim2.new(1, -50, 1, -8), Text = tdef.label, MaxText = 18, MinText = 8, Parent = b })
+		refs.tabs[tdef.key] = { button = b, color = tdef.color }
+	end
+	refs.tabsFrame = tabs
+
+	-- top-right column: player card, quest card, status pills
+	local status = Theme.frame({ Name = "Status", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 6), Size = UDim2.fromOffset(250, 380), BackgroundTransparency = 1, Parent = root })
 	local list = Instance.new("UIListLayout")
 	list.Padding = UDim.new(0, 6)
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Parent = status
-	local function pill(name, order, color, h)
-		local f = Theme.frame({ Name = name, Size = UDim2.fromOffset(250, h or 44), BackgroundColor3 = color, LayoutOrder = order, Parent = status })
+
+	local card = Theme.frame({ Name = "Player", Size = UDim2.fromOffset(250, 44), BackgroundColor3 = C.panel, LayoutOrder = 0, Parent = status })
+	Theme.corner(card, 14)
+	Theme.stroke(card, 2.5)
+	local head = Instance.new("ImageLabel")
+	head.BackgroundColor3 = C.panel2
+	head.Position = UDim2.fromOffset(4, 4)
+	head.Size = UDim2.fromOffset(36, 36)
+	head.Parent = card
+	Theme.corner(head, 18)
+	task.spawn(function()
+		local ok, img = pcall(Players.GetUserThumbnailAsync, Players, player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+		if ok then
+			head.Image = img
+		end
+	end)
+	refs.playerName = Theme.label({ Position = UDim2.fromOffset(46, 2), Size = UDim2.new(1, -52, 0, 22), Text = player.DisplayName, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = card })
+	refs.playerStats = Theme.label({ Position = UDim2.fromOffset(46, 23), Size = UDim2.new(1, -52, 0, 18), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, Parent = card })
+
+	local quest = Instance.new("TextButton")
+	quest.Name = "Quest"
+	quest.Text = ""
+	quest.AutoButtonColor = false
+	quest.BackgroundColor3 = Color3.fromRGB(70, 34, 86)
+	quest.Size = UDim2.fromOffset(250, 98)
+	quest.LayoutOrder = 1
+	quest.Parent = status
+	Theme.corner(quest, 14)
+	refs.questStroke = Theme.stroke(quest, 3)
+	Theme.icon("scroll", { Position = UDim2.fromOffset(6, 6), Size = UDim2.fromOffset(26, 26), Parent = quest })
+	refs.questHead = Theme.label({ Position = UDim2.fromOffset(36, 6), Size = UDim2.new(1, -44, 0, 22), Text = "QUEST", TextColor3 = C.gold, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 16, Parent = quest })
+	refs.questText = Theme.label({ Position = UDim2.fromOffset(8, 30), Size = UDim2.new(1, -16, 0, 22), Text = "", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 16, Parent = quest })
+	local qbar = Theme.frame({ Position = UDim2.fromOffset(8, 56), Size = UDim2.new(1, -16, 0, 14), BackgroundColor3 = C.ink, Parent = quest })
+	Theme.corner(qbar, 7)
+	refs.questFill = Theme.frame({ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(255, 140, 40), Parent = qbar })
+	Theme.corner(refs.questFill, 7)
+	refs.questCount = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "", MaxText = 12, ZIndex = 2, Parent = qbar })
+	refs.questReward = Theme.label({ Position = UDim2.fromOffset(8, 73), Size = UDim2.new(1, -110, 0, 20), Text = "", TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 14, MinText = 8, Parent = quest })
+	refs.questClaim = Theme.button({ AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -6, 1, -5), Size = UDim2.fromOffset(96, 32), Text = "CLAIM", Color = C.lime, MaxText = 16, Visible = false, Parent = quest }, function()
+		Effects.Play("Click")
+		Net.Event("ClaimQuest"):FireServer("chain")
+	end)
+	quest.Activated:Connect(function()
+		Effects.Play("Click")
+		UI.Open("Quests")
+	end)
+	refs.quest = quest
+
+	local function pill(name, order, color, iconName, h)
+		h = h or 40
+		local f = Theme.frame({ Name = name, Size = UDim2.fromOffset(250, h), BackgroundColor3 = color, LayoutOrder = order, Parent = status })
 		Theme.corner(f, 12)
 		Theme.stroke(f, 2.5)
-		local t = Theme.label({ Name = "Text", Size = UDim2.new(1, -12, 1, -6), Position = UDim2.fromOffset(6, 3), Text = "", MaxText = 18, Parent = f })
+		Theme.icon(iconName, { Position = UDim2.fromOffset(5, 4), Size = UDim2.fromOffset(h - 8, h - 8), Parent = f })
+		local t = Theme.label({ Name = "Text", Size = UDim2.new(1, -h - 6, 1, -6), Position = UDim2.fromOffset(h, 3), Text = "", MaxText = 17, Parent = f })
 		return f, t
 	end
-	refs.chaosPill, refs.chaosText = pill("Chaos", 1, C.panel, 58)
-	refs.boostPill, refs.boostText = pill("Boost", 2, Color3.fromRGB(230, 150, 20))
-	refs.lockPill, refs.lockText = pill("Lock", 3, Color3.fromRGB(70, 110, 200))
-	refs.dropPill, refs.dropText = pill("Drop", 4, Color3.fromRGB(60, 140, 70))
+	refs.chaosPill, refs.chaosText = pill("Chaos", 2, C.panel, "swirl", 52)
+	refs.boostPill, refs.boostText = pill("Boost", 3, Color3.fromRGB(230, 150, 20), "bolt")
+	refs.lockPill, refs.lockText = pill("Lock", 4, Color3.fromRGB(70, 110, 200), "lock")
+	refs.dropPill, refs.dropText = pill("Drop", 5, Color3.fromRGB(60, 140, 70), "gift")
 
 	-- carry bar (bottom centre, above mobile controls)
 	local carry = Theme.frame({ Name = "Carry", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -110), Size = UDim2.fromOffset(430, 58), BackgroundColor3 = C.panel, Visible = false, Parent = root })
@@ -172,8 +293,8 @@ local function buildHUD(root: Frame)
 	end)
 	refs.carry = carry
 
-	-- tutorial hint
-	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(370, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root }) -- clears the status column on 16:9 phones
+	-- tutorial hint (under the travel tabs)
+	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 58), Size = UDim2.fromOffset(370, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root })
 	Theme.corner(hint, 16)
 	Theme.stroke(hint, 3)
 	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -134, 1, -8), Text = "", MaxText = 22, Parent = hint })
@@ -183,13 +304,13 @@ local function buildHUD(root: Frame)
 	end)
 	refs.hint = hint
 
-	-- toasts
-	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 78), Size = UDim2.fromOffset(360, 200), BackgroundTransparency = 1, Parent = root })
-	local tl = Instance.new("UIListLayout")
-	tl.Padding = UDim.new(0, 6)
-	tl.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	tl.SortOrder = Enum.SortOrder.LayoutOrder
-	tl.Parent = toasts
+	-- toasts (under the hint)
+	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 126), Size = UDim2.fromOffset(360, 200), BackgroundTransparency = 1, Parent = root })
+	local tll = Instance.new("UIListLayout")
+	tll.Padding = UDim.new(0, 6)
+	tll.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	tll.SortOrder = Enum.SortOrder.LayoutOrder
+	tll.Parent = toasts
 	refs.toasts = toasts
 
 	-- banner
@@ -197,6 +318,42 @@ local function buildHUD(root: Frame)
 	refs.bannerTitle = Theme.label({ Size = UDim2.new(1, 0, 0.62, 0), Text = "", MaxText = 64, Stroke = 4, Parent = banner })
 	refs.bannerSub = Theme.label({ Position = UDim2.fromScale(0, 0.62), Size = UDim2.new(1, 0, 0.36, 0), Text = "", MaxText = 28, Stroke = 3, Parent = banner })
 	refs.banner = banner
+
+	-- full-screen fade for portal travel
+	refs.fade = Theme.frame({ Name = "Fade", Size = UDim2.new(1, 0, 1, 80), Position = UDim2.fromOffset(0, -60), BackgroundColor3 = Color3.fromRGB(20, 8, 32), BackgroundTransparency = 1, ZIndex = 50, Visible = false, Parent = root })
+end
+
+local fadeToken = 0
+function UI.Fade(inTime: number, hold: number)
+	local f = refs.fade
+	if not f then
+		return
+	end
+	fadeToken += 1
+	local token = fadeToken
+	f.Visible = true
+	f.BackgroundTransparency = 1
+	Theme.tween(f, inTime, { BackgroundTransparency = 0 })
+	task.delay(inTime + hold, function()
+		if token == fadeToken then
+			Theme.tween(f, 0.6, { BackgroundTransparency = 1 })
+			task.wait(0.62)
+			if token == fadeToken then
+				f.Visible = false
+			end
+		end
+	end)
+end
+
+-- highlight the travel tab for where you are ("Island", "Base" or "Plaza")
+function UI.SetZone(zone: string)
+	UI.zone = zone
+	if not refs.tabs then
+		return
+	end
+	for key, t in pairs(refs.tabs) do
+		t.button.BackgroundColor3 = if key == zone then t.color else C.panel2
+	end
 end
 
 -- ------------------------------------------------------------- toasts
@@ -209,7 +366,7 @@ local TOAST_COLORS = {
 }
 local toastOrder = 0
 
-function UI.Toast(text: string, color: string?, seconds: number?)
+function UI.Toast(text: string, color: string?, seconds: number?, iconName: string?)
 	if not refs.toasts then
 		return
 	end
@@ -229,7 +386,12 @@ function UI.Toast(text: string, color: string?, seconds: number?)
 	local f = Theme.frame({ Size = UDim2.new(1, 0, 0, 38), BackgroundColor3 = TOAST_COLORS[color or "purple"] or C.panel2, LayoutOrder = toastOrder, Parent = refs.toasts })
 	Theme.corner(f, 12)
 	Theme.stroke(f, 2.5)
-	Theme.label({ Position = UDim2.fromOffset(10, 3), Size = UDim2.new(1, -20, 1, -6), Text = text, MaxText = 19, Parent = f })
+	local x = 10
+	if iconName then
+		Theme.icon(iconName, { Position = UDim2.fromOffset(5, 3), Size = UDim2.fromOffset(32, 32), Parent = f })
+		x = 40
+	end
+	Theme.label({ Position = UDim2.fromOffset(x, 3), Size = UDim2.new(1, -x - 10, 1, -6), Text = text, MaxText = 19, Parent = f })
 	Effects.Pop(f)
 	task.delay(seconds or 3.2, function()
 		if f.Parent then
@@ -268,7 +430,7 @@ function UI.Banner(title: string, sub: string?, color: Color3?, seconds: number?
 end
 
 -- ------------------------------------------------------------- panels
-local function panelShell(name: string, title: string, accent: Color3): (Frame, ScrollingFrame)
+local function panelShell(name: string, title: string, accent: Color3, iconName: string?): (Frame, ScrollingFrame)
 	local dim = Theme.frame({ Name = name .. "Modal", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45, Visible = false, ZIndex = 20, Active = true, Parent = UI.root })
 	local close = Instance.new("TextButton")
 	close.Size = UDim2.fromScale(1, 1)
@@ -284,12 +446,17 @@ local function panelShell(name: string, title: string, accent: Color3): (Frame, 
 	Theme.corner(p, 20)
 	Theme.stroke(p, 4)
 	local sizer = Instance.new("UISizeConstraint")
-	sizer.MaxSize = Vector2.new(620, 440)
+	sizer.MaxSize = Vector2.new(760, 440)
 	sizer.Parent = p
 	local head = Theme.frame({ Size = UDim2.new(1, 0, 0, 68), BackgroundColor3 = accent, ZIndex = 22, Parent = p })
 	Theme.corner(head, 20)
 	Theme.frame({ Position = UDim2.new(0, 0, 1, -20), Size = UDim2.new(1, 0, 0, 20), BackgroundColor3 = accent, ZIndex = 22, Parent = head })
-	Theme.label({ Position = UDim2.fromOffset(18, 6), Size = UDim2.new(1, -90, 1, -12), Text = title, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 34, ZIndex = 23, Stroke = 3, Parent = head })
+	local tx = 18
+	if iconName then
+		Theme.icon(iconName, { Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(52, 52), ZIndex = 23, Parent = head })
+		tx = 70
+	end
+	Theme.label({ Position = UDim2.fromOffset(tx, 6), Size = UDim2.new(1, -tx - 84, 1, -12), Text = title, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 34, ZIndex = 23, Stroke = 3, Parent = head })
 	local x = Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(72, 60), Text = "X", Color = C.red, ZIndex = 24, MaxText = 30, Parent = head }, function()
 		Effects.Play("Click")
 		UI.Close()
@@ -319,7 +486,9 @@ local function zify(root: Instance, z: number)
 	end
 end
 
-function UI.Open(name: string)
+UI.tabSelect = {} :: { [string]: (string) -> () }
+
+function UI.Open(name: string, tab: string?)
 	if UI.openPanel and UI.openPanel ~= name then
 		UI.returnTo = nil -- switching panels directly: don't bounce back
 		UI.Close()
@@ -330,6 +499,9 @@ function UI.Open(name: string)
 	end
 	UI.openPanel = name
 	p.Visible = true
+	if tab and UI.tabSelect[name] then
+		UI.tabSelect[name](tab)
+	end
 	if panelRefresh[name] then
 		panelRefresh[name]()
 	end
@@ -364,7 +536,7 @@ end
 
 -- ----------------------------------------------------------- upgrades
 local function buildUpgrades()
-	local _, body = panelShell("Upgrades", "⬆️  UPGRADES", Color3.fromRGB(70, 170, 70))
+	local _, body = panelShell("Upgrades", "UPGRADES", Color3.fromRGB(70, 170, 70), "upgrade")
 	local list = Instance.new("UIListLayout")
 	list.Padding = UDim.new(0, 8)
 	list.SortOrder = Enum.SortOrder.LayoutOrder
@@ -373,7 +545,7 @@ local function buildUpgrades()
 	for i, def in ipairs(Config.Upgrades) do
 		local row = Theme.frame({ Size = UDim2.new(1, -12, 0, 86), BackgroundColor3 = C.panel2, LayoutOrder = i, Parent = body })
 		Theme.corner(row, 14)
-		Theme.label({ Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(70, 70), Text = UPGRADE_ICON[def.key], Stroke = false, MaxText = 44, Parent = row })
+		Theme.icon(UPGRADE_ICON[def.key], { Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(70, 70), Parent = row })
 		local name = Theme.label({ Position = UDim2.fromOffset(86, 6), Size = UDim2.new(1, -270, 0, 30), Text = def.name, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 26, Parent = row })
 		local desc = Theme.label({ Position = UDim2.fromOffset(86, 36), Size = UDim2.new(1, -270, 0, 22), Text = def.desc, TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = row })
 		local eff = Theme.label({ Position = UDim2.fromOffset(86, 58), Size = UDim2.new(1, -270, 0, 22), Text = "", TextColor3 = C.lime, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 17, Parent = row })
@@ -422,11 +594,33 @@ end
 
 -- ----------------------------------------------------------------- dex
 local function buildDex()
-	local _, body = panelShell("Dex", "📖  GOOBER-DEX", Color3.fromRGB(60, 130, 230))
-	local header = Theme.label({ Size = UDim2.new(1, -10, 0, 30), Text = "", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 24, LayoutOrder = 0, Parent = body })
-	local sub = Theme.label({ Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, -10, 0, 22), Text = "", TextColor3 = C.gold, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = body })
-	local info = Theme.label({ Position = UDim2.fromOffset(0, 54), Size = UDim2.new(1, -10, 0, 40), Text = "Tap a Goober to see its details.", TextColor3 = C.sub, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 16, Parent = body })
-	local gridHolder = Theme.frame({ Position = UDim2.fromOffset(0, 98), Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Parent = body })
+	local _, body = panelShell("Dex", "GOOBER INDEX", Color3.fromRGB(60, 130, 230), "book")
+	local pool = "Classic"
+	local poolTabs = {}
+	for i, pdef in ipairs({ { "Classic", "CLASSIC", "book", Color3.fromRGB(70, 160, 255) }, { "Halloween", "HALLOWEEN", "pumpkin", Color3.fromRGB(255, 128, 30) } }) do
+		local b = Theme.button({ Position = UDim2.fromOffset((i - 1) * 170, 0), Size = UDim2.fromOffset(162, 42), Text = "", Color = C.panel2, Parent = body }, function()
+			Effects.Play("Click")
+			UI.tabSelect.Dex(pdef[1])
+			panelRefresh.Dex()
+		end)
+		Theme.icon(pdef[3], { Position = UDim2.fromOffset(4, 3), Size = UDim2.fromOffset(36, 36), Parent = b })
+		Theme.label({ Position = UDim2.fromOffset(42, 4), Size = UDim2.new(1, -48, 1, -8), Text = pdef[2], MaxText = 18, Parent = b })
+		poolTabs[pdef[1]] = { b, pdef[4] }
+	end
+	local header = Theme.label({ Position = UDim2.fromOffset(0, 48), Size = UDim2.new(1, -10, 0, 30), Text = "", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 24, Parent = body })
+	local sub = Theme.label({ Position = UDim2.fromOffset(0, 78), Size = UDim2.new(1, -10, 0, 22), Text = "", TextColor3 = C.gold, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = body })
+	local info = Theme.label({ Position = UDim2.fromOffset(0, 102), Size = UDim2.new(1, -10, 0, 40), Text = "Tap a Goober to see its details.", TextColor3 = C.sub, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 16, Parent = body })
+	local gridHolder = Theme.frame({ Position = UDim2.fromOffset(0, 146), Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Parent = body })
+	UI.tabSelect.Dex = function(p)
+		if p ~= "Classic" and p ~= "Halloween" then
+			return
+		end
+		pool = p
+		for key, t in pairs(poolTabs) do
+			t[1].BackgroundColor3 = if key == p then t[2] else C.panel2
+		end
+	end
+	UI.tabSelect.Dex("Classic")
 	local grid = Instance.new("UIGridLayout")
 	grid.CellSize = UDim2.fromOffset(104, 132)
 	grid.CellPadding = UDim2.fromOffset(8, 8)
@@ -455,7 +649,9 @@ local function buildDex()
 						rarityColor(def.rarity):ToHex(), def.rarity:upper(), def.name, Util.Short(def.income), Util.Short(def.price), n, def.blurb)
 				else
 					info.Text = ("<font color=\"#%s\">%s</font> ??? — %s"):format(rarityColor(def.rarity):ToHex(), def.rarity:upper(),
-						if def.eventOnly then "only appears during a CHAOS RIFT event!" else "keep snagging to discover it!")
+						if def.eventOnly then "only appears during a CHAOS RIFT event!"
+							elseif def.pool == "Halloween" then "snag it on Halloween Island!"
+							else "keep snagging to discover it!")
 				end
 			end)
 		end
@@ -468,13 +664,19 @@ local function buildDex()
 		if not built then
 			build()
 		end
-		local count = 0
+		local count, total = 0, 0
 		for _, def in ipairs(GooberData.List) do
 			local found = s.dex[def.id] ~= nil
+			local c = cards[def.id]
+			local inPool = (def.pool or "Classic") == pool
+			c.card.Visible = inPool
+			if not inPool then
+				continue
+			end
+			total += 1
 			if found then
 				count += 1
 			end
-			local c = cards[def.id]
 			if c.discovered ~= found then
 				c.discovered = found
 				if c.vp then
@@ -485,23 +687,37 @@ local function buildDex()
 				c.name.Text = if found then def.name else "???"
 			end
 		end
-		header.Text = ("Discovered %d / %d Goobers"):format(count, GooberData.Count)
-		local nextM
-		for _, m in ipairs(Config.DexMilestones) do
-			if not s.dexClaimed[tostring(m.count)] then
-				nextM = m
-				break
+		header.Text = ("Discovered %d / %d %s Goobers"):format(count, total, if pool == "Halloween" then "Halloween" else "Classic")
+		if pool == "Halloween" then
+			local ev = s.event
+			local nextH
+			for _, m in ipairs(require(ReplicatedStorage.Shared.Halloween).DexRewards) do
+				if not (ev and ev.hdexClaimed[tostring(m.count)]) then
+					nextH = m
+					break
+				end
 			end
+			sub.Text = if nextH
+				then ("Collection reward at %d: +%d Candy%s (claim in EVENT)"):format(nextH.count, nextH.candy, if nextH.title then (' + title "%s"'):format(nextH.title) else "")
+				else "Halloween collection complete!"
+		else
+			local nextM
+			for _, m in ipairs(Config.DexMilestones) do
+				if not s.dexClaimed[tostring(m.count)] then
+					nextM = m
+					break
+				end
+			end
+			sub.Text = if nextM
+				then ("Next reward at %d: $%s + title \"%s\""):format(nextM.count, Util.Short(nextM.coins), nextM.title)
+				else "Every milestone claimed. You are a Goober Legend!"
 		end
-		sub.Text = if nextM
-			then ("Next reward at %d: $%s + title \"%s\""):format(nextM.count, Util.Short(nextM.coins), nextM.title)
-			else "Every milestone claimed. You are a Goober Legend!"
 	end
 end
 
 -- ------------------------------------------------------------- rebirth
 local function buildRebirth()
-	local _, body = panelShell("Rebirth", "♻️  REBIRTH", Color3.fromRGB(150, 80, 220))
+	local _, body = panelShell("Rebirth", "REBIRTH", Color3.fromRGB(150, 80, 220), "rebirth")
 	local title = Theme.label({ Size = UDim2.new(1, -10, 0, 34), Text = "", MaxText = 28, Parent = body })
 	local req = Theme.label({ Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, -10, 0, 50), Text = "", TextWrapped = true, MaxText = 19, Parent = body })
 	local cols = Theme.frame({ Position = UDim2.fromOffset(0, 90), Size = UDim2.new(1, -10, 0, 124), BackgroundTransparency = 1, Parent = body })
@@ -553,7 +769,7 @@ local function buildRebirth()
 		title.Text = ("Rebirth #%d"):format(r + 1)
 		local lvlOk = s.level >= s.rebirthLevel
 		local coinOk = s.coins >= s.rebirthCost
-		req.Text = ("%s Level %d   %s $%s Slop Coins"):format(if lvlOk then "✅" else "❌", s.rebirthLevel, if coinOk then "✅" else "❌", Util.Short(s.rebirthCost))
+		req.Text = ("<font color=\"#%s\">Level %d</font>    <font color=\"#%s\">$%s Slop Coins</font>"):format(if lvlOk then "7BE35A" else "FF6B7A", s.rebirthLevel, if coinOk then "7BE35A" else "FF6B7A", Util.Short(s.rebirthCost))
 		local nowMult = 1 + Config.Rebirth.incomeBonus * r
 		local nextMult = 1 + Config.Rebirth.incomeBonus * (r + 1)
 		gains.Text = ("• Income x%.1f → x%.1f forever\n• +1 stand\n• +10%% Personal Drop luck\n• Rebirth star ★\n• Start with $%d"):format(nowMult, nextMult, Config.Rebirth.startCoins)
@@ -568,7 +784,7 @@ end
 
 -- ---------------------------------------------------------------- odds
 local function buildOdds()
-	local _, body = panelShell("Odds", "🎲  ODDS INFO", Color3.fromRGB(60, 150, 140))
+	local _, body = panelShell("Odds", "ODDS INFO", Color3.fromRGB(60, 150, 140), "swirl")
 	local cols = { "Rarity", "Slop Line", "Gold Line", "Your Personal Drop", "With Lucky Goober" }
 	local w = { 0.18, 0.18, 0.18, 0.23, 0.23 }
 	local rows = {}
@@ -639,7 +855,7 @@ local function loadLivePrices()
 	end
 end
 local function buildShop()
-	local _, body = panelShell("Shop", "🛒  SHOP", Color3.fromRGB(230, 150, 30))
+	local _, body = panelShell("Shop", "SHOP", Color3.fromRGB(230, 150, 30), "shop")
 	local holder = Theme.frame({ Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, Parent = body })
 	local list = Instance.new("UIListLayout")
 	list.Padding = UDim.new(0, 8)
@@ -673,7 +889,7 @@ local function buildShop()
 			img.ScaleType = Enum.ScaleType.Fit
 			img.Parent = f
 		else
-			Theme.label({ Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(56, 56), Text = icon, Stroke = false, MaxText = 40, Parent = f })
+			Theme.icon(icon, { Position = UDim2.fromOffset(6, 6), Size = UDim2.fromOffset(60, 60), Parent = f })
 		end
 		Theme.label({ Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -78, 0, 28), Text = name, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 21, Parent = f })
 		local d = Theme.label({ Position = UDim2.fromOffset(70, 38), Size = UDim2.new(1, -78, 0, 106), Text = desc, TextWrapped = true, TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Font = Theme.Body, MaxText = 17, Parent = f })
@@ -728,7 +944,7 @@ local function buildShop()
 			local p = Config.GamePasses[key]
 			local c = cards[key]
 			if s.passes[key] then
-				c.buy.Text = "OWNED ✔"
+				c.buy.Text = "OWNED"
 				c.buy.BackgroundColor3 = C.gray
 			elseif p.randomModifier and s.restrictedRandom then
 				c.buy.Text = "Not available here"
@@ -769,7 +985,7 @@ end
 
 -- ------------------------------------------------------------ settings
 local function buildSettings()
-	local _, body = panelShell("Settings", "⚙️  SETTINGS", C.panel2)
+	local _, body = panelShell("Settings", "SETTINGS", C.panel2, "gear")
 	local function toggle(y, label, key)
 		Theme.label({ Position = UDim2.fromOffset(10, y), Size = UDim2.new(0.6, 0, 0, 50), Text = label, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 24, Parent = body })
 		local b
@@ -833,21 +1049,51 @@ local function onState(s, prev)
 	refs.level.Text = ("Lv %d  •  %s/%s XP"):format(s.level, Util.Short(s.xp), Util.Short(s.xpNeeded))
 	Theme.tween(refs.xpFill, 0.3, { Size = UDim2.fromScale(math.clamp(s.xp / s.xpNeeded, 0.02, 1), 1) })
 	refs.nextUnlock.Text = nextUnlockText(s.level)
+	refs.playerStats.Text = ("Lv %d  •  %s%s"):format(s.level, if s.rebirths > 0 then ("★%d  •  "):format(s.rebirths) else "", if s.title ~= "" and s.title then s.title else "Goober Snagger")
+	local ev = s.event
+	if ev then
+		refs.candy.Text = Util.Comma(ev.candy)
+		refs.eventTimer.Text = if ev.eventEndsIn > 0 then ("Event %s"):format(Util.Time(ev.eventEndsIn)) else "Event over"
+	end
+	-- quest card (the Halloween quest chain)
+	local q = s.quests
+	local cq = q and q.chain
+	if cq then
+		local done = cq.progress >= cq.target
+		refs.questHead.Text = ("QUEST %d/%d"):format(q.chainIndex, q.chainTotal)
+		refs.questText.Text = cq.text
+		refs.questCount.Text = ("%s/%s"):format(Util.Short(cq.progress), Util.Short(cq.target))
+		Theme.tween(refs.questFill, 0.3, { Size = UDim2.fromScale(math.clamp(cq.progress / math.max(1, cq.target), 0.03, 1), 1) })
+		refs.questReward.Text = "Reward: " .. UI.RewardText(cq.reward)
+		refs.questClaim.Visible = done
+		refs.questStroke.Color = if done then C.lime else C.ink
+		refs.quest.Visible = true
+	elseif q then
+		refs.questHead.Text = "QUESTS DONE!"
+		refs.questText.Text = "Check the daily quests"
+		refs.questCount.Text = ""
+		refs.questFill.Size = UDim2.fromScale(1, 1)
+		refs.questReward.Text = ""
+		refs.questClaim.Visible = false
+	end
+	if UI.OnStateExtra then
+		UI.OnStateExtra(s, prev)
+	end
 	-- status pills
 	refs.boostPill.Visible = s.boostLeft > 0
-	refs.boostText.Text = "⚡ 2x Income  " .. Util.Time(s.boostLeft)
+	refs.boostText.Text = "2x Income  " .. Util.Time(s.boostLeft)
 	if s.lockLeft > 0 then
-		refs.lockText.Text = "🔒 Locked " .. Util.Time(s.lockLeft)
+		refs.lockText.Text = "Locked " .. Util.Time(s.lockLeft)
 		refs.lockPill.BackgroundColor3 = Color3.fromRGB(70, 110, 200)
 	elseif s.lockReadyIn > 0 then
-		refs.lockText.Text = "🔓 Lock in " .. Util.Time(s.lockReadyIn)
+		refs.lockText.Text = "Lock in " .. Util.Time(s.lockReadyIn)
 		refs.lockPill.BackgroundColor3 = C.gray
 	else
-		refs.lockText.Text = "🔓 Lock ready (red pad)"
+		refs.lockText.Text = "Lock ready (red pad)"
 		refs.lockPill.BackgroundColor3 = Color3.fromRGB(200, 70, 90)
 	end
 	refs.lockPill.Visible = s.level >= Config.StealLevel or s.lockLeft > 0
-	refs.dropText.Text = "🎁 Personal Drop in " .. Util.Time(s.nextDropIn)
+	refs.dropText.Text = "Personal Drop in " .. Util.Time(s.nextDropIn)
 	refs.dropPill.Visible = s.tutorial == Tutorial.DONE
 	-- carry bar
 	if s.carry then
@@ -891,7 +1137,7 @@ local function chaosTick()
 	if typ ~= "" then
 		local def = Config.Chaos.types[typ]
 		local left = (ReplicatedStorage:GetAttribute("ChaosEndsAt") or now) - now
-		refs.chaosText.Text = ("🌀 %s!  %s"):format(def.title, Util.Time(left))
+		refs.chaosText.Text = ("%s!  %s"):format(def.title, Util.Time(left))
 		refs.chaosPill.BackgroundColor3 = def.color:Lerp(Color3.new(0, 0, 0), 0.25)
 	else
 		local nextAt = ReplicatedStorage:GetAttribute("ChaosNextAt") or now
@@ -968,5 +1214,8 @@ end
 
 UI.refs = refs
 UI.panelRefresh = panelRefresh
+UI.panels = panels
+UI.panelShell = panelShell
+UI.zify = zify
 
 return UI

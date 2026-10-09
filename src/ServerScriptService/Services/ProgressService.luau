@@ -47,10 +47,13 @@ function ProgressService.TutorialSkip(player: Player)
 end
 
 -- ----------------------------------------------------------------- dex
-local function discoveredCount(dex): number
+-- Goobers discovered in one pool ("Classic" by default: the Classic Index
+-- milestones; the Halloween collection has its own rewards)
+local function discoveredCount(dex, pool: string?): number
 	local n = 0
 	for gid in pairs(dex) do
-		if GooberData.ById[gid] then
+		local def = GooberData.ById[gid]
+		if def and (def.pool or "Classic") == (pool or "Classic") then
 			n += 1
 		end
 	end
@@ -70,7 +73,12 @@ function ProgressService.Discover(player: Player, gid: string)
 		return
 	end
 	S.Session.AddXP(player, Config.XP.discovery)
-	S.Session.Notify(player, "Discovered", { id = gid, count = discoveredCount(dex), total = GooberData.Count })
+	local pool = GooberData.ById[gid] and GooberData.ById[gid].pool or "Classic"
+	S.Session.Notify(player, "Discovered", { id = gid, count = discoveredCount(dex, pool), total = #GooberData.PoolList[pool], pool = pool })
+	if pool ~= "Classic" then
+		S.Session.MarkDirty(player)
+		return
+	end
 	local count = discoveredCount(dex)
 	for _, m in ipairs(Config.DexMilestones) do
 		local key = tostring(m.count)

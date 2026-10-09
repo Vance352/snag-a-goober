@@ -14,6 +14,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local GooberData = require(ReplicatedStorage.Shared.GooberData)
 
 local TestHarness = {}
 
@@ -212,7 +213,8 @@ function TestHarness.Start(S)
 		for _ in pairs(d.goobers) do
 			n += 1
 		end
-		return { lock = v.lock, coins = d.coins, level = d.level, rebirths = d.rebirths, goobers = n, upgrades = d.upgrades, tutorial = d.tutorial, receipts = d.receipts, dex = d.dex }
+		return { lock = v.lock, coins = d.coins, level = d.level, rebirths = d.rebirths, goobers = n, upgrades = d.upgrades, tutorial = d.tutorial, receipts = d.receipts, dex = d.dex,
+			version = d.version, candy = d.candy, event = d.event, candyFound = d.candyFound, quests = d.quests, levelClaimed = d.levelClaimed, hdexClaimed = d.hdexClaimed, flags = d.flags, title = d.title }
 	end
 
 	function C.wipeStore(id)
@@ -281,6 +283,52 @@ function TestHarness.Start(S)
 			out[key] = if ok then { id = p.id, name = info.Name, live = info.PriceInRobux, config = p.price, match = info.PriceInRobux == p.price } else { id = p.id, error = tostring(info) }
 		end
 		return out
+	end
+
+	-- Halloween update ----------------------------------------------------
+	function C.halloween(id)
+		local p = P(id)
+		local snap = S.Session.Snapshot(p)
+		return { event = snap.event, quests = snap.quests, level = snap.level, candy = snap.event and snap.event.candy, used = snap.used, capacity = snap.capacity }
+	end
+
+	-- call a service function as if the player's remote fired: call("Event.Travel", id, "PortalIn")
+	function C.call(path, id, ...)
+		local svc, fname = string.match(path, "^(%w+)%.(%w+)$")
+		local p = P(id)
+		local t0 = os.clock()
+		local r = S[svc][fname](p, ...)
+		local new = {}
+		for _, e in ipairs(log[p.UserId] or {}) do
+			if e.t >= t0 then
+				table.insert(new, { kind = e.kind, payload = e.payload })
+			end
+		end
+		return { result = r, notes = new }
+	end
+
+	function C.eventXP(n, id)
+		S.Event.AddEventXP(P(id), n)
+		return S.Session.Get(P(id)).data.event
+	end
+
+	function C.resetHalloween(id)
+		local st = S.Session.Get(P(id))
+		local d = st.data
+		d.candy = 0
+		d.event = { xp = 0, level = 0, claimed = {} }
+		d.candyFound = {}
+		d.quests = { chain = 1, chainProgress = 0, daily = { day = -1, list = {} } }
+		d.levelClaimed = {}
+		d.hdexClaimed = {}
+		d.flags = { islandIntro = false }
+		for gid in pairs(d.dex) do
+			if GooberData.ById[gid] and GooberData.ById[gid].pool == "Halloween" then
+				d.dex[gid] = nil
+			end
+		end
+		st.dirty = true
+		return true
 	end
 
 	function C.stats()

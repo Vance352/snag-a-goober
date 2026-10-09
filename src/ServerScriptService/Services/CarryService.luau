@@ -86,6 +86,7 @@ function CarryService.PlaceHome(player: Player)
 	-- snag-and-drop can't farm XP)
 	S.Session.AddXP(player, Config.Rarities[def.rarity].xp)
 	S.Session.Effect("PlaceFx", { id = carry.id, rarity = def.rarity }, player)
+	S.Hooks.Fire("placed", player, { id = carry.id, source = "belt" })
 	return true
 end
 

@@ -1,0 +1,32 @@
+--[[
+	Icons - the game's original UI icons (drawn by tools/make_icons.py,
+	PNG sources in Assets/UI/Icons). Use these instead of emoji.
+]]
+return {
+	belt = "rbxassetid://78544550446119",
+	bolt = "rbxassetid://140076392626570",
+	book = "rbxassetid://73980093395801",
+	candy = "rbxassetid://138634910612832",
+	check = "rbxassetid://71969650846748",
+	coin = "rbxassetid://118470901902851",
+	cross = "rbxassetid://116310644210950",
+	flask = "rbxassetid://92348826910005",
+	gear = "rbxassetid://113573090465733",
+	ghost = "rbxassetid://135247225111069",
+	gift = "rbxassetid://79444213895590",
+	house = "rbxassetid://75151486201914",
+	lantern = "rbxassetid://105384094995378",
+	lock = "rbxassetid://99058960503772",
+	map_pin = "rbxassetid://70733311213541",
+	music = "rbxassetid://96835725237280",
+	pumpkin = "rbxassetid://118786103327707",
+	rebirth = "rbxassetid://139576167290454",
+	scroll = "rbxassetid://125608631347339",
+	shoe = "rbxassetid://139008508745516",
+	shop = "rbxassetid://129612542431173",
+	speaker = "rbxassetid://136869388008882",
+	stand = "rbxassetid://71184517782727",
+	swirl = "rbxassetid://75109075580581",
+	trophy = "rbxassetid://83419224378646",
+	upgrade = "rbxassetid://135852189960254",
+}

@@ -8,7 +8,7 @@ local Config = {}
 
 Config.GameName = "Snag A Goober"
 Config.CurrencyName = "Slop Coins"
-Config.DataVersion = 1
+Config.DataVersion = 2 -- 2: Halloween update fields (filled by reconcile)
 
 -- ------------------------------------------------------------------ rarity
 Config.RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Secret" }
@@ -23,20 +23,37 @@ Config.Rarities = {
 }
 
 -- Spawn weights per line. They are percentages and each table sums to 100.
+-- Each line also has geometry (startX -> endX at z) and the Goober pool it rolls.
 Config.Lines = {
 	Main = {
 		weights = { Common = 55, Uncommon = 27, Rare = 12.5, Epic = 4.3, Legendary = 1.0, Secret = 0.2 },
 		interval = 2.2, -- seconds between spawns
 		speed = 7, -- studs per second
 		levelRequired = 1,
+		displayName = "The Slop Line",
+		pool = "Classic", startX = -116, endX = 116, z = -8,
 	},
 	Gold = {
 		weights = { Common = 0, Uncommon = 40, Rare = 35, Epic = 18, Legendary = 6, Secret = 1 },
 		interval = 6,
 		speed = 6,
 		levelRequired = 10,
+		displayName = "The Gold Line",
+		pool = "Classic", startX = 116, endX = -116, z = 8,
 	},
 }
+-- Halloween Island lines (see Shared/Halloween)
+do
+	local Halloween = require(script.Parent.Halloween)
+	if Halloween.Enabled then
+		for name, line in pairs(Halloween.Lines) do
+			local area = Halloween.AreaByKey[line.area]
+			local copy = table.clone(line)
+			copy.displayName = area and area.name or name
+			Config.Lines[name] = copy
+		end
+	end
+end
 
 -- Luck multiplies the weights of Rare and better, then odds are renormalised.
 Config.LuckyRarities = { Rare = true, Epic = true, Legendary = true, Secret = true }
@@ -336,6 +353,21 @@ Config.Audio = {
 		Event = { 12.4503, 13.8503 },
 		Click = { 14.1503, 14.1853 },
 		Error = { 14.4853, 14.7453 },
+	},
+	-- Halloween update (tools/make_audio_halloween.py). Empty = not uploaded
+	-- yet: the game then keeps the original music and skips these sounds.
+	MainTheme = "", -- Assets/Audio/SAG_MainTheme.wav
+	HalloweenTheme = "", -- Assets/Audio/SAG_HalloweenTheme.wav
+	Sprite2 = "", -- Assets/Audio/SAG_SFX2.wav
+	Regions2 = {
+		Portal = { 0.0, 1.39 },
+		Candy = { 1.69, 2.2701 },
+		Bucket = { 2.5701, 3.3501 },
+		Quest = { 3.6501, 4.8101 },
+		EventLevel = { 5.1101, 6.4801 },
+		Reward = { 6.7801, 7.4302 },
+		Locked = { 7.7302, 8.0902 },
+		Area = { 8.3902, 9.6502 },
 	},
 }
 

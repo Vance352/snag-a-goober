@@ -13,7 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Edit-time tool: require a fresh copy so Studio's module cache never serves a
 -- stale Config after a sync.
-local Config = require(ReplicatedStorage.Shared.Config:Clone())
+local Config = require(ReplicatedStorage.Shared:Clone().Config) -- whole folder: Config requires its siblings
 
 local MapBuilder = {}
 local M = Config.Map

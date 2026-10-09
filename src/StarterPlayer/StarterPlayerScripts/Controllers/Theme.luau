@@ -83,7 +83,7 @@ function Theme.label(props): TextLabel
 	t.TextScaled = true
 	t.RichText = true
 	for k, v in pairs(props) do
-		if k ~= "Parent" and k ~= "Stroke" and k ~= "MaxText" then
+		if k ~= "Parent" and k ~= "Stroke" and k ~= "MaxText" and k ~= "MinText" then
 			(t :: any)[k] = v
 		end
 	end
@@ -92,7 +92,7 @@ function Theme.label(props): TextLabel
 	end
 	local lim = Instance.new("UITextSizeConstraint")
 	lim.MaxTextSize = props.MaxText or 40
-	lim.MinTextSize = 12
+	lim.MinTextSize = props.MinText or 12
 	lim.Parent = t
 	t.Parent = props.Parent
 	return t
@@ -133,6 +133,22 @@ function Theme.button(props, onClick: (() -> ())?): TextButton
 	end
 	b.Parent = props.Parent
 	return b
+end
+
+-- an original icon (Shared/Icons) as an ImageLabel
+function Theme.icon(name: string, props): ImageLabel
+	local Icons = require(game:GetService("ReplicatedStorage").Shared.Icons)
+	local i = Instance.new("ImageLabel")
+	i.BackgroundTransparency = 1
+	i.Image = Icons[name] or ""
+	i.ScaleType = Enum.ScaleType.Fit
+	for k, v in pairs(props) do
+		if k ~= "Parent" then
+			(i :: any)[k] = v
+		end
+	end
+	i.Parent = props.Parent
+	return i
 end
 
 function Theme.tween(obj: Instance, t: number, goal, style: Enum.EasingStyle?, dir: Enum.EasingDirection?)

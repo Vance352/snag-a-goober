@@ -28,6 +28,9 @@ local S = {
 	Chaos = require(Services.ChaosService),
 	Monetization = require(Services.MonetizationService),
 	MoveGuard = require(Services.MoveGuard),
+	Hooks = require(Services.Hooks),
+	Event = require(Services.EventService),
+	Quest = require(Services.QuestService),
 }
 for _, svc in pairs(S) do
 	if type(svc.Init) == "function" then
@@ -131,6 +134,16 @@ on("TutorialSkip", S.Progress.TutorialSkip)
 on("TutorialAck", S.Progress.TutorialAck)
 on("PromptPass", S.Monetization.PromptPass)
 on("PromptProduct", S.Monetization.PromptProduct)
+-- Halloween update
+on("Travel", S.Event.Travel)
+on("CollectCandy", S.Event.CollectCandy)
+on("Bucket", S.Event.Bucket)
+on("ClaimEvent", S.Event.ClaimTrack)
+on("EventBuy", S.Event.Buy)
+on("ClaimHDex", S.Event.ClaimHDex)
+on("IntroSeen", S.Event.IntroSeen)
+on("ClaimQuest", S.Quest.Claim)
+on("ClaimLevel", S.Quest.ClaimLevel)
 on("SetSetting", function(player, key, value)
 	if (key == "music" or key == "sfx") and type(value) == "boolean" then
 		S.Session.Get(player).data.settings[key] = value
@@ -149,6 +162,8 @@ S.Chaos.Start()
 S.Character.Start()
 S.Monetization.Start()
 S.MoveGuard.Start()
+S.Event.Start()
+S.Quest.Start()
 
 -- leaderstats + base signs
 task.spawn(function()

@@ -3,6 +3,28 @@
 Evidence from real Roblox Studio sessions (place 90695592143707). "Harness" =
 Studio-only `ServerStorage.SAG_Test` (src/ServerScriptService/Testing/TestHarness.luau).
 
+## 2026-10-09 - Halloween update, builder playtests (Studio, solo client)
+
+Player cooolvance55 (Vance's Studio account). Harness `call` runs the real service
+function the remote would reach; the client-side items were driven in the client.
+
+| # | Brief test | How | Result |
+|---|---|---|---|
+| 1 | New player / portal | Reset Halloween data; Travel PortalIn from 30 studs, then from 4 studs | PASS - 30 studs refused; 4 studs lands at the island arrival, quest 1 done, intro opens (3 pages, Skip/Next; IntroSeen saved) |
+| 2 | Exploration + candy | Stood next to C01, C02 (client auto-pickup); CollectCandy C30 from far away; bucket B1 twice | PASS - both found (+10 candy, +20 Event XP each), far claim ignored, bucket +4 then "refills in 4:59" |
+| 3 | Goober collection | Snagged Pumpkin Pip off the Pumpkin Patch belt, carried it through the return portal, home | PASS - placed on a stand, Halloween discovery 1/16, chain quest 2 + daily "8 Goobers" advanced, +15 Event XP |
+| 4 | Level progression | setLevel 5 -> walked into Haunted Forest; setLevel 8 -> again; ClaimLevel 3 twice, ClaimLevel 10 at Lv 8 | PASS - Lv 5 moved back to the gate with "unlocks at Level 8"; Lv 8 enters (AreaEnter), client barrier opens only for the Forest; Lv 3 reward once, Lv 10 refused |
+| 5 | Event rewards | ClaimTrack 1, 1 again, 2, 3 (not reached), "1", 1.5; Candy Shop Pumpkin Pip, Hex (can't afford), bogus key | PASS - each reward once, coins scale with income, wrong types ignored, shop charges 60, refuses Hex/bogus |
+| 6 | Saving | Saved, read the DataStore record, stopped and restarted the session | PASS - candy, event level/claims, candies found, quests, intro flag, v2 all persisted and reloaded |
+| 7 | Teleportation | Died on the island; Travel shortcuts Island/Base; travel while carrying | PASS - respawn at base, day lighting back (after fixing a tween bug), shortcuts work, portals carry belt Goobers |
+| 8 | Audio | Island<->Base with two distinct track ids (stand-in id, real tracks not uploaded yet); Music off/on | PASS (logic) - 2.2 s crossfade both ways, never two tracks at full volume, off silences both. Real tracks: pending upload |
+| 9 | Mobile UI | Root forced to a 750x381 phone layout (UIScale 0.762), HUD + Event + Quests panels | PASS after fixes - labels wrapped mid-word (min text size) and nav ran close to the thumbstick; fixed |
+| 10 | Regression | Classic Slop Line snag -> home, Auto Collect, Zoomies upgrade, console | PASS - all normal, console clean. Stealing (2 players) still to run |
+
+Bugs found and fixed while testing: camera spawning inside the portal (arrivals moved out, camera turned after travel);
+night lighting stuck after leaving the island (tween goal held a non-property key); track/milestone coin rewards showed
+build-time amounts; bucket cooldowns reset on rejoin (now saved); Classic Index milestones counted Halloween Goobers.
+
 ## 2026-10-08 - two-player theft tests (Studio local server, 2-3 real clients)
 
 Players: Player1 (-1, base 1), Player2 (-2, base 2), later Player3 (-3, base 2 reused).

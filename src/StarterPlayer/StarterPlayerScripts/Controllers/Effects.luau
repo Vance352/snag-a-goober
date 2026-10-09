@@ -16,7 +16,12 @@ local Effects = {}
 local sounds: { [string]: Sound } = {}
 local sfxOn = true
 local musicOn = true
-local music: Sound? = nil
+-- music: one Sound per zone, crossfaded (see Effects.SetZone)
+local MUSIC_VOLUME = 0.22
+local FADE = 2.2
+local tracks: { [string]: Sound } = {}
+local zone = "Main"
+local settingsSeen = false
 
 local VOLUME = {
 	Snag = 0.6,
@@ -33,7 +38,18 @@ local VOLUME = {
 	Event = 0.7,
 	Click = 0.35,
 	Error = 0.4,
+	-- Halloween sprite
+	Portal = 0.7,
+	Candy = 0.6,
+	Bucket = 0.6,
+	Quest = 0.7,
+	EventLevel = 0.75,
+	Reward = 0.65,
+	Locked = 0.45,
+	Area = 0.5,
 }
+-- until the Halloween sprite is uploaded, its effects borrow similar originals
+local FALLBACK = { Portal = "Event", Candy = "Coin", Bucket = "Coin", Quest = "Upgrade", EventLevel = "LevelUp", Reward = "Place", Locked = "Error", Area = "Rare" }
 
 function Effects.Start()
 	local group = Instance.new("SoundGroup")
@@ -51,14 +67,89 @@ function Effects.Start()
 		s.Parent = SoundService
 		sounds[name] = s
 	end
-	if A.Music ~= "" then
-		music = Instance.new("Sound")
-		music.Name = "Music"
-		music.SoundId = A.Music
-		music.Looped = true
-		music.Volume = 0.22
-		music.Parent = SoundService
-		music:Play()
+	if A.Sprite2 ~= "" then
+		for name, region in pairs(A.Regions2) do
+			local s = Instance.new("Sound")
+			s.Name = name
+			s.SoundId = A.Sprite2
+			s.Volume = VOLUME[name] or 0.5
+			s.PlaybackRegionsEnabled = true
+			s.PlaybackRegion = NumberRange.new(region[1], region[2])
+			s.SoundGroup = group
+			s.Parent = SoundService
+			sounds[name] = s
+		end
+	end
+	for name, alt in pairs(FALLBACK) do
+		if not sounds[name] and sounds[alt] then
+			sounds[name] = sounds[alt]
+		end
+	end
+	-- main-world theme (new one once uploaded, else the original loop) and
+	-- the Halloween Island theme (falls back to the main theme)
+	local mainId = if A.MainTheme ~= "" then A.MainTheme else A.Music
+	local islandId = if A.HalloweenTheme ~= "" then A.HalloweenTheme else mainId
+	for key, id in pairs({ Main = mainId, Island = islandId }) do
+		if id ~= "" then
+			local m = Instance.new("Sound")
+			m.Name = "Music" .. key
+			m.SoundId = id
+			m.Looped = true
+			m.Volume = 0
+			m.Parent = SoundService
+			tracks[key] = m
+		end
+	end
+	-- music starts with the first settings snapshot (so "Music off" never blips)
+end
+
+local fades: { [Sound]: Tween } = {}
+local function fadeTo(s: Sound, vol: number, instant: boolean?)
+	if fades[s] then
+		fades[s]:Cancel()
+	end
+	if vol > 0 and not s.Playing then
+		s:Resume()
+		if not s.IsPlaying then
+			s:Play()
+		end
+	end
+	if instant then
+		s.Volume = vol
+		if vol == 0 then
+			s:Pause()
+		end
+		return
+	end
+	local tw = TweenService:Create(s, TweenInfo.new(FADE, Enum.EasingStyle.Sine), { Volume = vol })
+	fades[s] = tw
+	tw.Completed:Connect(function(state)
+		if state == Enum.PlaybackState.Completed and vol == 0 then
+			s:Pause()
+		end
+	end)
+	tw:Play()
+end
+
+local function applyMusic(instant: boolean?)
+	local same = tracks.Main and tracks.Island and tracks.Main.SoundId == tracks.Island.SoundId
+	for key, s in pairs(tracks) do
+		local want = musicOn and (key == zone or (same and key == "Main"))
+		if same and key == "Island" then
+			want = false
+		end
+		fadeTo(s, if want then MUSIC_VOLUME else 0, instant)
+	end
+end
+
+-- "Main" or "Island": crossfades the music (respects the Music setting)
+function Effects.SetZone(z: string, instant: boolean?)
+	if z == zone and not instant then
+		return
+	end
+	zone = z
+	if settingsSeen then
+		applyMusic(instant)
 	end
 end
 
@@ -67,9 +158,11 @@ function Effects.SetSettings(settings)
 		return
 	end
 	sfxOn = settings.sfx ~= false
-	musicOn = settings.music ~= false
-	if music then
-		music.Playing = musicOn
+	local m = settings.music ~= false
+	if m ~= musicOn or not settingsSeen then
+		musicOn = m
+		applyMusic(not settingsSeen) -- the first snapshot applies instantly
+		settingsSeen = true
 	end
 end
 

@@ -299,6 +299,7 @@ function BaseService.Collect(player: Player)
 	local pad = plot and plot:FindFirstChild("CashPad") :: BasePart
 	S.Session.Effect("Collect", { amount = amount, pos = pad and pad.Position, owner = player.UserId })
 	S.Progress.TutorialEvent(player, "Collected")
+	S.Hooks.Fire("collected", player, { amount = amount })
 end
 
 function BaseService.Start()
@@ -324,6 +325,7 @@ function BaseService.Start()
 								st.autoAcc -= xp * Config.XP.collectPer
 							end
 							S.Progress.TutorialEvent(player, "Collected")
+							S.Hooks.Fire("collected", player, { amount = rate }) -- Auto Collect counts as collecting
 						else
 							st.data.bank += rate -- totalEarned counts it when collected
 						end

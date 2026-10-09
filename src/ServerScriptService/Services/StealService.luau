@@ -284,6 +284,8 @@ local function succeed(thief: Player)
 	end
 	S.Base.LockFor(victim, C.victimShield, false)
 	S.Session.Notify(thief, "StealSuccess", { id = carry.id, victim = victim.DisplayName })
+	S.Hooks.Fire("stolen", thief, { id = carry.id })
+	S.Hooks.Fire("placed", thief, { id = carry.id, source = "steal" })
 	S.Session.Notify(victim, "StolenFrom", {
 		id = carry.id,
 		thief = thief.DisplayName,

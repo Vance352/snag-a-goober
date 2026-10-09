@@ -81,6 +81,19 @@ local function defaults()
 		title = "",
 		stats = { snags = 0, steals = 0, stolenFrom = 0, sold = 0, caught = 0 },
 		settings = { music = true, sfx = true },
+		-- Halloween update (added in v2; old saves get these from reconcile)
+		candy = 0,
+		event = { xp = 0, level = 0, claimed = {} }, -- claimed[tostring(level)] = true
+		candyFound = {}, -- [candyId] = true
+		quests = {
+			chain = 1, -- index of the current Halloween quest (beyond the end = all done)
+			chainProgress = 0,
+			daily = { day = -1, list = {} }, -- list = { { id, progress, claimed } }
+		},
+		levelClaimed = {}, -- [tostring(level)] = true (progression milestones)
+		hdexClaimed = {}, -- [tostring(count)] = true (Halloween collection rewards)
+		flags = { islandIntro = false },
+		bucketReady = {}, -- [bucketId] = os.time() it refills (saved, so rejoining can't refill)
 	}
 end
 
@@ -123,6 +136,25 @@ end
 
 -- Repair anything malformed so one bad value can't break the session.
 local function sanitize(data)
+	-- Halloween update fields
+	local function tbl(v)
+		return if type(v) == "table" then v else {}
+	end
+	data.event = tbl(data.event)
+	data.event.claimed = tbl(data.event.claimed)
+	data.candyFound = tbl(data.candyFound)
+	data.quests = tbl(data.quests)
+	data.quests.daily = tbl(data.quests.daily)
+	data.quests.daily.list = tbl(data.quests.daily.list)
+	data.levelClaimed = tbl(data.levelClaimed)
+	data.hdexClaimed = tbl(data.hdexClaimed)
+	data.flags = tbl(data.flags)
+	data.bucketReady = tbl(data.bucketReady)
+	for id, t in pairs(data.bucketReady) do
+		if type(t) ~= "number" or t ~= t then
+			data.bucketReady[id] = nil
+		end
+	end
 	local function num(v, default, min)
 		if type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge then
 			return default
@@ -135,6 +167,12 @@ local function sanitize(data)
 	data.level = math.floor(num(data.level, 1, 1))
 	data.xp = num(data.xp, 0)
 	data.rebirths = math.floor(math.min(num(data.rebirths, 0), Config.Rebirth.max))
+	data.candy = math.floor(num(data.candy, 0))
+	data.event.xp = num(data.event.xp, 0)
+	data.event.level = math.floor(math.min(num(data.event.level, 0), 25))
+	data.quests.chain = math.floor(num(data.quests.chain, 1, 1))
+	data.quests.chainProgress = num(data.quests.chainProgress, 0)
+	data.quests.daily.day = math.floor(tonumber(data.quests.daily.day) or -1)
 	for _, def in ipairs(Config.Upgrades) do
 		data.upgrades[def.key] = math.floor(math.min(num(data.upgrades[def.key], 0), def.max))
 	end

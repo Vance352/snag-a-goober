@@ -20,6 +20,16 @@ local EVENTS = {
 	"SetSetting", -- (key, value)
 	"PromptPass", -- (passKey)
 	"PromptProduct", -- (productKey)
+	-- Halloween update
+	"Travel", -- ("PortalIn" | "PortalOut" | "Island" | "Base" | "Plaza")
+	"CollectCandy", -- (candyId)
+	"Bucket", -- (bucketId)
+	"ClaimEvent", -- (eventLevel)
+	"EventBuy", -- (shopKey)
+	"ClaimHDex", -- (count)
+	"IntroSeen", -- ()
+	"ClaimQuest", -- ("chain" | "daily", index)
+	"ClaimLevel", -- (playerLevel)
 	-- server -> client
 	"State", -- (snapshot)
 	"Notify", -- (kind, payload)
