@@ -1,6 +1,6 @@
 --[[
 	process_import.luau - turn the Studio 3D-Importer result of
-	Assets/Exports/SAG_AllAssets.fbx into game templates.
+	Assets/Exports/SAG_AllAssets.fbx (or SAG_Halloween.fbx) into game templates.
 
 	Run in Edit mode (MCP execute_luau / command bar) with the local http server
 	running. Finds every imported MeshPart named <AssetId>__<Slot>, groups them
@@ -21,7 +21,8 @@ local palette = HS:JSONDecode(HS:GetAsync("http://127.0.0.1:34873/Assets/AssetDo
 -- Eyes/pupils are NOT uploaded meshes (Roblox moderation false-positives on
 -- paired spheres); they are rebuilt here from Blender specs as native parts.
 local nativeSpec = HS:JSONDecode(HS:GetAsync("http://127.0.0.1:34873/Assets/AssetDocumentation/native_parts.json?t=" .. os.clock(), true))
-local NATIVE_SLOTS = { Eye = true, Pupil = true }
+-- (also every other paired round face feature: cheeks, sockets, buttons, glowing eyes)
+local NATIVE_SLOTS = { Eye = true, Pupil = true, Cheek = true, Socket = true, Button = true, EyeGlow = true }
 -- Blender (x, y, z) -> Roblox (-x, z, y)   (verified on the imported P_Gusher)
 local function b2r(v)
 	return Vector3.new(-v[1], v[3], v[2])
@@ -47,11 +48,30 @@ local MATERIAL = {
 	VoxA = { Enum.Material.Neon, 0 },
 	VoxC = { Enum.Material.Neon, 0 },
 	Ring = { Enum.Material.Neon, 0 },
+	-- Halloween update
+	Swirl = { Enum.Material.Neon, 0.15 },
+	Window = { Enum.Material.Neon, 0 },
+	Flame = { Enum.Material.Neon, 0 },
+	Fire = { Enum.Material.Neon, 0 },
+	Carve = { Enum.Material.Neon, 0 },
+	GlowB = { Enum.Material.Neon, 0 },
+	Brew = { Enum.Material.Neon, 0 },
+	Iron = { Enum.Material.Metal, 0 },
 	Gem = { Enum.Material.Glass, 0.1 },
 	Slop = { Enum.Material.SmoothPlastic, 0 },
 }
 -- collidable prop slots (everything else is decoration)
-local SOLID_PROPS = { P_Gusher = true, P_SlopVat = true, P_SlopOMatic = true, P_RebirthShrine = true, P_ChaosRift = true, P_LampPost = true, P_SlopBarrel = true, P_MushTree = true, P_Trophy = true }
+local SOLID_PROPS = { P_Gusher = true, P_SlopVat = true, P_SlopOMatic = true, P_RebirthShrine = true, P_ChaosRift = true, P_LampPost = true, P_SlopBarrel = true, P_MushTree = true, P_Trophy = true,
+	-- Halloween Island (convex-hull collisions; the portal swirl stays walk-through)
+	P_SpookyPortal = true, P_HauntedHouse = true, P_Crypt = true, P_CastleTower = true, P_GreatPumpkin = true, P_Cauldron = true,
+	P_Tombstone = true, P_StoneCross = true, P_IronFence = true, P_Pumpkin = true, P_HayBale = true, P_CandyCornGiant = true,
+	P_Lollipop = true, P_Signpost = true, P_JackLantern = true }
+local HULL_PROPS = { P_Gusher = true, P_SlopVat = true, P_RebirthShrine = true }
+for k in pairs(SOLID_PROPS) do
+	if k:sub(1, 2) == "P_" and not ({ P_SlopOMatic = 1, P_ChaosRift = 1, P_LampPost = 1, P_SlopBarrel = 1, P_MushTree = 1, P_Trophy = 1 })[k] then
+		HULL_PROPS[k] = true
+	end
+end
 
 -- 1) gather imported parts
 local groups = {}
@@ -70,7 +90,7 @@ for _, src in ipairs(sources) do
 end
 for _, d in ipairs(all) do
 	if d:IsA("MeshPart") then
-		local aid, slot = d.Name:match("^([GP][%w_]-)__(%w+)$")
+		local aid, slot = d.Name:match("^([GHP][%w_]-)__(%w+)$")
 		if aid and palette.palette[aid] and not NATIVE_SLOTS[slot] then
 			groups[aid] = groups[aid] or {}
 			table.insert(groups[aid], { part = d, slot = slot })
@@ -102,7 +122,7 @@ end
 -- 2) global orientation from the Goobers' eyes (Eye parts sit on the -Y face in Blender)
 local yawVotes = {}
 for aid, parts in pairs(groups) do
-	if aid:sub(1, 1) == "G" then
+	if aid:sub(1, 1) == "G" or aid:sub(1, 1) == "H" then
 		local mn, mx = bbox(parts)
 		local center = (mn + mx) / 2
 		for _, e in ipairs(parts) do
@@ -137,7 +157,7 @@ local gFolder, pFolder = sub("Goobers"), sub("Props")
 local report = { parts = count, assets = 0, yawDeg = math.deg(yaw), scale = {}, missing = {} }
 
 for aid, parts in pairs(groups) do
-	local isGoober = aid:sub(1, 1) == "G"
+	local isGoober = aid:sub(1, 1) == "G" or aid:sub(1, 1) == "H" -- H = Halloween Goobers
 	local model = Instance.new("Model")
 	model.Name = aid
 	-- copy + colour
@@ -197,7 +217,7 @@ for aid, parts in pairs(groups) do
 			end
 			local rgb = palette.palette[aid][spec.slot]
 			p.Color = if rgb then Color3.fromRGB(rgb[1], rgb[2], rgb[3]) else Color3.new(1, 1, 1)
-			p.Material = if spec.slot == "Eye" then Enum.Material.SmoothPlastic else Enum.Material.SmoothPlastic
+			p.Material = if spec.slot == "EyeGlow" then Enum.Material.Neon else Enum.Material.SmoothPlastic
 			p.Anchored = true
 			p.CanTouch = false
 			p.CastShadow = false
@@ -269,8 +289,8 @@ for aid, parts in pairs(groups) do
 		model.Parent = gFolder
 	else
 		for _, e in ipairs(copies) do
-			e.part.CanCollide = SOLID_PROPS[aid] == true or e.slot == "Base" or e.slot == "Frame"
-			if e.part.CanCollide and (aid == "P_Gusher" or aid == "P_SlopVat" or aid == "P_RebirthShrine") then
+			e.part.CanCollide = (SOLID_PROPS[aid] == true or e.slot == "Base" or e.slot == "Frame") and e.slot ~= "Swirl"
+			if e.part.CanCollide and HULL_PROPS[aid] then
 				e.part.CollisionFidelity = Enum.CollisionFidelity.Hull
 			end
 		end
