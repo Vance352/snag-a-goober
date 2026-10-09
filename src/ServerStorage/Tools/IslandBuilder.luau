@@ -531,7 +531,7 @@ local function buildScenery(root: Instance)
 	for _, z in ipairs({ -128, -100, -72, -44, -16 }) do
 		for _, sx in ipairs({ -1, 1 }) do
 			local m = place(s, "P_JackLantern", at(sx * 9, z), Vector3.new(-sx, 0, 0))
-			lightUp(m, Color3.fromRGB(255, 160, 60), 16)
+			lightUp(m, Color3.fromRGB(255, 214, 170), 12) -- pale, so the path isn't washed red
 		end
 	end
 	for _, x in ipairs({ -55, -30, 30, 55 }) do

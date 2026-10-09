@@ -369,7 +369,10 @@ local function buildQuests()
 			cReward.Text = ""
 			claimState(cBtn, "done", "DONE")
 		end
-		dHead.Text = ("DAILY QUESTS  <font color=\"#CDBEEB\">new ones in %s</font>"):format(Util.Time(q.dailyResetIn))
+		local active = s.event and s.event.active
+		dHead.Text = if active
+			then ("DAILY QUESTS  <font color=\"#CDBEEB\">new ones in %s</font>"):format(Util.Time(q.dailyResetIn))
+			else "DAILY QUESTS  <font color=\"#CDBEEB\">the event is over</font>"
 		for i, d in ipairs(daily) do
 			local e = q.daily[i]
 			d.row.Visible = e ~= nil

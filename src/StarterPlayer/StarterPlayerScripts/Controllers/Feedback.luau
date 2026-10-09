@@ -100,10 +100,8 @@ end
 function NOTIFY.Discovered(p)
 	local halloween = p.pool == "Halloween"
 	UI.Toast(("NEW%s: <font color=\"#%s\">%s</font> (%d/%d)"):format(if halloween then " HALLOWEEN" else "", rarityHex(p.id), nameOf(p.id), p.count, p.total), if halloween then "gold" else "blue", 3.5, if halloween then "pumpkin" else "book")
-	local b = UI.refs.menuDex and UI.refs.menuDex:FindFirstChild("Badge")
-	if b then
-		b.Visible = true
-	end
+	UI.dexBadgeWanted = true
+	UI.CapBadges()
 end
 
 function NOTIFY.DexMilestone(p)

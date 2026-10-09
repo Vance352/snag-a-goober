@@ -2,6 +2,10 @@
 
 Newest entry at the top.
 
+## 2026-10-10
+- Final review round 3: 7.5/10 (QA/halloween-review-r3.md). Fixed its two regressions: the Index discovery badge now survives the 3-badge cap; the Quests panel says "the event is over" instead of a daily countdown after the event. Paler village path lanterns.
+- Two-player theft tests on the Halloween content (steal, portal refusal while stealing, victim defending from the island via the Base shortcut, thief disconnect) all pass (QA/test-log.md).
+
 ## 2026-10-09 (late night)
 - Review round 2 fixes (QA/halloween-review-r2.md, 6.5/10): island belts can only be snagged from inside an open area (no reaching over a locked fence); Grim Goober 6,000/s and Phantom King 5,000/s (on a par with Glitch, not above); Bonus Chests pay out at once; gated toasts respect event level; after the event the event-level part of the gates is waived and no new dailies roll; Enabled=false reaches the client; at most 3 menu badges; bigger travel tabs, nav labels; collection grid centred; grey mounds replaced with trees; lantern avenue to the castle; new WAVs moved back to Assets/Audio. Halloween loop "click" checked: the seam jump (2,152) is smaller than ~2,500 same-size jumps per second in the music itself, so no re-upload.
 

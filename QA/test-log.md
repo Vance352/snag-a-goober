@@ -3,6 +3,19 @@
 Evidence from real Roblox Studio sessions (place 90695592143707). "Harness" =
 Studio-only `ServerStorage.SAG_Test` (src/ServerScriptService/Testing/TestHarness.luau).
 
+## 2026-10-09 - Halloween update, two-player theft tests (Studio server + 2 clients)
+
+Players: Player1 (-1), Player2 (-2), build after review round 3 (6bd5743 + badge/daily-copy fixes). Session started
+from Studio's Test > Start Test Session > Server and Clients (+ Add Clients x2). Harness `call` runs the real handlers.
+
+| # | Test | Result |
+|---|---|---|
+| A | P1 steals P2's Hex (Rare Halloween), carries it home | PASS - Hex moves to P1 (new record), P2 gets StealAlert, StolenFrom with $1,250 (25%) insurance and 120 s shield; P1 Halloween Index 1/16; no Event XP for a stolen Goober (belt only, by design) |
+| B | P1, carrying the stolen Hex, at the Spooky Portal: PortalIn, then the Island shortcut | PASS - "You can't escape through the portal with a stolen Goober!" and "shortcuts only work with empty hands"; P1 stays on the mainland |
+| C | P1 on Halloween Island; P2 starts stealing P1's Hex; P1 uses the Base shortcut and tags P2 | PASS - P1 gets the alert on the island, the shortcut lands P1 at their base instantly, Caught / CaughtThief fire, Hex stays with P1 |
+| D | P1 steals P2's Lantern Lurker (Epic Halloween) and is kicked mid-carry | PASS - Goober back on P2's stand with the same uid, nothing in transit, no carried models left, P2 gets StealFailed |
+| - | Console (server) | Clean |
+
 ## 2026-10-09 - Halloween update, builder playtests (Studio, solo client)
 
 Player cooolvance55 (Vance's Studio account). Harness `call` runs the real service

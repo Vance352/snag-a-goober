@@ -561,6 +561,9 @@ function UI.Open(name: string, tab: string?)
 	if inner then
 		Effects.Pop(inner)
 	end
+	if name == "Dex" then
+		UI.dexBadgeWanted = false
+	end
 	if refs["menu" .. name] and refs["menu" .. name]:FindFirstChild("Badge") then
 		refs["menu" .. name].Badge.Visible = false
 	end
@@ -1193,7 +1196,14 @@ end
 
 -- a wall of red dots means nothing: show the three most useful ones
 local BADGE_ORDER = { "Halloween", "Quests", "Rebirth", "Levels", "Dex", "Upgrades", "Shop", "Settings" }
+UI.dexBadgeWanted = false -- set by a new discovery, cleared by opening the Index
+
 function UI.CapBadges()
+	-- event-driven badges are re-applied from their "wanted" flag every time, so
+	-- a badge hidden by the cap comes back once the others clear
+	if refs.menuDex and refs.menuDex:FindFirstChild("Badge") then
+		refs.menuDex.Badge.Visible = UI.dexBadgeWanted and UI.openPanel ~= "Dex"
+	end
 	local shown = 0
 	for _, key in ipairs(BADGE_ORDER) do
 		local b = refs["menu" .. key]
