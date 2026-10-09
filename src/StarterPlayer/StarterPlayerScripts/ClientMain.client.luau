@@ -17,6 +17,9 @@ UI.Start()
 World.OpenUpgrades = function()
 	UI.Open("Upgrades")
 end
+World.OpenRebirth = function()
+	UI.Open("Rebirth")
+end
 World.Start()
 Feedback.Start()
 task.spawn(function()

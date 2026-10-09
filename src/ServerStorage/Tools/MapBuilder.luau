@@ -11,7 +11,9 @@
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
+-- Edit-time tool: require a fresh copy so Studio's module cache never serves a
+-- stale Config after a sync.
+local Config = require(ReplicatedStorage.Shared.Config:Clone())
 
 local MapBuilder = {}
 local M = Config.Map
@@ -298,6 +300,40 @@ local function buildPlot(parent: Instance, index: number, center: Vector3, look:
 	domeMesh.MeshType = Enum.MeshType.Sphere -- squashed dome over the base
 	domeMesh.Parent = dome
 
+	-- progression decor: hidden until the owner reaches the unlock (PlotService.UpdateDecor)
+	local decor = Instance.new("Folder")
+	decor.Name = "Decor"
+	decor.Parent = plot
+	local function decorItem(name: string, unlockKind: string, unlockValue: number, cfLocal: CFrame, fallbackSize: Vector3, fallbackColor: Color3)
+		local m = prop(name)
+		if m then
+			m:PivotTo(cf * cfLocal)
+		else
+			m = Instance.new("Model")
+			part({ Name = "Body", Size = fallbackSize, CFrame = cf * cfLocal * CFrame.new(0, fallbackSize.Y / 2, 0), Color = fallbackColor, Parent = m })
+		end
+		m:SetAttribute("UnlockKind", unlockKind)
+		m:SetAttribute("UnlockValue", unlockValue)
+		for _, d in ipairs(m:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d:SetAttribute("BaseTransparency", d.Transparency)
+				d:SetAttribute("BaseCollide", d.CanCollide)
+				if d.Name == "Cloth" then
+					d.Color = color:Lerp(Color3.new(0, 0, 0), 0.15)
+				end
+			end
+		end
+		m.Parent = decor
+	end
+	decorItem("P_LampPost", "level", 5, CFrame.new(-21, 1, -29) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(0.6, 9, 0.6), COL.trim)
+	decorItem("P_LampPost", "level", 5, CFrame.new(21, 1, -29) * CFrame.Angles(0, math.rad(90), 0), Vector3.new(0.6, 9, 0.6), COL.trim)
+	decorItem("P_Flag", "level", 10, CFrame.new(-22, 1, 30), Vector3.new(0.4, 8, 0.4), COL.trim)
+	decorItem("P_Flag", "level", 10, CFrame.new(22, 1, 30) * CFrame.Angles(0, math.rad(180), 0), Vector3.new(0.4, 8, 0.4), COL.trim)
+	decorItem("P_SlopBarrel", "level", 15, CFrame.new(-21.5, 1, 8), Vector3.new(2.2, 3, 2.2), COL.cash)
+	decorItem("P_SlopBarrel", "level", 15, CFrame.new(21.5, 1, 16), Vector3.new(2.2, 3, 2.2), COL.cash)
+	decorItem("P_Trophy", "rebirth", 1, CFrame.new(0, 1, 30.5) * CFrame.Angles(0, math.rad(180), 0), Vector3.new(2.5, 5, 2.5), COL.gold)
+	decorItem("P_MushTree", "rebirth", 3, CFrame.new(-19, 1, 25) * CFrame.Angles(0, math.rad(40), 0), Vector3.new(2, 10, 2), Color3.fromRGB(176, 91, 255))
+
 	-- path from the entrance to the belt
 	local toBelt = math.abs(center.Z) - D / 2 - (math.abs(M.mainZ) + M.beltWidth / 2 + 2)
 	part({ Name = "Path", Size = Vector3.new(12, 0.2, toBelt), CFrame = cf * CFrame.new(0, 0.1, -D / 2 - toBelt / 2), Color = COL.path, Material = Enum.Material.Plastic, CanCollide = false, Parent = plot })
@@ -329,7 +365,7 @@ local function buildBelt(parent: Instance, lineName: string, z: number, dir: num
 	tex.Face = Enum.NormalId.Top
 	tex.StudsPerTileU = 8
 	tex.StudsPerTileV = M.beltWidth
-	tex.Texture = ""
+	tex.Texture = Config.Textures.Chevron
 	tex.Color3 = if lineName == "Gold" then COL.gold else Color3.fromRGB(123, 227, 90)
 	tex.Transparency = 0.15
 	tex.Parent = surf
@@ -411,6 +447,72 @@ local function buildGoldGate(parent: Instance)
 	part({ Name = "MidWalk", Size = Vector3.new(length, 1.2, math.abs(M.goldZ - M.mainZ) - M.beltWidth - 1.6), CFrame = CFrame.new(midX, 0.6, (M.mainZ + M.goldZ) / 2), Color = COL.path, Material = Enum.Material.Plastic, Parent = parent })
 end
 
+local function placeProp(parent: Instance, name: string, cf: CFrame, newName: string?)
+	local m = prop(name)
+	if not m then
+		return nil
+	end
+	m:PivotTo(cf)
+	m.Name = newName or name
+	m.Parent = parent
+	return m
+end
+
+local function buildLandmarks(parent: Instance)
+	-- Rebirth Shrine beyond the Gusher (west), Chaos Rift beyond the Slop Vat (east)
+	local shrineCf = CFrame.new(M.beltStartX - 48, 0, 0) * CFrame.Angles(0, math.rad(-90), 0)
+	local shrine = placeProp(parent, "P_RebirthShrine", shrineCf, "RebirthShrine")
+	if not shrine then
+		shrine = Instance.new("Model")
+		shrine.Name = "RebirthShrine"
+		part({ Name = "Dais", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, 18, 18), CFrame = CFrame.new(M.beltStartX - 48, 1, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(237, 230, 255), Parent = shrine })
+		shrine.Parent = parent
+	end
+	local sp = part({ Name = "RebirthPrompt", Size = Vector3.new(6, 6, 6), CFrame = CFrame.new(M.beltStartX - 48, 4, 0), Transparency = 1, CanCollide = false, Parent = shrine })
+	billboard(sp, "ShrineTag", Vector2.new(12, 3.4), Vector3.new(0, 15, 0), "♻️ REBIRTH SHRINE", Color3.fromRGB(210, 150, 255))
+	local rift = placeProp(parent, "P_ChaosRift", CFrame.new(M.beltEndX + 48, 0, 0), "ChaosRift")
+	if rift then
+		local core = Instance.new("PointLight")
+		core.Name = "RiftLight"
+		core.Color = Color3.fromRGB(192, 75, 255)
+		core.Range = 40
+		core.Brightness = 0.5
+		core.Parent = rift:FindFirstChild("Glow") or rift:FindFirstChildWhichIsA("BasePart")
+		local fx = part({ Name = "RiftCore", Size = Vector3.new(2, 2, 2), CFrame = CFrame.new(M.beltEndX + 48, 8, 0), Transparency = 1, CanCollide = false, Parent = rift })
+		local pe = Instance.new("ParticleEmitter")
+		pe.Name = "RiftSparks"
+		pe.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		pe.Color = ColorSequence.new(Color3.fromRGB(255, 61, 165), Color3.fromRGB(192, 75, 255))
+		pe.Rate = 4
+		pe.Speed = NumberRange.new(3, 8)
+		pe.SpreadAngle = Vector2.new(180, 180)
+		pe.Lifetime = NumberRange.new(1, 2)
+		pe.LightEmission = 0.8
+		pe.Size = NumberSequence.new(1.2, 0)
+		pe.Parent = fx
+		billboard(fx, "RiftTag", Vector2.new(12, 3.4), Vector3.new(0, 9, 0), "🌀 CHAOS RIFT", Color3.fromRGB(255, 120, 220))
+	end
+	-- lamp posts lining both sides of the conveyor zone
+	for x = M.beltStartX + 12, M.beltEndX - 12, 34 do
+		for _, sz in ipairs({ -1, 1 }) do
+			placeProp(parent, "P_LampPost", CFrame.new(x, 0, sz * 18) * CFrame.Angles(0, math.rad(sz > 0 and 90 or -90), 0), "Lamp")
+		end
+	end
+	-- meadow dressing behind the bases and at the ends
+	local rnd = Random.new(21)
+	for i = 1, 14 do
+		local side = if i % 2 == 0 then 1 else -1
+		local x = rnd:NextNumber(-190, 190)
+		local z = side * rnd:NextNumber(112, 140)
+		placeProp(parent, if i % 3 == 0 then "P_SlopBarrel" else "P_MushTree", CFrame.new(x, 0, z) * CFrame.Angles(0, rnd:NextNumber(0, 6.28), 0), "Meadow")
+	end
+	for _, x in ipairs({ -185, -150, 150, 185 }) do
+		for _, z in ipairs({ -40, 40 }) do
+			placeProp(parent, "P_MushTree", CFrame.new(x + rnd:NextNumber(-6, 6), 0, z + rnd:NextNumber(-8, 8)) * CFrame.Angles(0, rnd:NextNumber(0, 6.28), 0), "Meadow")
+		end
+	end
+end
+
 local function buildGround(parent: Instance)
 	part({ Name = "Ground", Size = Vector3.new(420, 4, 300), CFrame = CFrame.new(0, -2, 0), Color = COL.ground, Material = Enum.Material.Plastic, Parent = parent })
 	-- darker grass bands for depth
@@ -487,6 +589,7 @@ function MapBuilder.Build()
 	buildBelt(map, "Gold", M.goldZ, -1)
 	buildMachines(map)
 	buildGoldGate(map)
+	buildLandmarks(map)
 
 	local plots = Instance.new("Folder")
 	plots.Name = "Plots"

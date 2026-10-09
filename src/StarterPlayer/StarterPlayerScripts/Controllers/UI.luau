@@ -654,10 +654,20 @@ local function buildShop()
 		return g
 	end
 	local cards = {}
-	local function card(parent, i, icon, name, desc, onBuy, extra)
+	local function card(parent, i, icon, name, desc, onBuy, extra, image)
 		local f = Theme.frame({ BackgroundColor3 = C.panel2, LayoutOrder = i, Parent = parent })
 		Theme.corner(f, 14)
-		Theme.label({ Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(56, 56), Text = icon, Stroke = false, MaxText = 40, Parent = f })
+		if image then
+			local img = Instance.new("ImageLabel")
+			img.BackgroundTransparency = 1
+			img.Position = UDim2.fromOffset(4, 4)
+			img.Size = UDim2.fromOffset(64, 64)
+			img.Image = image
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Parent = f
+		else
+			Theme.label({ Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(56, 56), Text = icon, Stroke = false, MaxText = 40, Parent = f })
+		end
 		Theme.label({ Position = UDim2.fromOffset(70, 8), Size = UDim2.new(1, -78, 0, 28), Text = name, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 21, Parent = f })
 		local d = Theme.label({ Position = UDim2.fromOffset(70, 38), Size = UDim2.new(1, -78, 0, 66), Text = desc, TextWrapped = true, TextColor3 = C.sub, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Font = Theme.Body, MaxText = 14, Parent = f })
 		local buy = Theme.button({ Position = UDim2.new(0, 8, 1, -52), Size = UDim2.new(1, if extra then -122 else -16, 0, 44), Text = "", Color = C.robux, MaxText = 22, Parent = f }, onBuy)
@@ -679,7 +689,7 @@ local function buildShop()
 			end
 		end, if p.randomModifier then { text = "ODDS INFO", fn = function()
 			UI.Open("Odds")
-		end } else nil)
+		end } else nil, p.icon)
 	end
 	section("Slop Coins & Boosts  •  one-time")
 	local cg = grid()
@@ -690,7 +700,7 @@ local function buildShop()
 				Effects.Play("Click")
 				Net.Event("PromptProduct"):FireServer(key)
 			end
-		end)
+		end, nil, p.icon)
 	end
 	panelRefresh.Shop = function()
 		local s = State.data

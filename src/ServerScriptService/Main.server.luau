@@ -160,6 +160,10 @@ task.spawn(function()
 				end
 				player:SetAttribute("Income", st.rate)
 				S.Plot.UpdateSign(player, st.rate, st.data.rebirths, st.data.level, st.passes.VIP == true)
+				local plot = S.Plot.Get(player)
+				if plot then
+					S.Plot.UpdateDecor(plot, st.data.level, st.data.rebirths)
+				end
 			end
 		end
 	end

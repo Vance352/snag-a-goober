@@ -33,6 +33,7 @@ function PlotService.Init()
 		plot:SetAttribute("OwnerId", 0)
 		PlotService.SetShield(plot :: Model, false)
 		PlotService.UpdateStands(plot :: Model, 0, {})
+		PlotService.UpdateDecor(plot :: Model, 0, 0)
 		PlotService.ResetSign(plot :: Model)
 	end
 end
@@ -74,6 +75,7 @@ function PlotService.Release(player: Player)
 	plot:SetAttribute("OwnerId", 0)
 	PlotService.SetShield(plot, false)
 	PlotService.UpdateStands(plot, 0, {})
+	PlotService.UpdateDecor(plot, 0, 0)
 	PlotService.ResetSign(plot)
 	local bank = plot:FindFirstChild("CashPad")
 	if bank and bank:FindFirstChild("Bank") then
@@ -158,6 +160,47 @@ function PlotService.UpdateStands(plot: Model, capacity: number, rims: { [number
 			end
 		end
 		stand:SetAttribute("Unlocked", unlocked)
+	end
+end
+
+-- Reveal base decorations the owner has earned (lamps, flags, barrels at
+-- levels 5/10/15; trophy and tree at rebirth 1/3; gold wall trim at rebirth 2).
+-- Pass level = 0 to hide everything (empty plot).
+function PlotService.UpdateDecor(plot: Model, level: number, rebirths: number)
+	local key = level .. ":" .. rebirths
+	if plot:GetAttribute("DecorKey") == key then
+		return
+	end
+	plot:SetAttribute("DecorKey", key)
+	local decor = plot:FindFirstChild("Decor")
+	if decor then
+		for _, item in ipairs(decor:GetChildren()) do
+			local kind = item:GetAttribute("UnlockKind")
+			local need = item:GetAttribute("UnlockValue") or 0
+			local have = if kind == "rebirth" then rebirths else level
+			local on = level > 0 and have >= need
+			for _, p in ipairs(item:GetDescendants()) do
+				if p:IsA("BasePart") then
+					p.Transparency = if on then (p:GetAttribute("BaseTransparency") or 0) else 1
+					p.CanCollide = on and (p:GetAttribute("BaseCollide") == true)
+				elseif p:IsA("Light") then
+					p.Enabled = on
+				end
+			end
+		end
+	end
+	local walls = plot:FindFirstChild("Walls")
+	if walls then
+		for _, p in ipairs(walls:GetChildren()) do
+			if p:IsA("BasePart") and p.Name == "Trim" then
+				if p:GetAttribute("BaseColor") == nil then
+					p:SetAttribute("BaseColor", p.Color)
+				end
+				local gold = level > 0 and rebirths >= 2
+				p.Color = if gold then Color3.fromRGB(255, 201, 60) else p:GetAttribute("BaseColor")
+				p.Material = if gold then Enum.Material.Foil else Enum.Material.SmoothPlastic
+			end
+		end
 	end
 end
 

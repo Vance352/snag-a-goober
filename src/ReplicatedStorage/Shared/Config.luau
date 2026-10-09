@@ -215,36 +215,42 @@ Config.DexMilestones = {
 Config.GamePasses = {
 	VIP = {
 		id = 2022824311,
+		icon = "rbxassetid://79845686634010",
 		name = "VIP Club",
 		price = 249,
 		desc = "Gold VIP name tag, sparkle trail, golden base sign and a VIP chat tag. Cosmetic only.",
 	},
 	DoubleCoins = {
 		id = 2022452299,
+		icon = "rbxassetid://75572407927419",
 		name = "Double Slop Coins",
 		price = 399,
 		desc = "Permanently doubles all Goober income. Multiplies with upgrades, rebirths and boosts.",
 	},
 	ExtraSlots = {
 		id = 2023412292,
+		icon = "rbxassetid://108582372704823",
 		name = "+4 Goober Stands",
 		price = 199,
 		desc = "Permanently adds 4 extra stands to your base.",
 	},
 	SprintBoots = {
 		id = 2022320299,
+		icon = "rbxassetid://109009677275707",
 		name = "Sprint Boots",
 		price = 99,
 		desc = "Permanently +4 walk speed on top of your Zoomies upgrade.",
 	},
 	AutoCollect = {
 		id = 2023184287,
+		icon = "rbxassetid://113500650816678",
 		name = "Auto Collect",
 		price = 149,
 		desc = "Your Goobers' coins go straight into your wallet - no need to step on the Cash Pad.",
 	},
 	Lucky = {
 		id = 2021996302,
+		icon = "rbxassetid://131853608626044",
 		name = "Lucky Goober",
 		price = 199,
 		desc = "Your Personal Drops roll with +50% luck for Rare-or-better Goobers. See exact odds before buying.",
@@ -256,6 +262,7 @@ Config.PassOrder = { "DoubleCoins", "AutoCollect", "ExtraSlots", "Lucky", "Sprin
 Config.Products = {
 	CoinsSmall = {
 		id = 3717345239,
+		icon = "rbxassetid://80220919951547",
 		name = "Slop Sack",
 		price = 25,
 		minutes = 5,
@@ -263,6 +270,7 @@ Config.Products = {
 	},
 	CoinsMedium = {
 		id = 3717345325,
+		icon = "rbxassetid://139106282248592",
 		name = "Slop Barrel",
 		price = 99,
 		minutes = 30,
@@ -270,6 +278,7 @@ Config.Products = {
 	},
 	CoinsLarge = {
 		id = 3717345363,
+		icon = "rbxassetid://125386312850544",
 		name = "Slop Tanker",
 		price = 299,
 		minutes = 120,
@@ -277,6 +286,7 @@ Config.Products = {
 	},
 	Boost = {
 		id = 3717345400,
+		icon = "rbxassetid://88092692009443",
 		name = "2x Income (15 min)",
 		price = 49,
 		boostSeconds = 15 * 60,
@@ -285,6 +295,10 @@ Config.Products = {
 Config.ProductOrder = { "CoinsSmall", "CoinsMedium", "CoinsLarge", "Boost" }
 
 -- --------------------------------------------------------------------- map
+Config.Textures = {
+	Chevron = "rbxassetid://87951433941492",
+}
+
 Config.Map = {
 	beltY = 2.4, -- top surface of the belt
 	beltStartX = -116,

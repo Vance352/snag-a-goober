@@ -24,6 +24,7 @@ local State = require(script.Parent.State)
 local player = Players.LocalPlayer
 local World = {}
 World.OpenUpgrades = nil :: (() -> ())?
+World.OpenRebirth = nil :: (() -> ())?
 
 local ANIM_RANGE = 130
 local tracked: { [Model]: { phase: number, weld: Weld?, prompt: ProximityPrompt?, kind: string? } } = {}
@@ -314,8 +315,51 @@ function World.Start()
 		refresh()
 	end)
 
-	local chevrons = {}
 	local map = Workspace:WaitForChild("Map")
+
+	-- Rebirth Shrine opens the rebirth panel
+	task.spawn(function()
+		local shrine = map:WaitForChild("RebirthShrine", 10)
+		local spot = shrine and shrine:FindFirstChild("RebirthPrompt")
+		if spot then
+			local p = Instance.new("ProximityPrompt")
+			p.ActionText = "Rebirth"
+			p.ObjectText = "Rebirth Shrine"
+			p.HoldDuration = 0
+			p.MaxActivationDistance = 16
+			p.RequiresLineOfSight = false
+			p.Parent = spot
+			p.Triggered:Connect(function()
+				if World.OpenRebirth then
+					World.OpenRebirth()
+				end
+			end)
+		end
+	end)
+
+	-- the Chaos Rift wakes up during Goober Chaos events
+	task.spawn(function()
+		local rift = map:WaitForChild("ChaosRift", 10)
+		if not rift then
+			return
+		end
+		local light = rift:FindFirstChild("RiftLight", true) :: PointLight?
+		local sparks = rift:FindFirstChild("RiftSparks", true) :: ParticleEmitter?
+		local function apply()
+			local active = (ReplicatedStorage:GetAttribute("ChaosType") or "") ~= ""
+			if light then
+				light.Brightness = if active then 4 else 0.5
+				light.Range = if active then 60 else 40
+			end
+			if sparks then
+				sparks.Rate = if active then 60 else 4
+			end
+		end
+		ReplicatedStorage:GetAttributeChangedSignal("ChaosType"):Connect(apply)
+		apply()
+	end)
+
+	local chevrons = {}
 	for _, d in ipairs(map:GetDescendants()) do
 		if d:IsA("Texture") and d.Name == "Chevrons" then
 			table.insert(chevrons, d)
