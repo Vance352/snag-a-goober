@@ -14,13 +14,13 @@
 	  * Lag: when a walking client's connection stalls, the server sees it
 	    frozen in place while its replicated velocity still says "walking",
 	    then catching up in a few bursts. Those frozen "stall" samples
-	    (stationary, straight out of real walking, walking velocity, at most
-	    3 s) and the bursts right after them are not real positions in time,
-	    so they are not used as constraints; the samples
+	    (stationary with walking velocity or no packets arriving, at most 3 s)
+	    and the catch-up in
+	    the second after them are not real positions in time, so they are
+	    not used as constraints; the samples
 	    from before the stall still bound the catch-up - and every trip - to
-	    walking speed. Standing still is never a stall, and faking the
-	    pattern gains nothing: you can't get anywhere sooner than walking
-	    from where you really were.
+	    walking speed. Faking the pattern gains nothing: you can't get
+	    anywhere sooner than walking from where you really were.
 	  * On a violation the player is "in debt": the trusted samples freeze,
 	    and debt clears only once the current position is reachable by
 	    walking from every one of them. Multi-hop teleports and speed hacks
@@ -47,6 +47,8 @@ local REPL_LAG = 0.35 -- seconds: replication delay varies (a catch-up after a s
 local STALL_VEL = 0.4 -- replicated speed (x walk speed) that marks a frozen position as a stall
 local STALL_MOVE = 1 -- studs per sample: a stall is a position that doesn't move
 local STALL_MAX = 3.0 -- seconds: a "stall" longer than this is someone standing still
+local STALL_BACK = 0.4 -- seconds: frozen samples just before a stall is recognised still count as the stall
+local STALL_AGE = 0.3 -- seconds without physics packets from the owner = a stall
 local HISTORY = 20.0 -- long window, so the constant slacks can't be turned into a speed
 local SETTLE_TIME = 1.0
 local SETTLE_RADIUS = 12
@@ -56,9 +58,7 @@ export type Sample = {
 	t: number,
 	pos: Vector3,
 	speed: number,
-	moving: boolean?, -- moved at walking pace since the previous sample
-	stillSince: number?, -- when the current stationary run began
-	walkedIn: boolean?, -- the stationary run began straight out of real walking
+	stallSince: number?, -- when the current stall began
 	stall: boolean?, -- a frozen position from a network stall: not used as a constraint
 	catchup: number?, -- a burst within 1 s after a stall (also lagging): when the stall ended
 }
@@ -124,7 +124,15 @@ end
 
 -- A new trusted sample at `pos`. `vel` is the server's replicated horizontal
 -- velocity of the character.
-local function sample(list: { Sample }, pos: Vector3, speed: number, vel: Vector3): Sample
+--
+-- A stall is a position that stays put while the replicated velocity says
+-- "walking", or while no physics packets arrive from the owner (ReceiveAge) -
+-- what the server sees when a walking client's connection stalls. Its
+-- samples, and the catch-up in the second after it, are skipped as
+-- constraints. That is always safe: the last real sample before the stall
+-- still bounds every later position to walking speed, so faking a stall
+-- gains nothing.
+local function sample(list: { Sample }, pos: Vector3, speed: number, vel: Vector3, age: number): Sample
 	local now = os.clock()
 	local smp: Sample = { t = now, pos = pos, speed = speed }
 	local prev = list[#list]
@@ -133,31 +141,28 @@ local function sample(list: { Sample }, pos: Vector3, speed: number, vel: Vector
 	end
 	local spd = math.max(speed, prev.speed)
 	local moved = (flat(pos) - flat(prev.pos)).Magnitude
+	local stallEnd = if prev.stall then prev.t else prev.catchup
 	if moved < STALL_MOVE then
-		smp.stillSince = prev.stillSince or prev.t
-		smp.walkedIn = if prev.stillSince then prev.walkedIn else prev.moving
-		if smp.walkedIn and now - smp.stillSince <= STALL_MAX and (prev.stall or vel.Magnitude >= STALL_VEL * spd) then
-			-- the whole stationary run is the stall (replicated velocity flickers)
-			smp.stall = true
+		if prev.stall and now - (prev.stallSince or now) <= STALL_MAX then
+			smp.stall, smp.stallSince = true, prev.stallSince -- (velocity flickers mid-stall)
+		elseif (vel.Magnitude >= STALL_VEL * spd or age >= STALL_AGE) and not prev.stall then
+			smp.stall, smp.stallSince = true, now
+			-- the first frozen samples may have shown a low velocity: they are
+			-- part of the same stall if they sit right here and are this recent
 			for i = #list, 1, -1 do
 				local x = list[i]
-				if x.stillSince ~= smp.stillSince then
+				if now - x.t > STALL_BACK or (flat(x.pos) - flat(pos)).Magnitude >= STALL_MOVE then
 					break
 				end
 				x.stall = true
+				smp.stallSince = x.t
 			end
 		end
-	else
-		local dt = now - prev.t
-		-- the catch-up after a stall often arrives in a few bursts; the
-		-- in-between positions lag real time just like the stall did
-		local stallEnd = if prev.stall then prev.t else prev.catchup
-		if stallEnd and now - stallEnd <= 1.0 then
-			smp.catchup = stallEnd
-		end
-		-- walking pace (a teleport or catch-up burst is not "walking into" a
-		-- stall; walking on after a catch-up is, so clustered stalls count)
-		smp.moving = moved >= 0.5 * spd * dt and moved <= 1.5 * spd * dt
+	end
+	if not smp.stall and stallEnd and now - stallEnd <= 1.0 then
+		-- the catch-up after a stall often arrives in a few bursts (with
+		-- pauses); those positions lag real time just like the stall did
+		smp.catchup = stallEnd
 	end
 	return smp
 end
@@ -169,6 +174,17 @@ end
 
 local function hvel(part: BasePart): Vector3
 	return flat(part.AssemblyLinearVelocity)
+end
+
+-- BasePart.ReceiveAge: a secondary stall cue (in Studio it hovered at ~0.1 s
+-- and did not grow while idle, so the velocity cue does most of the work; a
+-- false positive only skips constraints, which is time-neutral). Overridable
+-- for tools/guard_sim.luau.
+function MoveGuard._receiveAge(part: BasePart): number
+	local ok, age = pcall(function()
+		return part.ReceiveAge
+	end)
+	return if ok and type(age) == "number" then age else 0
 end
 
 -- Reachable from every sample in `list`? Uses the highest walk speed in force
@@ -385,7 +401,7 @@ function MoveGuard.CarryStep(player: Player, carry): (boolean, Sample?, number?)
 	rayParams.FilterDescendantsInstances = { player.Character, carry.model }
 	local hit = workspace:Raycast(pos, Vector3.new(0, -40, 0), rayParams)
 	local height = if hit then pos.Y - hit.Position.Y else 40
-	local s = sample(trail, pos, speed, hvel(hrp))
+	local s = sample(trail, pos, speed, hvel(hrp), MoveGuard._receiveAge(hrp))
 	if height > 12 then
 		carry.airSince = carry.airSince or now
 		if now - carry.airSince > 0.6 then
@@ -417,7 +433,7 @@ function MoveGuard.Start()
 						ok = check(player, g, pos)
 					end
 					if ok then
-						g.history = record(g.history, sample(g.history, pos, MoveGuard.MaxSpeed(player), hvel(hrp)))
+						g.history = record(g.history, sample(g.history, pos, MoveGuard.MaxSpeed(player), hvel(hrp), MoveGuard._receiveAge(hrp)))
 						prune(g.history, HISTORY)
 					end
 				end

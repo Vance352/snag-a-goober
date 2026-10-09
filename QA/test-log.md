@@ -168,4 +168,24 @@ State: sold one Toastie (paid 30) to return the base to 21 after a test carry.
 | Legit 70-stud carry | PASS, no warnings |
 | Shutdown save: sell a Goober, stop play immediately, restart | the sale persisted (21 Goobers, sold uid gone) |
 | Console | no script errors |
-State: one Blorp (paid 10) and one Pebble Pete sold; base back to 21 (one legit test carry added a Goober).
+State: one Blorp (paid 10) and one Pebble Pete sold. CORRECTION (found by audit 12): the base ended at 22, not 21 - the 1.15x test carry placed one more Goober after the last sale.
+
+## 2026-10-09 - builder retest of round-12 findings (single-player Studio Play + deterministic simulator)
+New tool: `tools/guard_sim.luau` runs the real MoveGuard module (fake clock) against a simulated network: lag 0.3 s,
+stalls in which the server copy freezes, 1-3 catch-up bursts, jittered server ticks, theft cancel rules. Validated
+against the previous build dd0ba30, where it reproduces the auditor's failures (single 1.5 s stall: 15% cancels at
+speed 29.75, 5% at 26; three-stall cluster: 20% at 20, 32% at 26).
+| Scenario (simulator, 100-150 trials per cell) | dd0ba30 | this build |
+|---|---|---|
+| Single 1.0 / 1.5 / 2.5 s stall, thief speeds 13.6-29.75, ticks 0.10-0.12 s | up to 15% cancel | 0% (0 flags) |
+| 1.0 s + 1.5 s stalls 0.6 s apart, all speeds | - | 0% |
+| Three stalls (1.0, 1.5, 2.0 s; 0.6/0.5 s apart), all speeds | 20-32% cancel | 0% |
+| Single 1.5 s, ticks 0.10-0.20 s; three stalls, ticks 0.10-0.35 s | - | 0% |
+| 1.5 s stall with velocity 0 (ReceiveAge cue on) | - | 0% |
+| 1.5 s stall with velocity 0 AND no ReceiveAge growth (no stall cue at all) | - | 27-70% cancel |
+Live (open lane z=-27): three-stall cluster 0/0 refusals; a stall at the very start of walking (round 12 m1) 0; single 2.0 s 0.
+Exploits live: stand + spoofed stall 2 s + 40-stud hop -> plausible 2.58 s after the spoof began (walk 2.0 s); hop chains
+5 x (spoofed stall 1.75 s + 48-stud hop) -> ~1.14x over 10-13 s (the 1.08x free-roam slack + constants; carries also have
+the 1.05x original-start floor); 1.2x caught at 6.2 s, 1.5x at 1.6 s.
+BasePart.ReceiveAge is readable but hovered at 0.08-0.13 s while walking and did not grow when idle, so it is probably
+not a reliable stall signal; it is kept as a secondary cue (worst case it skips constraints, which is time-neutral).
