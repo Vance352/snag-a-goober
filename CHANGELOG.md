@@ -3,6 +3,7 @@
 Newest entry at the top.
 
 ## 2026-10-09
+- QA round 6 fixes: MoveGuard checks every position against every trusted sample (no unchecked window after a reset, closes hop-and-back), debt measured against the whole frozen history, lag "bank" so 1.5 s freezes + bursty catch-ups pass while speed hacks drain it, 10 s window; carries/thefts restart the walk clock from the last trusted spot; thefts cancel only on a 3rd separate violation; tighter MinTravelTime; Settings beside the menu; bigger tutorial Skip; Studio-only guard debug command. Round 6 audit in QA/round6-audit.md.
 - QA round 5 fixes: movement debt measured from the frozen anchor (multi-hop teleports gain nothing), per-sample speed so slowing down never false-flags, 0.6 s hitch tolerance, first steal violation re-times the theft (second cancels), catch checked before path checks, stolen value/compensation from what the victim paid, bigger phone menu/close buttons, one-line lock pill, rebirth button above the fold, countdown rounding, less belt label clutter. Round 4/5 audits in QA/round4-5-audits.md.
 - QA round 4 fixes: no respawn grace (trust anchors at server spawn), settle windows for server moves, time-owed debt that pays down while walking, carry speed checked over every >=1 s sub-window (+5%), action window 1-2 s, steal prompts explain why, chat bottom-left on all devices, bigger phone UI text boxes/settings, banner spacing, real walking time for waddle-home, steal XP once per victim per 30 min.
 

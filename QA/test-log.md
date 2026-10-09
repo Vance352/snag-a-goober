@@ -78,3 +78,21 @@ Two-player paths not re-run (2-client session needs the owner present).
 | Reset, teleport repeatedly beside the farthest belt Goober (90-140 studs), snag x13 | first success 7.8 s after spawn vs 6.9 s legit walk - never faster than walking |
 | Legit Humanoid:MoveTo carry home from that far spot (WalkSpeed 20) | PASS - placed after 6.1 s, no warning |
 | Console | no script errors |
+
+## 2026-10-09 - builder retest of round-6 findings (single-player Studio Play)
+Note: Studio was not rendering overnight (viewport 1x1, RenderStepped 0/s), so client belt visuals were frozen; tests use the
+belt's analytic position (same formula as the server). Two-player paths not re-run.
+| Test | Result |
+|---|---|
+| C1 hop-and-back (25-stud hop, back, teleport 147-199 studs to belt, snag spam) | BLOCKED - 3 runs no snag within 12 s; with a 0.5 s replication wait, first plausible reply 6.0-6.1 s after a 147-stud teleport (walk 7.3 s) |
+| Plain teleport 147 studs after standing 2.5 s | plausible after 5.2 s vs 7.3 s walk (stated budget: up to ~2 s of credit after standing still) |
+| Sustained speed 1.0x / 1.15x / 1.25x for 9 s | not flagged (within the ~2 s gain budget) |
+| Sustained 1.36x / 2.0x | caught at 6.2 s / 2.6 s, then held in debt until walked off |
+| Walking with 0.5 / 1.0 / 1.0 / 1.5 / 1.5 s client freeze + catch-up | PASS all, 0 refusals in 12 probes each (round 6: 1.0 s gave ~6 s of refusals) |
+| Legit Humanoid carries (2 short, 1 99-stud long, 1 via entrance) | PASS, no warnings |
+| Carry with 1.0 s freeze + catch-up | PASS, placed 3.1 s, no warning |
+| Teleport home while carrying | "No shortcuts!" and placement held to walking time |
+| 1.5x carry away from home | caught ("No shortcuts!") |
+| 1.5x carry straight home | placed ~2.4 s server-side vs 2.6 s straight walk (MinTravelTime floor, tightened to d/(1.05 v) - 0.1) |
+| Tutorial Skip | 112x54 design px (about 84x40 at phone scale 0.75; auditor's 57x26 was the 0.62 floor scale on a 1x1 viewport) |
+| Console | no script errors |

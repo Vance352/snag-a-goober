@@ -147,10 +147,17 @@ function CarryService.Start()
 					local plot = S.Plot.Get(player)
 					local char = player.Character
 					local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
-					if not S.MoveGuard.CarryStep(player, carry) then
-						-- shortcut detected: the walking clock restarts, so a
-						-- teleport home can never be faster than walking
-						carry.startT = os.clock()
+					local ok, from = S.MoveGuard.CarryStep(player, carry)
+					if not ok then
+						-- shortcut detected: the walking clock restarts from the
+						-- last trusted spot, so a teleport home is never faster
+						-- than walking
+						if from then
+							carry.startPos = from.pos
+							carry.startT = from.t
+						else
+							carry.startT = os.clock()
+						end
 						carry.trail = nil
 						if os.clock() - (carry.warnedAt or -100) > 5 then
 							carry.warnedAt = os.clock()

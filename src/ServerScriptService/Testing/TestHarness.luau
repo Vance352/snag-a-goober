@@ -249,6 +249,10 @@ function TestHarness.Start(S)
 		return { version = old.version, coins = old.coins, hasDex = old.dex ~= nil, speed = old.upgrades.Speed }
 	end
 
+	function C.guard(id)
+		return S.MoveGuard.Debug(P(id))
+	end
+
 	function C.tp(x, y, z, id)
 		local p = P(id)
 		S.MoveGuard.ServerMove(p, CFrame.new(x, y, z))

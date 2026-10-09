@@ -214,25 +214,33 @@ function StealService.Fail(thief: Player, reason: string)
 	end
 end
 
--- A movement violation during a theft. The first one (often just a network
--- hitch) restarts the walk clock: the thief can't finish until they could
--- have walked home from the steal spot, and the owner can still catch them.
--- A second one while still violating cancels the theft.
-function StealService.Offence(thief: Player)
+-- A movement violation during a theft. Each one restarts the walk clock from
+-- the last trusted spot, so a shortcut never gets the thief home sooner and the
+-- owner can still catch them. Ticks of one ongoing violation count once (a lag
+-- spike is one offence); a third separate offence cancels the theft.
+function StealService.Offence(thief: Player, from: { t: number, pos: Vector3 }?)
 	local ts = S.Session.Get(thief)
 	local carry = ts and ts.carry
 	if not carry or carry.source ~= "steal" then
 		return
 	end
 	local now = os.clock()
-	if not carry.offenceAt then
-		carry.offenceAt = now
+	if from then
+		carry.startPos = from.pos
+		carry.startT = from.t
+	elseif not carry.offenceAt or now - carry.offenceAt > 1.5 then
 		carry.startT = now
-		carry.trail = nil
-		S.Session.Toast(thief, "No shortcuts! Carry it home properly.", "red")
-	elseif now - carry.offenceAt >= 1.0 then
-		StealService.Fail(thief, "teleport")
 	end
+	carry.trail = nil
+	if not carry.offenceAt or now - carry.offenceAt > 1.5 then
+		carry.offences = (carry.offences or 0) + 1
+		if carry.offences >= 3 then
+			StealService.Fail(thief, "teleport")
+			return
+		end
+		S.Session.Toast(thief, "No shortcuts! Carry it home properly.", "red")
+	end
+	carry.offenceAt = now
 end
 
 local function succeed(thief: Player)
@@ -303,11 +311,16 @@ function StealService.Start()
 						local vhrp = hrpOf(victim)
 						local plot = S.Plot.Get(thief)
 						local gap = vhrp and (vhrp.Position - thrp.Position)
-						if gap and Vector2.new(gap.X, gap.Z).Magnitude <= C.catchRadius and math.abs(gap.Y) <= 10 then
-							-- the owner's tag always wins, even mid-shove
+						local caught = gap ~= nil and Vector2.new(gap.X, gap.Z).Magnitude <= C.catchRadius and math.abs(gap.Y) <= 10
+						local ok, from = true, nil
+						if not caught then
+							ok, from = S.MoveGuard.CarryStep(thief, carry)
+						end
+						if caught then
+							-- the owner's tag always wins
 							StealService.Fail(thief, "caught")
-						elseif not S.MoveGuard.CarryStep(thief, carry) then
-							StealService.Offence(thief)
+						elseif not ok then
+							StealService.Offence(thief, from)
 						elseif
 							plot
 							and S.Plot.Inside(plot, thrp.Position)

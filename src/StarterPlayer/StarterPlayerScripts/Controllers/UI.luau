@@ -140,7 +140,7 @@ local function buildHUD(root: Frame)
 	menuButton("Dex", "📖", "DEX", Color3.fromRGB(80, 160, 255), 2)
 	menuButton("Rebirth", "♻️", "REBIRTH", Color3.fromRGB(190, 100, 255), 3)
 	menuButton("Shop", "🛒", "SHOP", Color3.fromRGB(255, 170, 40), 4)
-	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(8, 188), Size = UDim2.fromOffset(66, 66), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
+	Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(192, 6), Size = UDim2.fromOffset(60, 60), Text = "⚙️", Color = C.panel2, MaxText = 32, Parent = root }, function()
 		UI.Toggle("Settings")
 	end)
 
@@ -174,17 +174,18 @@ local function buildHUD(root: Frame)
 	refs.carry = carry
 
 	-- tutorial hint
-	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 122), Size = UDim2.fromOffset(460, 52), BackgroundColor3 = C.lime, Visible = false, Parent = root })
+	local hint = Theme.frame({ Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 122), Size = UDim2.fromOffset(480, 62), BackgroundColor3 = C.lime, Visible = false, Parent = root })
 	Theme.corner(hint, 16)
 	Theme.stroke(hint, 3)
-	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -110, 1, -8), Text = "", MaxText = 22, Parent = hint })
-	Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(92, 42), Text = "Skip", Color = C.panel2, MaxText = 18, Parent = hint }, function()
+	refs.hintText = Theme.label({ Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -134, 1, -8), Text = "", MaxText = 22, Parent = hint })
+	-- big enough to tap on a phone (~80x40 px at phone scale)
+	Theme.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), Size = UDim2.fromOffset(112, 54), Text = "Skip", Color = C.panel2, MaxText = 18, Parent = hint }, function()
 		Net.Event("TutorialSkip"):FireServer()
 	end)
 	refs.hint = hint
 
 	-- toasts
-	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 178), Size = UDim2.fromOffset(460, 200), BackgroundTransparency = 1, Parent = root })
+	local toasts = Theme.frame({ Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 188), Size = UDim2.fromOffset(460, 200), BackgroundTransparency = 1, Parent = root })
 	local tl = Instance.new("UIListLayout")
 	tl.Padding = UDim.new(0, 6)
 	tl.HorizontalAlignment = Enum.HorizontalAlignment.Center
