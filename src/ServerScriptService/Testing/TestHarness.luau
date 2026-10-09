@@ -131,18 +131,20 @@ function TestHarness.Start(S)
 		return true
 	end
 
+	-- every loose / dropped Goober on the field
 	function C.belt()
 		local out = {}
-		for uid, b in pairs(S.Conveyor.All()) do
-			local pos = S.Conveyor.PositionOf(b)
-			table.insert(out, { uid = uid, id = b.id, line = b.line, reserved = b.reservedFor, x = math.floor(pos.X), z = pos.Z })
+		for uid, e in pairs(S.Breach.All()) do
+			local pos = S.Breach.PositionOf(e)
+			table.insert(out, { uid = uid, id = e.id, line = e.line, site = e.site, dropped = e.dropped, x = math.floor(pos.X), y = math.floor(pos.Y), z = math.floor(pos.Z), landT = e.path.pts[1][3] - workspace:GetServerTimeNow() })
 		end
 		return out
 	end
 
-	function C.spawnBelt(gid, line, reservedId)
-		local b = S.Conveyor.Spawn(gid, line or "Main", reservedId and P(reservedId) or nil)
-		return b.uid
+	-- spawn one on a site (lands at a random spot): spawnBelt(gid, line, reservedId, site)
+	function C.spawnBelt(gid, line, reservedId, site)
+		local e = S.Breach.Spawn(gid, line or "Main", site or "Central", reservedId and P(reservedId) or nil)
+		return e.uid
 	end
 
 	function C.place(gid, id)
@@ -333,7 +335,7 @@ function TestHarness.Start(S)
 
 	function C.stats()
 		local belt = 0
-		for _ in pairs(S.Conveyor.All()) do
+		for _ in pairs(S.Breach.All()) do
 			belt += 1
 		end
 		local parts = 0

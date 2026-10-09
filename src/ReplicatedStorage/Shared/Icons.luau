@@ -4,12 +4,15 @@
 ]]
 return {
 	belt = "rbxassetid://78544550446119",
+	blaster = "rbxassetid://114773704791044",
 	bolt = "rbxassetid://140076392626570",
 	book = "rbxassetid://73980093395801",
+	breach = "rbxassetid://118196009541050",
 	candy = "rbxassetid://138634910612832",
 	check = "rbxassetid://71969650846748",
 	coin = "rbxassetid://118470901902851",
 	cross = "rbxassetid://116310644210950",
+	crown = "rbxassetid://120824867466263",
 	flask = "rbxassetid://92348826910005",
 	gear = "rbxassetid://113573090465733",
 	ghost = "rbxassetid://135247225111069",

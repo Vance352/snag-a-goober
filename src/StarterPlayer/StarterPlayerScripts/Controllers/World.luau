@@ -1,10 +1,10 @@
 --[[
 	World - everything the client does to world objects:
-	  * moves belt Goobers along the conveyor from their spawn time (the
-	    server computes the same position to validate snags)
-	  * scrolls the belt chevron textures
-	  * creates the local ProximityPrompts: Snag (belt), Sell (own stands),
-	    Steal (other bases), Upgrades (own Slop-O-Matic)
+	  * flies, lands and hops loose Goobers from the Goober Breach along the
+	    path the server gave them (the server computes the same position with
+	    Shared/Breach to validate snags)
+	  * creates the local ProximityPrompts: Snag / Grab (loose and dropped
+	    Goobers), Sell (own stands), Steal (other bases), Upgrades
 	  * idle-animates every nearby Goober
 ]]
 
@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local Breach = require(ReplicatedStorage.Shared.Breach)
 local Config = require(ReplicatedStorage.Shared.Config)
 local GooberData = require(ReplicatedStorage.Shared.GooberData)
 local Util = require(ReplicatedStorage.Shared.Util)
@@ -58,16 +59,31 @@ local function myLevel()
 	return s and s.level or 1
 end
 
-local function beltPromptText(model: Model): (string, boolean)
+local function loosePromptText(model: Model): (string, boolean)
 	local def = GooberData.ById[model:GetAttribute("GooberId")]
 	local s = State.data
+	local t = serverNow()
+	local _, grounded = Breach.PositionAt(Breach.PathOf(model), t)
+	if s and s.carry then
+		return "Hands full", false
+	end
+	local dropped = model:GetAttribute("Mode") == "dropped"
+	if dropped and model:GetAttribute("DroppedBy") == player.UserId and t < (model:GetAttribute("DropLockUntil") or 0) then
+		return "Dizzy...", false
+	end
 	local reserved = model:GetAttribute("ReservedFor")
 	if reserved and reserved ~= player.UserId then
 		return "Reserved", false
 	end
 	local line = Config.Lines[model:GetAttribute("Line") or "Main"]
-	if myLevel() < line.levelRequired then
+	if line and myLevel() < line.levelRequired then
 		return ("Unlocks at Lv %d"):format(line.levelRequired), false
+	end
+	if not grounded then
+		return "Incoming!", false
+	end
+	if dropped then
+		return "GRAB IT!", true
 	end
 	local price = model:GetAttribute("Price") or def.price
 	if s and s.coins < price then
@@ -76,9 +92,9 @@ local function beltPromptText(model: Model): (string, boolean)
 	return ("Snag  $%s"):format(Util.Short(price)), true
 end
 
-local function setupBelt(model: Model, info)
+local function setupLoose(model: Model, info)
 	local def = GooberData.ById[model:GetAttribute("GooberId")]
-	local text, enabled = beltPromptText(model)
+	local text, enabled = loosePromptText(model)
 	local p = makePrompt(model, text, def.name .. " • " .. def.rarity, 0)
 	if p then
 		p.Enabled = enabled
@@ -93,7 +109,7 @@ local function setupBelt(model: Model, info)
 	if reserved then
 		local mine = reserved == player.UserId
 		local tag = model.PrimaryPart and model.PrimaryPart:FindFirstChild("Tag")
-		if tag then
+		if tag and not tag:FindFirstChild("Reserved") then
 			local l = Instance.new("TextLabel")
 			l.Name = "Reserved"
 			l.BackgroundTransparency = 1
@@ -109,7 +125,7 @@ local function setupBelt(model: Model, info)
 			s.Parent = l
 			l.Parent = tag
 		end
-		if mine then
+		if mine and not model:FindFirstChild("MineHighlight") then
 			local h = Instance.new("Highlight")
 			h.Name = "MineHighlight"
 			h.FillTransparency = 0.85
@@ -119,7 +135,7 @@ local function setupBelt(model: Model, info)
 			h.Parent = model
 		end
 	end
-	info.kind = "belt"
+	info.kind = "loose"
 end
 
 local function setupStand(model: Model, info)
@@ -259,8 +275,8 @@ local function track(model: Model)
 	local info = { phase = math.random() * 10, weld = root:FindFirstChild("Anim") :: Weld?, prompt = nil, kind = nil }
 	tracked[model] = info
 	local mode = model:GetAttribute("Mode")
-	if mode == "belt" then
-		setupBelt(model, info)
+	if mode == "loose" or mode == "dropped" then
+		setupLoose(model, info)
 	elseif mode == "stand" then
 		setupStand(model, info)
 	end
@@ -269,7 +285,11 @@ local function track(model: Model)
 			info.prompt:Destroy()
 			info.prompt = nil
 		end
-		info.kind = model:GetAttribute("Mode")
+		local m = model:GetAttribute("Mode")
+		info.kind = m
+		if m == "loose" or m == "dropped" then
+			setupLoose(model, info)
+		end
 	end)
 end
 
@@ -367,39 +387,6 @@ function World.Start()
 		apply()
 	end)
 
-	-- belt chevrons scroll at their line's speed (model "<Line>Line")
-	local chevrons = {}
-	local function addChevrons(root: Instance)
-		for _, d in ipairs(root:GetDescendants()) do
-			if d:IsA("Texture") and d.Name == "Chevrons" then
-				local holder = d.Parent and d.Parent.Parent
-				local key = holder and holder.Name:match("^(.-)Line$")
-				local line = Config.Lines[key or ""] or Config.Lines.Main
-				table.insert(chevrons, { tex = d, speed = line.speed })
-			end
-		end
-	end
-	addChevrons(map)
-	-- island belts stream in and out, so they're found by tag
-	local function addTagged(tex: Instance)
-		if tex:IsA("Texture") then
-			local line = Config.Lines[tex:GetAttribute("Line") or ""] or Config.Lines.Main
-			table.insert(chevrons, { tex = tex, speed = line.speed })
-		end
-	end
-	for _, tex in ipairs(CollectionService:GetTagged("BeltChevrons")) do
-		addTagged(tex)
-	end
-	CollectionService:GetInstanceAddedSignal("BeltChevrons"):Connect(addTagged)
-	CollectionService:GetInstanceRemovedSignal("BeltChevrons"):Connect(function(tex)
-		for i, c in ipairs(chevrons) do
-			if c.tex == tex then
-				table.remove(chevrons, i)
-				break
-			end
-		end
-	end)
-
 	local promptTimer = 0
 	RunService.RenderStepped:Connect(function(dt)
 		local now = serverNow()
@@ -418,13 +405,21 @@ function World.Start()
 				continue
 			end
 			local mode = model:GetAttribute("Mode")
-			if mode == "belt" then
-				local x = model:GetAttribute("StartX") + model:GetAttribute("Dir") * model:GetAttribute("Speed") * (now - model:GetAttribute("SpawnT"))
-				local pos = Vector3.new(x, model:GetAttribute("BeltY"), model:GetAttribute("BeltZ"))
-				local face = model:GetAttribute("Face") or 1
-				root.CFrame = CFrame.lookAt(pos, pos + Vector3.new(0, 0, face))
+			if mode == "loose" or mode == "dropped" then
+				-- fly / land / hop along the server's plan
+				local pos = Breach.PositionAt(Breach.PathOf(model), now)
+				local last = info.lastPos or pos
+				local flat = Vector3.new(pos.X - last.X, 0, pos.Z - last.Z)
+				if flat.Magnitude > 0.05 then
+					info.face = flat.Unit
+				end
+				info.lastPos = pos
+				local face = info.face or Vector3.new(0, 0, -1)
+				-- spin in the air while flying
+				local spin = if pos.Y > (model:GetAttribute("GroundY") or 0) + 0.6 then CFrame.Angles(0, t * 8, 0) else CFrame.identity
+				root.CFrame = CFrame.lookAt(pos, pos + face) * spin
 				if refreshPrompts and info.prompt then
-					local text, enabled = beltPromptText(model)
+					local text, enabled = loosePromptText(model)
 					info.prompt.ActionText = text
 					info.prompt.Enabled = enabled
 				end
@@ -436,11 +431,6 @@ function World.Start()
 			if info.weld and (root.Position - camPos).Magnitude < ANIM_RANGE then
 				info.weld.C0 = animOffset(model:GetAttribute("Anim") or "wobble", t, info.phase, mode == "carried")
 			end
-		end
-		for _, c in ipairs(chevrons) do
-			local tex = c.tex
-			local dir = tex.Parent and tex.Parent:GetAttribute("Dir") or 1
-			tex.OffsetStudsU = (now * c.speed * dir) % tex.StudsPerTileU
 		end
 	end)
 end

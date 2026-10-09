@@ -20,7 +20,9 @@ local S = {
 	Model = require(Services.ModelService),
 	Plot = require(Services.PlotService),
 	Base = require(Services.BaseService),
-	Conveyor = require(Services.ConveyorService),
+	Breach = require(Services.BreachService),
+	Combat = require(Services.CombatService),
+	Leaderboard = require(Services.LeaderboardService),
 	Carry = require(Services.CarryService),
 	Steal = require(Services.StealService),
 	Progress = require(Services.ProgressService),
@@ -123,7 +125,8 @@ local function on(name: string, fn)
 	end)
 end
 
-on("Snag", S.Conveyor.Snag)
+on("Snag", S.Breach.Snag)
+on("Blast", S.Combat.Blast)
 on("Steal", S.Steal.Request)
 on("StealHold", S.Steal.HoldBegan)
 on("Sell", S.Base.Sell)
@@ -155,7 +158,9 @@ end)
 S.Data.Start()
 S.Session.Start()
 S.Base.Start()
-S.Conveyor.Start()
+S.Breach.Start()
+S.Combat.Start()
+S.Leaderboard.Start()
 S.Carry.Start()
 S.Steal.Start()
 S.Chaos.Start()

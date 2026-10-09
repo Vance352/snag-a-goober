@@ -18,7 +18,6 @@ local Halloween = require(Shared.Halloween)
 local IslandBuilder = {}
 local O = Halloween.Origin
 local at = Halloween.At
-local BELT_Y = Config.Map.beltY
 
 local COL = {
 	ground = Color3.fromRGB(58, 40, 66),
@@ -250,55 +249,56 @@ local function gate(root: Instance, area, facingHub: Vector3)
 end
 
 -- -------------------------------------------------------------- belts
-local function belt(root: Instance, lineName: string, line)
+-- each area's cauldron is a small Goober Breach: it bubbles, overflows and
+-- flings Halloween Goobers across the area (BreachService / BreachFx)
+local function cauldronSite(root: Instance, lineName: string, line)
 	local m = Instance.new("Model")
-	m.Name = lineName .. "Line"
+	m.Name = lineName .. "Cauldron"
+	m:SetAttribute("Site", lineName)
 	m.Parent = root
-	local len = math.abs(line.endX - line.startX)
-	local midX = (line.startX + line.endX) / 2
-	local dir = if line.endX > line.startX then 1 else -1
-	local surf = part({ Name = "BeltSurface", Size = Vector3.new(len + 6, 0.4, 12), CFrame = CFrame.new(midX, BELT_Y - 0.2, line.z), Color = COL.belt, Material = Enum.Material.Rubber, Parent = m })
-	if dir < 0 then
-		surf.CFrame *= CFrame.Angles(0, math.pi, 0)
-	end
-	surf:SetAttribute("Dir", 1)
-	local tex = Instance.new("Texture")
-	tex.Name = "Chevrons"
-	tex.Face = Enum.NormalId.Top
-	tex.StudsPerTileU = 8
-	tex.StudsPerTileV = 12
-	tex.Texture = Config.Textures.Chevron
-	tex.Color3 = Color3.fromRGB(255, 150, 40)
-	tex.Transparency = 0.15
-	tex.Parent = surf
-	tex:SetAttribute("Line", lineName)
-	CollectionService:AddTag(tex, "BeltChevrons")
-	part({ Name = "Base", Size = Vector3.new(len + 6, BELT_Y - 0.4, 12), CFrame = CFrame.new(midX, (BELT_Y - 0.4) / 2, line.z), Color = Color3.fromRGB(44, 30, 60), Parent = m })
-	for _, sz in ipairs({ -1, 1 }) do
-		part({ Name = "Rail", Size = Vector3.new(len + 6, 0.6, 0.6), CFrame = CFrame.new(midX, BELT_Y + 0.3, line.z + sz * 6.3), Color = COL.rail, Material = Enum.Material.Neon, Parent = m })
-	end
-	-- the cauldron that brews Goobers at the start, a pit at the end
-	local cauldron = place(m, "P_Cauldron", Vector3.new(line.startX - dir * 9, O.Y, line.z), Vector3.new(dir, 0, 0), 0.9, "Cauldron")
-	lightUp(cauldron, Color3.fromRGB(140, 255, 110), 18)
-	part({ Name = "Pit", Size = Vector3.new(6, 0.3, 11), CFrame = CFrame.new(line.endX + dir * 3, BELT_Y - 0.05, line.z), Color = Color3.fromRGB(10, 6, 14), Material = Enum.Material.Neon, Parent = m })
-	-- belt sign with the odds
+	local pos = line.site
 	local area = Halloween.AreaByKey[line.area]
-	local lines = { { string.upper(area.name) .. " BELT", 0.4, area.color } }
+	-- face the cauldron toward the area's gate (where players come in)
+	local toward = if area.gate then Vector3.new(area.gate.X - pos.X, 0, area.gate.Z - pos.Z).Unit else Vector3.new(0, 0, -1)
+	local pot = place(m, "P_Cauldron", pos, toward, 1.7, "Pot")
+	lightUp(pot, Color3.fromRGB(140, 255, 110), 22)
+	part({ Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 20, 20), CFrame = CFrame.new(pos + Vector3.new(0, 0.25, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(60, 44, 70), Material = Enum.Material.Slate, Parent = m })
+	local core = part({ Name = "Core", Shape = Enum.PartType.Ball, Size = Vector3.new(3.4, 3.4, 3.4), CFrame = CFrame.new(pos + Vector3.new(0, 5.2, 0)), Color = Color3.fromRGB(150, 255, 110), Material = Enum.Material.Neon, Transparency = 0.35, CanCollide = false, CanQuery = false, Parent = m })
+	light(core, Color3.fromRGB(150, 255, 110), 20, 1)
+	local att = Instance.new("Attachment")
+	att.Parent = core
+	for _, def in ipairs({ { "Gather", 0.8, 3, 7, 25 }, { "Sparks", 1.2, 16, 28, 40 } }) do
+		local pe = Instance.new("ParticleEmitter")
+		pe.Name = def[1]
+		pe.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		pe.LightEmission = 1
+		pe.Size = NumberSequence.new(def[2], 0)
+		pe.Lifetime = NumberRange.new(0.3, 0.8)
+		pe.Speed = NumberRange.new(def[3], def[4])
+		pe.SpreadAngle = Vector2.new(60, 60)
+		pe.EmissionDirection = Enum.NormalId.Top
+		pe.Rate = def[5]
+		pe.Enabled = false
+		pe.Parent = att
+	end
+	CollectionService:AddTag(m, "BreachSite")
+	-- odds board on posts beside the cauldron
+	local lines = { { string.upper(area.name) .. " CAULDRON", 0.4, area.color } }
 	local odds = {}
 	for _, r in ipairs(Config.RarityOrder) do
 		if (line.weights[r] or 0) > 0 then
 			table.insert(odds, ("%s %s%%"):format(r, tostring(line.weights[r])))
 		end
 	end
-	-- two short rows so the text stays big enough to read from the belt
 	local half = math.ceil(#odds / 2)
 	table.insert(lines, { table.concat(odds, "  •  ", 1, half), 0.24, Color3.fromRGB(255, 230, 170) })
 	table.insert(lines, { table.concat(odds, "  •  ", half + 1, #odds), 0.24, Color3.fromRGB(255, 230, 170) })
-	-- odds board as a gantry over the start of the belt, facing down it toward the gate
-	local sp = Vector3.new(line.startX + dir * 4, O.Y + 14, line.z)
-	sign(m, CFrame.lookAt(sp, sp + Vector3.new(dir, 0, 0)), Vector3.new(26, 6, 0.6), lines)
-	for _, sz in ipairs({ -1, 1 }) do
-		part({ Name = "SignPost", Size = Vector3.new(1, 17, 1), CFrame = CFrame.new(sp.X, O.Y + 8.5, sp.Z + sz * 12.6), Color = Color3.fromRGB(46, 30, 24), Material = Enum.Material.Wood, Parent = m })
+	local side = Vector3.new(-toward.Z, 0, toward.X)
+	local sp = pos + side * 16 + Vector3.new(0, 9, 0)
+	sign(m, CFrame.lookAt(sp, sp + toward), Vector3.new(18, 5, 0.6), lines)
+	for _, sx in ipairs({ -1, 1 }) do
+		local pp = sp + Vector3.new(-toward.Z, 0, toward.X) * sx * 8.4
+		part({ Name = "SignPost", Size = Vector3.new(0.9, 11.5, 0.9), CFrame = CFrame.new(pp.X, O.Y + 5.75, pp.Z), Color = Color3.fromRGB(46, 30, 24), Material = Enum.Material.Wood, Parent = m })
 	end
 	return m
 end
@@ -394,10 +394,10 @@ local function grid(x0: number, z0: number, x1: number, z1: number, step: number
 	return out
 end
 
+-- keep a clearing round each cauldron (room to land, gather and chase)
 local function nearBelt(px: number, pz: number): boolean
 	for _, l in pairs(Halloween.Lines) do
-		local lx0, lx1 = math.min(l.startX, l.endX) - O.X - 18, math.max(l.startX, l.endX) - O.X + 18
-		if px > lx0 and px < lx1 and math.abs(pz - (l.z - O.Z)) < 16 then
+		if Vector2.new(px - (l.site.X - O.X), pz - (l.site.Z - O.Z)).Magnitude < 26 then
 			return true
 		end
 	end
@@ -730,11 +730,11 @@ function IslandBuilder.Build()
 	fenceRun(root, at(-190, -150), at(-190, 150), nil)
 	fenceRun(root, at(190, -150), at(190, 150), nil)
 	buildAreaSigns(root)
-	local belts = Instance.new("Folder")
-	belts.Name = "Belts"
-	belts.Parent = root
+	local cauldrons = Instance.new("Folder")
+	cauldrons.Name = "Cauldrons"
+	cauldrons.Parent = root
 	for _, name in ipairs(Halloween.LineOrder) do
-		belt(belts, name, Halloween.Lines[name])
+		cauldronSite(cauldrons, name, Halloween.Lines[name])
 	end
 	buildScenery(root)
 	buildBuckets(root)

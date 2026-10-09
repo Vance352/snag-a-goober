@@ -163,11 +163,11 @@ local NAV = {
 	{ key = "Levels", icon = "trophy", label = "LEVELS", color = Color3.fromRGB(150, 110, 255) },
 	{ key = "Upgrades", icon = "upgrade", label = "UPGRADE", color = Color3.fromRGB(90, 200, 90) },
 	{ key = "Rebirth", icon = "rebirth", label = "REBIRTH", color = Color3.fromRGB(190, 100, 255) },
-	{ key = "Settings", icon = "gear", label = "OPTIONS", color = Color3.fromRGB(110, 95, 150) },
+	{ key = "Leaderboard", icon = "crown", label = "TOP", color = Color3.fromRGB(255, 170, 40) },
 }
 local TABS = {
 	{ key = "Base", icon = "house", label = "BASE", color = Color3.fromRGB(90, 200, 90) },
-	{ key = "Plaza", icon = "belt", label = "BELT", color = Color3.fromRGB(70, 160, 255) },
+	{ key = "Plaza", icon = "breach", label = "PLAZA", color = Color3.fromRGB(70, 160, 255) },
 	{ key = "Island", icon = "ghost", label = "SPOOKY", color = Color3.fromRGB(255, 128, 30) },
 }
 
@@ -186,6 +186,13 @@ local function buildHUD(root: Frame)
 	Theme.icon("coin", { Size = UDim2.fromOffset(46, 46), Position = UDim2.fromOffset(3, 3), Parent = coins })
 	refs.coins = Theme.label({ Position = UDim2.fromOffset(54, 2), Size = UDim2.new(1, -62, 0, 30), Text = "0", TextXAlignment = Enum.TextXAlignment.Left, MaxText = 30, Parent = coins })
 	refs.rate = Theme.label({ Position = UDim2.fromOffset(54, 31), Size = UDim2.new(1, -62, 0, 18), Text = "+0/s", TextColor3 = C.lime, TextXAlignment = Enum.TextXAlignment.Left, MaxText = 18, Parent = coins })
+
+	-- settings gear (beside the coins)
+	local gear = Theme.button({ Name = "SettingsBtn", Position = UDim2.fromOffset(236, 8), Size = UDim2.fromOffset(46, 46), Text = "", Color = Color3.fromRGB(110, 95, 150), Radius = 23, Parent = root }, function()
+		Effects.Play("Click")
+		UI.Toggle("Settings")
+	end)
+	Theme.icon("gear", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(34, 34), Parent = gear })
 
 	-- candy pill (event currency) with the event countdown
 	local candy = Theme.frame({ Name = "Candy", Position = UDim2.fromOffset(8, 62), Size = UDim2.fromOffset(222, 38), BackgroundColor3 = Color3.fromRGB(92, 40, 92), Parent = root })
@@ -349,13 +356,81 @@ local function buildHUD(root: Frame)
 	refs.toasts = toasts
 
 	-- banner
-	local banner = Theme.frame({ Name = "Banner", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(400, 96), BackgroundTransparency = 1, Visible = false, Parent = root })
+	local banner = Theme.frame({ Name = "Banner", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.36), Size = UDim2.fromOffset(400, 96), BackgroundTransparency = 1, Visible = false, Parent = root })
 	refs.bannerTitle = Theme.label({ Size = UDim2.new(1, 0, 0.62, 0), Text = "", MaxText = 64, Stroke = 4, Parent = banner })
 	refs.bannerSub = Theme.label({ Position = UDim2.fromScale(0, 0.62), Size = UDim2.new(1, 0, 0.36, 0), Text = "", MaxText = 28, Stroke = 3, Parent = banner })
 	refs.banner = banner
 
+	-- Goober Breach charge meter (top centre, when you're near a Breach)
+	local meter = Theme.frame({ Name = "BreachMeter", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 68), Size = UDim2.fromOffset(330, 36), BackgroundColor3 = C.ink, Visible = false, Parent = root })
+	Theme.corner(meter, 18)
+	refs.meterStroke = Theme.stroke(meter, 3, C.lime)
+	refs.meterFill = Theme.frame({ Size = UDim2.fromScale(0.1, 1), BackgroundColor3 = C.lime, Parent = meter })
+	Theme.corner(refs.meterFill, 18)
+	Theme.icon("breach", { Position = UDim2.fromOffset(4, 2), Size = UDim2.fromOffset(32, 32), ZIndex = 3, Parent = meter })
+	refs.meterText = Theme.label({ Position = UDim2.fromOffset(40, 4), Size = UDim2.new(1, -48, 1, -8), Text = "", MaxText = 18, MinText = 10, ZIndex = 3, Parent = meter })
+	refs.meter = meter
+
+	-- touch: the Goober Blaster button, just left of Roblox's jump button (clear of the
+	-- thumbstick, the right status column and the carry bar on a 750x381 phone)
+	local blast = Instance.new("TextButton")
+	blast.Name = "BlastButton"
+	blast.Text = ""
+	blast.AutoButtonColor = false
+	blast.AnchorPoint = Vector2.new(1, 1)
+	blast.Position = UDim2.new(1, -150, 1, -24)
+	blast.Size = UDim2.fromOffset(96, 96)
+	blast.BackgroundColor3 = Color3.fromRGB(110, 70, 190)
+	blast.Visible = false
+	blast.Parent = root
+	Theme.corner(blast, 48)
+	Theme.stroke(blast, 3.5)
+	Theme.icon("blaster", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromOffset(60, 60), Parent = blast })
+	Theme.label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -6), Size = UDim2.fromOffset(80, 22), Text = "BLAST", MaxText = 18, Parent = blast })
+	refs.blastShade = Theme.frame({ Size = UDim2.fromScale(1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45, ZIndex = 4, Parent = blast })
+	Theme.corner(refs.blastShade, 48)
+	refs.blast = blast
+
 	-- full-screen fade for portal travel
 	refs.fade = Theme.frame({ Name = "Fade", Size = UDim2.new(1, 0, 1, 80), Position = UDim2.fromOffset(0, -60), BackgroundColor3 = Color3.fromRGB(20, 8, 32), BackgroundTransparency = 1, ZIndex = 50, Visible = false, Parent = root })
+end
+
+function UI.SetBreachMeter(show: boolean, text: string?, fill: number?, color: Color3?, flash: boolean?)
+	local m = refs.meter
+	if not m then
+		return
+	end
+	-- the tutorial hint uses the same spot; it wins
+	m.Visible = show and not (refs.hint and refs.hint.Visible)
+	if not m.Visible then
+		return
+	end
+	refs.meterText.Text = text or ""
+	refs.meterFill.Size = UDim2.fromScale(fill or 0, 1)
+	local c = color or C.lime
+	refs.meterFill.BackgroundColor3 = if flash and os.clock() % 0.3 < 0.15 then Color3.new(1, 1, 1):Lerp(c, 0.5) else c:Lerp(Color3.new(0, 0, 0), 0.25)
+	refs.meterStroke.Color = c
+end
+
+function UI.MakeBlastButton(onFire: () -> ())
+	if refs.blast then
+		refs.blast.Activated:Connect(onFire)
+	end
+end
+
+function UI.ShowBlastButton(show: boolean)
+	if refs.blast then
+		refs.blast.Visible = show
+	end
+end
+
+function UI.BlastCooldown(seconds: number)
+	local shade = refs.blastShade
+	if not shade then
+		return
+	end
+	shade.Size = UDim2.fromScale(1, 1)
+	Theme.tween(shade, seconds, { Size = UDim2.fromScale(1, 0) }, Enum.EasingStyle.Linear)
 end
 
 local fadeToken = 0
@@ -556,6 +631,9 @@ function UI.Open(name: string, tab: string?)
 	end
 	if panelRefresh[name] then
 		panelRefresh[name]()
+	end
+	if UI.onOpen and UI.onOpen[name] then
+		UI.onOpen[name]()
 	end
 	local inner = p:FindFirstChild("Panel") :: Frame
 	if inner then
@@ -840,7 +918,7 @@ end
 -- ---------------------------------------------------------------- odds
 local function buildOdds()
 	local _, body = panelShell("Odds", "ODDS INFO", Color3.fromRGB(60, 150, 140), "swirl")
-	local cols = { "Rarity", "Slop Line", "Gold Line", "Your Personal Drop", "With Lucky Goober" }
+	local cols = { "Rarity", "Slop Surge", "Gold Goobers", "Your Personal Drop", "With Lucky Goober" }
 	local w = { 0.18, 0.18, 0.18, 0.23, 0.23 }
 	local rows = {}
 	local y = 0
@@ -882,7 +960,7 @@ local function buildOdds()
 			rows[r][4].Text = pct(mine[r])
 			rows[r][5].Text = pct(lucky[r])
 		end
-		note.Text = ("Each column adds up to 100%%. Inside a rarity, every Goober is equally likely. Personal Drops land on the Slop Line every %ds and only you can snag them. Your luck: x%.2f (from rebirths x%.2f). Lucky Goober adds +%.1f luck, which multiplies the chance of Rare, Epic, Legendary and Secret Goobers. GOLDEN HOUR events multiply luck by %.1f for everyone. The Chaos Goob can only appear during a CHAOS RIFT (%.0f%% per spawn).")
+		note.Text = ("Each column adds up to 100%%. Inside a rarity, every Goober is equally likely. The Goober Breach blasts Goobers out every ~15 s (Gold Goobers in GOLD RUSH blasts, rarer odds in RARE RIFTs). Personal Drops land near your base every %ds and only you can snag them. Your luck: x%.2f (from rebirths x%.2f). Lucky Goober adds +%.1f luck, which multiplies the chance of Rare, Epic, Legendary and Secret Goobers. GOLDEN HOUR events multiply luck by %.1f for everyone. The Chaos Goob can only appear during a CHAOS RIFT (%.0f%% per spawn).")
 			:format(Config.PersonalDrop.interval, luck, base, Config.PersonalDrop.luckyPassLuck, Config.Chaos.types.GoldenHour.luck, Config.Chaos.types.ChaosRift.chaosGoobChance * 100)
 	end
 end
@@ -1195,7 +1273,7 @@ local function onState(s, prev)
 end
 
 -- a wall of red dots means nothing: show the three most useful ones
-local BADGE_ORDER = { "Halloween", "Quests", "Rebirth", "Levels", "Dex", "Upgrades", "Shop", "Settings" }
+local BADGE_ORDER = { "Halloween", "Quests", "Rebirth", "Levels", "Dex", "Upgrades", "Shop", "Leaderboard" }
 UI.dexBadgeWanted = false -- set by a new discovery, cleared by opening the Index
 
 function UI.CapBadges()

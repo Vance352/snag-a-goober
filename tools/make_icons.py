@@ -379,6 +379,49 @@ def lantern():
     ic.save("lantern")
 
 
+@icon
+def crown():
+    ic = Icon()
+    ic.layer(lambda d: d.polygon([(150, 760), (180, 300), (360, 520), (512, 220), (664, 520), (844, 300), (874, 760)], fill=255), "#ffc93c")
+    ic.layer(lambda d: rr(d, [140, 720, 884, 860], 40), "#ffb02e")
+    for x in (300, 512, 724):
+        ic.layer(lambda d, x=x: d.ellipse([x - 55, 735, x + 55, 845], fill=255), "#ff5fa2", outline=18, gloss=False)
+    for x, y in ((180, 300), (512, 220), (844, 300)):
+        ic.layer(lambda d, x=x, y=y: d.ellipse([x - 55, y - 55, x + 55, y + 55], fill=255), "#fff3c4", outline=18, gloss=False)
+    ic.save("crown")
+
+
+@icon
+def breach():
+    ic = Icon()
+    ic.layer(lambda d: d.ellipse([120, 700, 904, 900], fill=255), "#3e3460")
+    def claws(d):
+        for x0 in (190, 700):
+            d.polygon([(x0, 760), (x0 + 130, 760), (x0 + 90 if x0 < 500 else x0 + 40, 300), (x0 + 30 if x0 < 500 else x0 + 100, 300)], fill=255)
+    ic.layer(claws, "#6a5aa0")
+    ic.layer(lambda d: d.ellipse([200, 170, 824, 620], fill=255) or None, "#ffc93c", gloss=False)
+    ic.layer(lambda d: d.ellipse([270, 230, 754, 560], fill=255), "#7be35a")
+    d = ImageDraw.Draw(ic.img)
+    pts = []
+    for i in range(160):
+        a = i / 160 * 3.4 * math.pi
+        r = 20 + i * 1.25
+        pts.append((512 + r * math.cos(a), 395 + r * 0.7 * math.sin(a)))
+    d.line(pts, fill=(235, 255, 220, 255), width=34, joint="curve")
+    ic.save("breach")
+
+
+@icon
+def blaster():
+    ic = Icon()
+    ic.layer(lambda d: d.polygon([(330, 560), (470, 560), (430, 860), (280, 860)], fill=255), "#3b2a5a")
+    ic.layer(lambda d: rr(d, [150, 380, 760, 600], 90), "#9b6bff")
+    ic.layer(lambda d: d.rectangle([740, 430, 900, 550], fill=255), "#ffc93c")
+    ic.layer(lambda d: d.ellipse([300, 160, 560, 420], fill=255), "#7be35a")
+    ic.layer(lambda d: d.ellipse([850, 380, 990, 600], fill=255), "#9cf27a", outline=22, gloss=False)
+    ic.save("blaster")
+
+
 if __name__ == "__main__":
     for name, fn in ICONS.items():
         fn()

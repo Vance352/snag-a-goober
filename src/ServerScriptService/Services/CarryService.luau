@@ -1,11 +1,13 @@
 --[[
 	CarryService - a player carrying a Goober above their head.
 
-	carry = { uid, id, source = "belt" | "steal", model, price, victim?, ... }
+	carry = { uid, id, source = "belt" | "steal", model, price, line?, victim?,
+	          takenFrom? (knocked loose from that player), recovered?, ... }
 
-	* Belt Goobers are already paid for. Walking into your own base places
-	  them. If you die or leave while carrying one, it is placed at home for you
-	  (a stand was reserved when you snagged it).
+	* "belt" = a Goober from the Goober Breach (the source name predates the
+	  Breach). It's already paid for; walking into your own base places it.
+	  If you're blasted or your character dies, it drops where you were and
+	  anyone can grab it (BreachService). If you leave, it lands at home.
 	* Stolen Goobers are handled by StealService (catch / timeout / success).
 ]]
 
@@ -34,6 +36,9 @@ function CarryService.Begin(player: Player, carry)
 	-- the real start, kept even when a shortcut restarts the walk clock: a
 	-- carry can never finish sooner than walking from here
 	carry.origT, carry.origPos = carry.startT, carry.startPos
+	carry.lastPos = carry.startPos
+	-- a moment's grace right after the snag (nobody can blast it out of your hands instantly)
+	carry.protectUntil = os.clock() + Config.Combat.snagGrace
 	st.carry = carry
 	S.Model.SetMode(carry.model, "carried")
 	carry.model:SetAttribute("CarriedBy", player.UserId)
@@ -85,8 +90,21 @@ function CarryService.PlaceHome(player: Player)
 	-- snag XP is paid when the Goober actually lands at home (not on snag, so
 	-- snag-and-drop can't farm XP)
 	S.Session.AddXP(player, Config.Rarities[def.rarity].xp)
-	S.Session.Effect("PlaceFx", { id = carry.id, rarity = def.rarity }, player)
+	S.Session.Effect("PlaceFx", { id = carry.id, rarity = def.rarity, delivered = true }, player)
+	st.data.stats.delivered += 1
+	if carry.takenFrom then
+		-- knocked loose from someone else and brought home: a real combat steal
+		st.data.stats.combatSteals += 1
+		S.Hooks.Fire("stolen", player, { id = carry.id, combat = true })
+		local from = Players:GetPlayerByUserId(carry.takenFrom)
+		if from then
+			S.Session.Notify(from, "GooberLost", { id = carry.id, by = player.DisplayName })
+		end
+	elseif carry.recovered then
+		st.data.stats.recovered += 1
+	end
 	S.Hooks.Fire("placed", player, { id = carry.id, source = "belt" })
+	S.Leaderboard.MarkDirty(player)
 	return true
 end
 
@@ -98,20 +116,10 @@ function CarryService.Settle(player: Player, reason: string)
 		return
 	end
 	if carry.source == "belt" then
-		local plot = S.Plot.Get(player)
-		local spawn = plot and plot:FindFirstChild("Spawn") :: BasePart
-		local walk = if spawn and carry.startPos
-			then (Vector3.new(carry.startPos.X, 0, carry.startPos.Z) - Vector3.new(spawn.Position.X, 0, spawn.Position.Z)).Magnitude / S.MoveGuard.MaxSpeed(player)
-			else 0
-		local remaining = walk - (os.clock() - carry.startT)
-		if reason ~= "left" and remaining > 0.5 then
-			-- resetting must not skip the walk: the Goober walks home on its own,
-			-- arriving no sooner than you could have carried it (its stand stays reserved)
-			st.pendingHome = st.pendingHome or {}
-			table.insert(st.pendingHome, { uid = carry.uid, id = carry.id, price = carry.price, at = os.clock() + remaining })
-			carry.model:Destroy()
-			clear(player)
-			S.Session.Toast(player, ("Your Goober is waddling home on its own (%ds)"):format(math.ceil(remaining)), "green")
+		if reason == "died" or reason == "lost" then
+			-- falling over (or resetting) drops it where you were: anyone can grab it,
+			-- and if nobody does it waddles home to you (so a reset never escapes a chase)
+			S.Breach.DropFromCarry(player, nil, reason)
 		else
 			CarryService.PlaceHome(player)
 		end
@@ -151,6 +159,9 @@ function CarryService.Start()
 					local plot = S.Plot.Get(player)
 					local char = player.Character
 					local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
+					if hrp then
+						carry.lastPos = hrp.Position
+					end
 					local ok, from = S.MoveGuard.CarryStep(player, carry)
 					if not ok then
 						-- shortcut detected: the walking clock restarts from the
@@ -215,6 +226,8 @@ end
 -- called by DataService right before the final save
 function CarryService.OnRemoving(player: Player)
 	local st = S.Session.Get(player)
+	-- a Goober knocked out of your hands and still lying there comes home with you
+	S.Breach.OnRemoving(player)
 	if st and st.carry then
 		CarryService.Settle(player, "left")
 	end

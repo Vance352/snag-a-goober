@@ -471,7 +471,7 @@ local function buildIntro()
 	local text = Theme.label({ Position = UDim2.fromOffset(24, 138), Size = UDim2.new(1, -48, 1, -226), Text = "", TextWrapped = true, Font = Theme.Body, TextYAlignment = Enum.TextYAlignment.Center, MaxText = 24, ZIndex = 42, Parent = p })
 	local dots = Theme.label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -66), Size = UDim2.fromOffset(120, 16), Text = "", TextColor3 = C.sub, MaxText = 14, ZIndex = 42, Parent = p })
 	local PAGES = {
-		{ "pumpkin", "WELCOME TO HALLOWEEN ISLAND!", "Spooky Goobers ride the island's belts. Snag one, carry it back through the portal and it joins your base, earning Slop like any other Goober." },
+		{ "pumpkin", "WELCOME TO HALLOWEEN ISLAND!", "Each area's cauldron bubbles over and flings out spooky Goobers. Snag one, carry it back through the portal and it joins your base, earning Slop like any other Goober." },
 		{ "lock", "FIVE AREAS TO EXPLORE", "Halloween Village and the Pumpkin Patch are open to everyone. The Haunted Forest needs Level 8 + Event Level 3, the Cursed Graveyard Level 15 + Event 8, the Phantom Castle Level 25 + Event 14. Rarer Goobers live deeper in." },
 		{ "candy", "CANDY, QUESTS AND REWARDS", "Find 30 hidden candies, grab Candy Buckets and finish quests. Everything gives Event XP: level up the 25-step Event Track and spend Candy in the Candy Shop by the Great Pumpkin." },
 	}

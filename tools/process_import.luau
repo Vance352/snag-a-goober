@@ -59,13 +59,20 @@ local MATERIAL = {
 	Iron = { Enum.Material.Metal, 0 },
 	Gem = { Enum.Material.Glass, 0.1 },
 	Slop = { Enum.Material.SmoothPlastic, 0 },
+	-- Goober Breach update
+	Slime = { Enum.Material.Neon, 0.1 },
+	Trim = { Enum.Material.Foil, 0 },
+	MetalDark = { Enum.Material.Metal, 0 },
+	Jar = { Enum.Material.Glass, 0.2 },
 }
 -- collidable prop slots (everything else is decoration)
 local SOLID_PROPS = { P_Gusher = true, P_SlopVat = true, P_SlopOMatic = true, P_RebirthShrine = true, P_ChaosRift = true, P_LampPost = true, P_SlopBarrel = true, P_MushTree = true, P_Trophy = true,
 	-- Halloween Island (convex-hull collisions; the portal swirl stays walk-through)
 	P_SpookyPortal = true, P_HauntedHouse = true, P_Crypt = true, P_CastleTower = true, P_GreatPumpkin = true, P_Cauldron = true,
 	P_Tombstone = true, P_StoneCross = true, P_IronFence = true, P_Pumpkin = true, P_HayBale = true, P_CandyCornGiant = true,
-	P_Lollipop = true, P_Signpost = true, P_JackLantern = true }
+	P_Lollipop = true, P_Signpost = true, P_JackLantern = true,
+	-- Goober Breach update (the Breach frame and the Mart stall are solid; the ring and the blaster aren't)
+	P_GooberBreach = true, P_MartStall = true }
 local HULL_PROPS = { P_Gusher = true, P_SlopVat = true, P_RebirthShrine = true }
 for k in pairs(SOLID_PROPS) do
 	if k:sub(1, 2) == "P_" and not ({ P_SlopOMatic = 1, P_ChaosRift = 1, P_LampPost = 1, P_SlopBarrel = 1, P_MushTree = 1, P_Trophy = 1 })[k] then

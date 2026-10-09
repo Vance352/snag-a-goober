@@ -8,7 +8,7 @@ local Config = {}
 
 Config.GameName = "Snag A Goober"
 Config.CurrencyName = "Slop Coins"
-Config.DataVersion = 2 -- 2: Halloween update fields (filled by reconcile)
+Config.DataVersion = 3 -- 2: Halloween update fields (filled by reconcile); 3: Goober Breach / combat stats
 
 -- ------------------------------------------------------------------ rarity
 Config.RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Secret" }
@@ -22,24 +22,22 @@ Config.Rarities = {
 	Secret = { color = Color3.fromRGB(255, 61, 165), xp = 500, scale = 1.25 },
 }
 
--- Spawn weights per line. They are percentages and each table sums to 100.
--- Each line also has geometry (startX -> endX at z) and the Goober pool it rolls.
+-- Spawn weights per "line" (a Goober pool the Goober Breach rolls from - see
+-- Shared/Breach). Percentages; each table sums to 100.
 Config.Lines = {
 	Main = {
 		weights = { Common = 55, Uncommon = 27, Rare = 12.5, Epic = 4.3, Legendary = 1.0, Secret = 0.2 },
-		interval = 2.2, -- seconds between spawns
-		speed = 7, -- studs per second
 		levelRequired = 1,
-		displayName = "The Slop Line",
-		pool = "Classic", startX = -116, endX = 116, z = -8,
+		displayName = "Slop Goobers",
+		pool = "Classic",
 	},
 	Gold = {
+		-- only in GOLD RUSH blasts; snagging one needs this level
 		weights = { Common = 0, Uncommon = 40, Rare = 35, Epic = 18, Legendary = 6, Secret = 1 },
-		interval = 6,
-		speed = 6,
 		levelRequired = 10,
-		displayName = "The Gold Line",
-		pool = "Classic", startX = 116, endX = -116, z = 8,
+		displayName = "Gold Goobers",
+		pool = "Classic",
+		gold = true,
 	},
 }
 -- Halloween Island lines (see Shared/Halloween)
@@ -139,7 +137,7 @@ end
 Config.LevelUnlocks = {
 	[3] = "Stealing unlocked",
 	[5] = "Base Lock upgrades",
-	[10] = "Gold Line unlocked",
+	[10] = "Gold Goobers unlocked",
 	[15] = "Rebirth unlocked",
 }
 
@@ -187,6 +185,24 @@ Config.Steal = {
 }
 
 Config.SnagRange = 14
+
+-- ------------------------------------------------------------ combat
+-- The Goober Blaster: splat a player carrying a Goober to knock it loose.
+-- Only carriers can be hit; everything is decided on the server.
+Config.Combat = {
+	range = 14, -- studs (3D, centre to centre)
+	cone = 0.55, -- dot product: the target must be roughly in front of your aim
+	cooldown = 1.1, -- seconds between blasts
+	stagger = 0.75, -- the hit carrier can't move for this long
+	knockback = 4, -- studs the hit carrier is pushed
+	hitImmunity = 4, -- after a hit, that player can't be hit again for this long
+	sameTarget = 8, -- the same attacker can't hit the same player again for this long
+	spawnProtection = 5, -- seconds after (re)spawning
+	snagGrace = 1.5, -- seconds after snagging before you can be blasted
+	minLevel = 3, -- like stealing: new players can't blast or be blasted
+}
+-- walk speed while carrying a Breach Goober, by rarity (rare loot is heavier)
+Config.CarrySpeed = { Common = 1, Uncommon = 1, Rare = 0.95, Epic = 0.92, Legendary = 0.88, Secret = 0.85 }
 
 -- ----------------------------------------------------------------- events
 Config.Chaos = {
@@ -368,6 +384,19 @@ Config.Audio = {
 		Reward = { 6.7801, 7.4302 },
 		Locked = { 7.7302, 8.0902 },
 		Area = { 8.3902, 9.6502 },
+	},
+	-- Goober Breach / Blaster effects (tools/make_audio_breach.py). Empty = not
+	-- uploaded yet: similar older sounds stand in.
+	Sprite3 = "", -- Assets/Audio/SAG_SFX3.wav
+	Regions3 = {
+		BreachCharge = { 0.0, 2.2 },
+		BreachAlarm = { 2.5, 4.0001 },
+		BreachOpen = { 4.3001, 5.3201 },
+		Blast = { 5.6201, 5.9201 },
+		Hit = { 6.2201, 6.5402 },
+		HitConfirm = { 6.8402, 7.2602 },
+		Drop = { 7.5602, 8.1102 },
+		Deliver = { 8.4102, 9.4603 },
 	},
 }
 

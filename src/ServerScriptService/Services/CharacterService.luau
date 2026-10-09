@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local GooberData = require(ReplicatedStorage.Shared.GooberData)
 local Util = require(ReplicatedStorage.Shared.Util)
 
 local CharacterService = {}
@@ -23,9 +24,16 @@ function CharacterService.ApplySpeed(player: Player)
 	if not st or not hum then
 		return
 	end
-	local speed = Util.WalkSpeed(st.data.upgrades.Speed, st.passes.SprintBoots == true)
-	if st.carry and st.carry.source == "steal" then
+	local carry = st.carry
+	-- Sprint Boots help you reach the Breach and chase - not outrun everyone
+	-- while carrying a Breach Goober (paid speed must not make deliveries risk-free)
+	local speed = Util.WalkSpeed(st.data.upgrades.Speed, st.passes.SprintBoots == true and not (carry and carry.source == "belt"))
+	if carry and carry.source == "steal" then
 		speed *= Config.Steal.carrySpeedMult
+	elseif carry then
+		-- heavier Goobers slow you down a little, so rare ones can be chased
+		local def = GooberData.ById[carry.id]
+		speed *= Config.CarrySpeed[def and def.rarity or "Common"] or 1
 	end
 	if os.clock() < st.stunnedUntil then
 		speed = 0
@@ -158,6 +166,7 @@ local function onCharacter(player: Player, char: Model)
 	hum.Died:Connect(function()
 		S.Carry.Settle(player, "died")
 	end)
+	S.Combat.OnSpawn(player)
 end
 
 function CharacterService.Start()

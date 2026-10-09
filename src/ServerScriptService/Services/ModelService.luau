@@ -96,7 +96,7 @@ local function tagGui(def, mode: string): BillboardGui
 	gui.Size = UDim2.fromOffset(150, 50) -- constant on-screen size (never fills the screen up close)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, def.height * rarity.scale + 1.4, 0)
 	gui.LightInfluence = 0
-	gui.MaxDistance = if mode == "belt" then 30 else 18
+	gui.MaxDistance = if mode == "loose" or mode == "dropped" then 34 else 18
 	gui.AlwaysOnTop = false
 	gui.ResetOnSpawn = false
 
@@ -126,8 +126,10 @@ local function tagGui(def, mode: string): BillboardGui
 
 	label("Rarity", string.upper(def.rarity), rarity.color, 0.26, 1)
 	label("Name", def.name, Color3.new(1, 1, 1), 0.36, 2)
-	if mode == "belt" then
+	if mode == "loose" then
 		label("Info", "$" .. Util.Short(def.price) .. "  •  +" .. Util.Short(def.income) .. "/s", Color3.fromRGB(255, 233, 120), 0.34, 3)
+	elseif mode == "dropped" then
+		label("Info", "DROPPED - GRAB IT!", Color3.fromRGB(255, 120, 140), 0.34, 3)
 	else
 		label("Info", "+" .. Util.Short(def.income) .. "/s", Color3.fromRGB(140, 255, 140), 0.34, 3)
 	end
@@ -174,7 +176,7 @@ function ModelService.SetMode(model: Model, mode: string)
 	end
 end
 
--- Anchored placement (belt, stand)
+-- Anchored placement (loose, dropped, stand)
 function ModelService.PlaceAt(model: Model, cf: CFrame)
 	local root = model.PrimaryPart :: BasePart
 	for _, w in ipairs(root:GetChildren()) do

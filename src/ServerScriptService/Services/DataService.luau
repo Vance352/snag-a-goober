@@ -79,7 +79,14 @@ local function defaults()
 		boostUntil = 0,
 		lastOnline = 0,
 		title = "",
-		stats = { snags = 0, steals = 0, stolenFrom = 0, sold = 0, caught = 0 },
+		stats = {
+			snags = 0, steals = 0, stolenFrom = 0, sold = 0, caught = 0,
+			-- Goober Breach / combat (v3)
+			delivered = 0, -- Goobers brought home from the Breach (or recovered loot)
+			combatSteals = 0, -- knocked loose from another player AND brought home
+			recovered = 0, -- grabbed your own dropped Goober back and got it home
+			hits = 0, -- successful Goober Blaster hits on carriers
+		},
 		settings = { music = true, sfx = true },
 		-- Halloween update (added in v2; old saves get these from reconcile)
 		candy = 0,
@@ -121,7 +128,16 @@ local function reconcile(data, template)
 end
 
 -- MIGRATIONS[n] upgrades a version-n save to version n+1.
-local MIGRATIONS: { [number]: (any) -> () } = {}
+local MIGRATIONS: { [number]: (any) -> () } = {
+	-- v2 -> v3: Goober Breach stats. Past snags + thefts were all Goobers
+	-- brought home, so "Goobers collected" starts from them, not from zero.
+	[2] = function(data)
+		local s = data.stats
+		if type(s) == "table" and s.delivered == nil then
+			s.delivered = (tonumber(s.snags) or 0) + (tonumber(s.steals) or 0)
+		end
+	end,
+}
 
 local function migrate(data)
 	data.version = data.version or 1
@@ -151,6 +167,14 @@ local function sanitize(data)
 	data.hdexClaimed = tbl(data.hdexClaimed)
 	data.flags = tbl(data.flags)
 	data.bucketReady = tbl(data.bucketReady)
+	data.stats = tbl(data.stats)
+	for k, v in pairs(data.stats) do
+		if type(v) ~= "number" or v ~= v or v < 0 or v == math.huge then
+			data.stats[k] = 0
+		else
+			data.stats[k] = math.floor(v)
+		end
+	end
 	data.areasVisited = tbl(data.areasVisited)
 	data.event.placeDay = math.floor(tonumber(data.event.placeDay) or -1)
 	data.event.placeCount = math.floor(tonumber(data.event.placeCount) or 0)

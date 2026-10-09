@@ -20,6 +20,7 @@ local EVENTS = {
 	"SetSetting", -- (key, value)
 	"PromptPass", -- (passKey)
 	"PromptProduct", -- (productKey)
+	"Blast", -- (aimDirection: Vector3) fire the Goober Blaster
 	-- Halloween update
 	"Travel", -- ("PortalIn" | "PortalOut" | "Island" | "Base" | "Plaza")
 	"CollectCandy", -- (candyId)
@@ -39,6 +40,7 @@ local EVENTS = {
 
 local FUNCTIONS = {
 	"GetQuote", -- () -> { [productKey] = coins }
+	"GetLeaderboard", -- (category, "global" | "server") -> { entries, updatedAt, error? }
 }
 
 local Net = {}

@@ -39,6 +39,16 @@ local function myHrp(): BasePart?
 	return c and c:FindFirstChild("HumanoidRootPart") :: BasePart
 end
 
+local HALLOWEEN = require(ReplicatedStorage.Shared.Halloween)
+local function onIsland(): boolean
+	local hrp = myHrp()
+	if not hrp then
+		return false
+	end
+	local o, size = HALLOWEEN.Origin, HALLOWEEN.Size
+	return math.abs(hrp.Position.X - o.X) <= size.X / 2 + 12 and math.abs(hrp.Position.Z - o.Z) <= size.Y / 2 + 12
+end
+
 local function pointAt(userId: number?)
 	if alarmBeam then
 		alarmBeam:Destroy()
@@ -180,7 +190,7 @@ end
 function NOTIFY.PersonalDrop(p)
 	local s = State.data
 	if s and s.tutorial >= 4 then
-		UI.Toast(("Your Personal Drop is on the belt: <font color=\"#%s\">%s</font>!"):format(rarityHex(p.id), nameOf(p.id)), "gold", 3, "gift")
+		UI.Toast(("The Breach spat out your Personal Drop: <font color=\"#%s\">%s</font>!"):format(rarityHex(p.id), nameOf(p.id)), "gold", 3, "gift")
 	end
 end
 
@@ -271,7 +281,61 @@ function NOTIFY.IslandIntro()
 	end
 end
 
+-- ------------------------------------------------- Goober Breach / Blaster
+function NOTIFY.HitConfirm(p)
+	if p.stolen then
+		UI.Toast(("SPLAT! %s's stolen Goober ran home."):format(p.target), "green", 2.6, "blaster")
+	else
+		UI.Toast(("SPLAT! You knocked %s's <font color=\"#%s\">%s</font> loose - GRAB IT!"):format(p.target, rarityHex(p.id), nameOf(p.id)), "green", 2.8, "blaster")
+	end
+	Effects.Play("HitConfirm")
+end
+
+function NOTIFY.GotBlasted(p)
+	if p.stolen then
+		UI.Banner("SPLAT!", p.by .. " blasted you - the stolen Goober ran home.", Color3.fromRGB(255, 120, 140), 2.5)
+	else
+		UI.Banner("SPLAT!", ("%s knocked your %s loose - grab it back!"):format(p.by, nameOf(p.id)), Color3.fromRGB(255, 120, 140), 2.5)
+	end
+end
+
+function NOTIFY.BlastBlocked(p)
+	UI.Toast(p.text, "purple", 1.6, "lock")
+end
+
+function NOTIFY.GooberTaken(p)
+	UI.Toast(("%s grabbed your dropped %s - chase them!"):format(p.by, nameOf(p.id)), "red", 3, "blaster")
+end
+
+function NOTIFY.GooberLost(p)
+	UI.Toast(("%s got your %s home. Get it back next time!"):format(p.by, nameOf(p.id)), "red", 3)
+end
+
 local EFFECT = {}
+
+function EFFECT.GooberDropped(p)
+	if p.pos then
+		Effects.FloatText(p.pos + Vector3.new(0, 4.5, 0), "DROPPED!", Color3.fromRGB(255, 120, 140), true)
+	end
+	Effects.Play("Drop")
+end
+
+function EFFECT.Vanish(p)
+	if p.pos then
+		local cam = Workspace.CurrentCamera
+		if cam and (cam.CFrame.Position - p.pos).Magnitude < 160 then
+			Effects.Burst(p.pos + Vector3.new(0, 1, 0), Config.Rarities[p.rarity or "Common"].color, 14, 0.7)
+		end
+	end
+end
+
+function EFFECT.BreachAnnounce(p)
+	local Breach = require(ReplicatedStorage.Shared.Breach)
+	local typ = Breach.Types[p.typ]
+	if typ and not onIsland() then
+		UI.Banner(typ.title .. " INCOMING!", "The Goober Breach is about to blow - rarer Goobers!", typ.color, 2.6)
+	end
+end
 
 function EFFECT.Snagged(p)
 	local color = Config.Rarities[p.rarity].color
@@ -284,7 +348,13 @@ function EFFECT.Snagged(p)
 end
 
 function EFFECT.PlaceFx(p)
-	Effects.Play("Place")
+	Effects.Play(if p.delivered then "Deliver" else "Place")
+	if p.delivered then
+		local hrp = myHrp()
+		if hrp then
+			Effects.FloatText(hrp.Position + Vector3.new(0, 5, 0), "DELIVERED!", Color3.fromRGB(150, 255, 110), true)
+		end
+	end
 end
 
 function EFFECT.Placed(p)
@@ -323,15 +393,6 @@ function EFFECT.Coins(p)
 	end
 end
 
-local HALLOWEEN = require(ReplicatedStorage.Shared.Halloween)
-local function onIsland(): boolean
-	local hrp = myHrp()
-	if not hrp then
-		return false
-	end
-	local o, size = HALLOWEEN.Origin, HALLOWEEN.Size
-	return math.abs(hrp.Position.X - o.X) <= size.X / 2 + 12 and math.abs(hrp.Position.Z - o.Z) <= size.Y / 2 + 12
-end
 
 function EFFECT.RareSpawn(p)
 	local color = Config.Rarities[p.rarity].color
@@ -349,12 +410,12 @@ function EFFECT.RareSpawn(p)
 	end
 	if p.rarity == "Legendary" or p.rarity == "Secret" then
 		local line = Config.Lines[p.line or "Main"]
-		UI.Banner(("%s SPOTTED!"):format(p.rarity:upper()), ("%s just hit %s!"):format(nameOf(p.id), if line and line.displayName then "the " .. line.displayName:gsub("^The ", "") else "the belt"), color, 4)
+		UI.Banner(("%s SPOTTED!"):format(p.rarity:upper()), ("%s just burst out of %s!"):format(nameOf(p.id), if line and line.area then "the " .. line.displayName .. " cauldron" else "the Goober Breach"), color, 4)
 		Effects.Play(if p.rarity == "Secret" then "Legendary" else "Rare")
 	else
 		local line = Config.Lines[p.line or "Main"]
-		local where = if line and line.area then "the " .. line.displayName .. " belt" else "the belt"
-		UI.Toast(("EPIC <font color=\"#%s\">%s</font> is on %s!"):format(color:ToHex(), nameOf(p.id), where), "purple", 2.5, "swirl")
+		local where = if line and line.area then "the " .. line.displayName .. " cauldron" else "the Goober Breach"
+		UI.Toast(("EPIC <font color=\"#%s\">%s</font> flew out of %s!"):format(color:ToHex(), nameOf(p.id), where), "purple", 2.5, "swirl")
 	end
 end
 

@@ -10,7 +10,7 @@
 
 local Halloween = {}
 
-Halloween.Enabled = true -- false: portal and tabs off, island belts removed
+Halloween.Enabled = true -- false: portal and tabs off, island cauldrons removed
 -- The event runs until this UTC time. After it: no more Event XP or candy, but
 -- every reward you earned stays claimable and the Candy Shop stays open.
 Halloween.EndsAt = 1794268800 -- 2026-11-10 00:00 UTC
@@ -29,13 +29,13 @@ end
 Halloween.At = at
 
 -- ---------------------------------------------------------------- travel
--- Main-world portal (east of the Slop Line, by the Chaos Rift) and the island
+-- Main-world portal (east of the plaza, by the Chaos Rift) and the island
 -- arrival. Spawns sit a few studs in front of each portal so nobody lands inside one.
 Halloween.MainPortal = { pos = Vector3.new(150, 0, -60), facing = Vector3.new(-1, 0, 0) }
 Halloween.MainArrival = Vector3.new(128, 3, -60)
 Halloween.IslandPortal = { pos = at(0, -132), facing = Vector3.new(0, 0, 1) }
 Halloween.IslandArrival = at(0, -106, 3)
-Halloween.PlazaArrival = Vector3.new(0, 3, -26) -- "Belt" shortcut (in front of the Slop Line)
+Halloween.PlazaArrival = Vector3.new(0, 3, -26) -- "Plaza" shortcut (by the Goober Breach)
 Halloween.TravelCooldown = 4
 
 -- ----------------------------------------------------------------- areas
@@ -60,29 +60,27 @@ for _, a in ipairs(Halloween.Areas) do
 	Halloween.AreaByKey[a.key] = a
 end
 
--- ------------------------------------------------------------ spooky lines
--- Extra conveyor lines (merged into Config.Lines by Config). Odds are
--- percentages summing to 100; each line only rolls Halloween Goobers.
+-- ---------------------------------------------------------- spooky cauldrons
+-- Each area has a bubbling cauldron: a small Goober Breach (see Shared/Breach)
+-- that erupts every cycle and flings `count` Halloween Goobers across the area.
+-- These "lines" are merged into Config.Lines by Config. Odds are percentages
+-- summing to 100; each one only rolls Halloween Goobers.
 Halloween.Lines = {
 	Pumpkin = {
 		weights = { Common = 62, Uncommon = 30, Rare = 7, Epic = 1, Legendary = 0, Secret = 0 },
-		interval = 3.0, speed = 6, levelRequired = 1, area = "Pumpkin", pool = "Halloween",
-		startX = O.X - 172, endX = O.X - 82, z = O.Z - 62,
+		count = 4, levelRequired = 1, area = "Pumpkin", pool = "Halloween", site = at(-130, -62),
 	},
 	Forest = {
 		weights = { Common = 20, Uncommon = 45, Rare = 28, Epic = 6.5, Legendary = 0.5, Secret = 0 },
-		interval = 4.0, speed = 6, levelRequired = 8, area = "Forest", pool = "Halloween",
-		startX = O.X + 172, endX = O.X + 82, z = O.Z - 62,
+		count = 3, levelRequired = 8, area = "Forest", pool = "Halloween", site = at(130, -62),
 	},
 	Graveyard = {
 		weights = { Common = 0, Uncommon = 25, Rare = 42, Epic = 25, Legendary = 7.5, Secret = 0.5 },
-		interval = 5.5, speed = 5, levelRequired = 15, area = "Graveyard", pool = "Halloween",
-		startX = O.X - 172, endX = O.X - 82, z = O.Z + 62,
+		count = 3, levelRequired = 15, area = "Graveyard", pool = "Halloween", site = at(-130, 62),
 	},
 	Castle = {
 		weights = { Common = 0, Uncommon = 0, Rare = 40, Epic = 44, Legendary = 14.5, Secret = 1.5 },
-		interval = 8.0, speed = 5, levelRequired = 25, area = "Castle", pool = "Halloween",
-		startX = O.X + 172, endX = O.X + 82, z = O.Z + 62,
+		count = 2, levelRequired = 25, area = "Castle", pool = "Halloween", site = at(118, 48),
 	},
 }
 Halloween.LineOrder = { "Pumpkin", "Forest", "Graveyard", "Castle" }
@@ -135,9 +133,9 @@ Halloween.MaxEventLevel = 25
 function Halloween.EventXPFor(level: number): number -- XP to go from `level` to `level + 1`
 	return 150 + 60 * level
 end
--- event XP for bringing a Halloween Goober home from an island belt
+-- event XP for bringing a Halloween Goober home from an island cauldron
 Halloween.PlaceXP = { Common = 15, Uncommon = 30, Rare = 60, Epic = 120, Legendary = 250, Secret = 500 }
--- the first PlaceDailyFull belt Goobers each UTC day give full XP, the rest PlaceTiredMult
+-- the first PlaceDailyFull cauldron Goobers each UTC day give full XP, the rest PlaceTiredMult
 Halloween.PlaceDailyFull = 30
 Halloween.PlaceTiredMult = 0.2
 -- past level 25, every BonusEvery Event XP opens a Bonus Chest of BonusCandy
@@ -209,15 +207,15 @@ Halloween.DexRewards = {
 --   steal       : steal `n` Goobers
 -- Rewards: candy, coins (seconds of income), xp (player XP), exp (event XP)
 Halloween.QuestChain = {
-	{ type = "visit", n = 1, text = "Step through the Spooky Portal", hint = "The glowing purple portal is by the Slop Vat, east of the belts.", reward = { candy = 20, exp = 40 } },
-	{ type = "halloween", n = 1, text = "Bring a Halloween Goober home", hint = "Snag one off the Pumpkin Patch belt and walk it back through the portal.", reward = { candy = 30, exp = 60 } },
+	{ type = "visit", n = 1, text = "Step through the Spooky Portal", hint = "The glowing purple portal is east of the Goober Breach, by the Chaos Rift.", reward = { candy = 20, exp = 40 } },
+	{ type = "halloween", n = 1, text = "Bring a Halloween Goober home", hint = "Snag one when the Pumpkin Patch cauldron erupts, then walk it back through the portal.", reward = { candy = 30, exp = 60 } },
 	{ type = "candy", n = 3, text = "Find 3 hidden candies", hint = "Wrapped candies are tucked around every area. Follow the pink sparkles!", reward = { candy = 30, exp = 60 } },
 	{ type = "bucket", n = 2, text = "Grab candy from 2 Candy Buckets", hint = "Pumpkin buckets refill every 5 minutes.", reward = { candy = 25, exp = 50 } },
 	{ type = "halloween", n = 5, text = "Bring 5 Halloween Goobers home", hint = "Every Halloween Goober you bring home gives Event XP too.", reward = { candy = 50, coins = 300, exp = 100 } },
 	{ type = "eventlevel", n = 5, text = "Reach Event Level 5", hint = "Open the Halloween menu to claim your track rewards.", reward = { candy = 50, exp = 80 } },
 	{ type = "area", area = "Forest", n = 1, text = "Enter the Haunted Forest", hint = "The Haunted Forest gate opens at Level 8 + Event Level 3.", reward = { candy = 60, exp = 120 } },
 	{ type = "candy", n = 12, text = "Find 12 hidden candies", hint = "Each area hides its own candies.", reward = { candy = 80, exp = 150 } },
-	{ type = "halloween", n = 1, rarity = "Epic", text = "Bring home an Epic Halloween Goober", hint = "The Forest and Graveyard belts roll more Epics.", reward = { candy = 120, coins = 900, exp = 200 } },
+	{ type = "halloween", n = 1, rarity = "Epic", text = "Bring home an Epic Halloween Goober", hint = "The Forest and Graveyard cauldrons spit out more Epics.", reward = { candy = 120, coins = 900, exp = 200 } },
 	{ type = "area", area = "Graveyard", n = 1, text = "Enter the Cursed Graveyard", hint = "The Cursed Graveyard needs Level 15 + Event Level 8.", reward = { candy = 150, exp = 250 } },
 	{ type = "eventlevel", n = 15, text = "Reach Event Level 15", hint = "Keep collecting candy and Halloween Goobers.", reward = { candy = 200, exp = 300 } },
 	{ type = "candy", n = 30, text = "Find all 30 hidden candies", hint = "Some are tucked away in the Graveyard and the Castle.", reward = { candy = 500, coins = 3600, exp = 600 } },
@@ -241,7 +239,7 @@ Halloween.LevelMilestones = {
 	{ level = 3, text = "Stealing unlocked", reward = { candy = 15, coins = 120 } },
 	{ level = 5, text = "Base Lock upgrades", reward = { candy = 15, coins = 300 } },
 	{ level = 8, text = "Haunted Forest (with Event Lv 3)", reward = { candy = 20, boost = 300 } },
-	{ level = 10, text = "Gold Line unlocked", reward = { candy = 20, coins = 600 } },
+	{ level = 10, text = "Gold Goobers unlocked", reward = { candy = 20, coins = 600 } },
 	{ level = 15, text = "Cursed Graveyard (with Event Lv 8) + Rebirth", reward = { candy = 30, boost = 900 } },
 	{ level = 20, text = "Big Goober boss", reward = { candy = 30, coins = 1200 } },
 	{ level = 25, text = "Phantom Castle (with Event Lv 14)", reward = { candy = 40, boost = 1800 } },

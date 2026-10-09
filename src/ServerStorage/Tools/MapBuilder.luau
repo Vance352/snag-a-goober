@@ -345,121 +345,13 @@ local function buildPlot(parent: Instance, index: number, center: Vector3, look:
 	decorItem("P_Trophy", "rebirth", 1, CFrame.new(0, 1, 30.5) * CFrame.Angles(0, math.rad(180), 0), Vector3.new(2.5, 5, 2.5), COL.gold)
 	decorItem("P_MushTree", "rebirth", 3, CFrame.new(-19, 1, 25) * CFrame.Angles(0, math.rad(40), 0), Vector3.new(2, 10, 2), Color3.fromRGB(176, 91, 255))
 
-	-- path from the entrance to the belt
-	local toBelt = math.abs(center.Z) - D / 2 - (math.abs(M.mainZ) + M.beltWidth / 2 + 2)
-	part({ Name = "Path", Size = Vector3.new(12, 0.2, toBelt), CFrame = cf * CFrame.new(0, 0.1, -D / 2 - toBelt / 2), Color = COL.path, Material = Enum.Material.Plastic, CanCollide = false, Parent = plot })
+	-- path from the entrance to the Breach Arena's edge
+	local toArena = math.max(1, math.abs(center.Z) - D / 2 - 35.5)
+	part({ Name = "Path", Size = Vector3.new(12, 0.2, toArena), CFrame = cf * CFrame.new(0, 0.1, -D / 2 - toArena / 2), Color = COL.path, Material = Enum.Material.Plastic, CanCollide = false, Parent = plot })
 
 	plot.PrimaryPart = plot:FindFirstChild("Floor") :: BasePart
 	plot.Parent = parent
 	return plot
-end
-
--- ---------------------------------------------------------------- belts
-local function buildBelt(parent: Instance, lineName: string, z: number, dir: number)
-	local belt = Instance.new("Model")
-	belt.Name = lineName .. "Line"
-	local length = M.beltEndX - M.beltStartX
-	local midX = (M.beltStartX + M.beltEndX) / 2
-	local top = M.beltY
-	local surf = part({
-		Name = "BeltSurface",
-		Size = Vector3.new(length, 0.4, M.beltWidth),
-		CFrame = CFrame.new(midX, top - 0.2, z),
-		Color = COL.belt,
-		Material = Enum.Material.Rubber,
-		Parent = belt,
-	})
-	if lineName == "Gold" then
-		-- flip the surface so the chevron texture points the way this line runs
-		surf.CFrame *= CFrame.Angles(0, math.pi, 0)
-	end
-	surf:SetAttribute("Dir", 1) -- scroll direction relative to the (possibly flipped) surface
-	-- chevrons (client scrolls the texture to show motion)
-	local tex = Instance.new("Texture")
-	tex.Name = "Chevrons"
-	tex.Face = Enum.NormalId.Top
-	tex.StudsPerTileU = 8
-	tex.StudsPerTileV = M.beltWidth
-	tex.Texture = Config.Textures.Chevron
-	tex.Color3 = if lineName == "Gold" then COL.gold else Color3.fromRGB(123, 227, 90)
-	tex.Transparency = 0.15
-	tex.Parent = surf
-	-- frame tiles
-	local tiles = math.floor(length / 8)
-	for i = 0, tiles - 1 do
-		local x = M.beltStartX + 4 + i * 8
-		local seg = prop("P_BeltSegment")
-		if seg then
-			seg:PivotTo(CFrame.new(x, 0, z) * CFrame.Angles(0, math.rad(90), 0))
-			seg.Name = "Segment"
-			seg.Parent = belt
-		end
-	end
-	if not belt:FindFirstChild("Segment") then
-		for _, sz in ipairs({ -1, 1 }) do
-			part({ Name = "Frame", Size = Vector3.new(length, top + 0.3, 0.8), CFrame = CFrame.new(midX, (top + 0.3) / 2, z + sz * (M.beltWidth / 2 + 0.4)), Color = COL.frame, Parent = belt })
-			part({ Name = "Rail", Size = Vector3.new(length, 0.35, 0.5), CFrame = CFrame.new(midX, top + 0.45, z + sz * (M.beltWidth / 2 + 0.4)), Color = if lineName == "Gold" then COL.gold else Color3.fromRGB(255, 201, 60), Parent = belt })
-		end
-		part({ Name = "Base", Size = Vector3.new(length, top - 0.4, M.beltWidth), CFrame = CFrame.new(midX, (top - 0.4) / 2, z), Color = COL.frame, Parent = belt })
-	end
-	belt.Parent = parent
-	return belt
-end
-
-local function buildMachines(parent: Instance)
-	-- Goober Gusher at the Main line start, Slop Vat at its end
-	local gusher = prop("P_Gusher")
-	local vat = prop("P_SlopVat")
-	local startX, endX = M.beltStartX, M.beltEndX
-	if gusher then
-		gusher:PivotTo(CFrame.new(startX - 6, 0, 0) * CFrame.Angles(0, math.rad(-90), 0))
-		gusher.Name = "GooberGusher"
-		gusher.Parent = parent
-	else
-		local g = Instance.new("Model")
-		g.Name = "GooberGusher"
-		part({ Name = "Body", Size = Vector3.new(14, 16, 34), CFrame = CFrame.new(startX - 8, 8, 0), Color = COL.frame, Parent = g })
-		part({ Name = "Funnel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(6, 14, 14), CFrame = CFrame.new(startX - 8, 19, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(123, 227, 90), Parent = g })
-		g.Parent = parent
-	end
-	if vat then
-		vat:PivotTo(CFrame.new(endX + 7, 0, 0) * CFrame.Angles(0, math.rad(90), 0))
-		vat.Name = "SlopVat"
-		vat.Parent = parent
-	else
-		local v = Instance.new("Model")
-		v.Name = "SlopVat"
-		part({ Name = "Tub", Shape = Enum.PartType.Cylinder, Size = Vector3.new(8, 30, 30), CFrame = CFrame.new(endX + 10, 4, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = COL.frame, Parent = v })
-		part({ Name = "Slop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 27, 27), CFrame = CFrame.new(endX + 10, 7.8, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = COL.cash, Material = Enum.Material.Neon, Parent = v })
-		v.Parent = parent
-	end
-end
-
-local function buildGoldGate(parent: Instance)
-	-- low fence along both sides of the Gold line with a sign; access is
-	-- checked by the server on snag (Level >= Gold levelRequired)
-	local z = M.goldZ
-	local length = M.beltEndX - M.beltStartX
-	local midX = (M.beltStartX + M.beltEndX) / 2
-	local sign = part({ Name = "GoldSign", Size = Vector3.new(30, 4, 0.6), CFrame = CFrame.new(midX, 9, z + M.beltWidth / 2 + 1.2) * CFrame.Angles(0, math.rad(180), 0), Color = Color3.fromRGB(70, 45, 20), Parent = parent })
-	textGui(sign, Enum.NormalId.Front, {
-		{ name = "Title", text = "★ GOLD LINE ★", size = 0.6, color = COL.gold },
-		{ name = "Sub", text = "Better odds • Unlocks at Level " .. Config.Lines.Gold.levelRequired, size = 0.34, color = Color3.new(1, 1, 1) },
-	})
-	for _, sx in ipairs({ -1, 1 }) do
-		part({ Name = "GoldSignPost", Size = Vector3.new(0.8, 9, 0.8), CFrame = CFrame.new(midX + sx * 14, 4.5, z + M.beltWidth / 2 + 1.2), Color = Color3.fromRGB(70, 45, 20), Parent = parent })
-	end
-	part({ Name = "MainSignDummy", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(midX, -5, 0), Transparency = 1, CanCollide = false, Parent = parent })
-	local mainSign = part({ Name = "MainSign", Size = Vector3.new(30, 4, 0.6), CFrame = CFrame.new(midX, 9, M.mainZ - M.beltWidth / 2 - 1.2), Color = COL.frame, Parent = parent })
-	textGui(mainSign, Enum.NormalId.Front, {
-		{ name = "Title", text = "THE SLOP LINE", size = 0.6, color = Color3.fromRGB(150, 255, 120) },
-		{ name = "Sub", text = "Grab a Goober • Bring it home • Get rich", size = 0.34, color = Color3.new(1, 1, 1) },
-	})
-	for _, sx in ipairs({ -1, 1 }) do
-		part({ Name = "MainSignPost", Size = Vector3.new(0.8, 9, 0.8), CFrame = CFrame.new(midX + sx * 14, 4.5, M.mainZ - M.beltWidth / 2 - 1.2), Color = COL.frame, Parent = parent })
-	end
-	-- middle walkway between the two lines
-	part({ Name = "MidWalk", Size = Vector3.new(length, 1.2, math.abs(M.goldZ - M.mainZ) - M.beltWidth - 1.6), CFrame = CFrame.new(midX, 0.6, (M.mainZ + M.goldZ) / 2), Color = COL.path, Material = Enum.Material.Plastic, Parent = parent })
 end
 
 local function placeProp(parent: Instance, name: string, cf: CFrame, newName: string?)
@@ -475,17 +367,17 @@ end
 
 local function buildLandmarks(parent: Instance)
 	-- Rebirth Shrine beyond the Gusher (west), Chaos Rift beyond the Slop Vat (east)
-	local shrineCf = CFrame.new(M.beltStartX - 48, 0, 0) * CFrame.Angles(0, math.rad(-90), 0)
+	local shrineCf = CFrame.new(-160, 0.4, 0) * CFrame.Angles(0, math.rad(-90), 0)
 	local shrine = placeProp(parent, "P_RebirthShrine", shrineCf, "RebirthShrine")
 	if not shrine then
 		shrine = Instance.new("Model")
 		shrine.Name = "RebirthShrine"
-		part({ Name = "Dais", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, 18, 18), CFrame = CFrame.new(M.beltStartX - 48, 1, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(237, 230, 255), Parent = shrine })
+		part({ Name = "Dais", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, 18, 18), CFrame = CFrame.new(-160, 1, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(237, 230, 255), Parent = shrine })
 		shrine.Parent = parent
 	end
-	local sp = part({ Name = "RebirthPrompt", Size = Vector3.new(6, 6, 6), CFrame = CFrame.new(M.beltStartX - 48, 4, 0), Transparency = 1, CanCollide = false, Parent = shrine })
-	billboard(sp, "ShrineTag", Vector2.new(12, 3.4), Vector3.new(0, 15, 0), "♻️ REBIRTH SHRINE", Color3.fromRGB(210, 150, 255))
-	local rift = placeProp(parent, "P_ChaosRift", CFrame.new(M.beltEndX + 48, 0, 0), "ChaosRift")
+	local sp = part({ Name = "RebirthPrompt", Size = Vector3.new(6, 6, 6), CFrame = CFrame.new(-160, 4.4, 0), Transparency = 1, CanCollide = false, Parent = shrine })
+	billboard(sp, "ShrineTag", Vector2.new(12, 3.4), Vector3.new(0, 15, 0), "REBIRTH SHRINE", Color3.fromRGB(210, 150, 255))
+	local rift = placeProp(parent, "P_ChaosRift", CFrame.new(164, 0, 0), "ChaosRift")
 	if rift then
 		local core = Instance.new("PointLight")
 		core.Name = "RiftLight"
@@ -493,7 +385,7 @@ local function buildLandmarks(parent: Instance)
 		core.Range = 40
 		core.Brightness = 0.5
 		core.Parent = rift:FindFirstChild("Glow") or rift:FindFirstChildWhichIsA("BasePart")
-		local fx = part({ Name = "RiftCore", Size = Vector3.new(2, 2, 2), CFrame = CFrame.new(M.beltEndX + 48, 8, 0), Transparency = 1, CanCollide = false, Parent = rift })
+		local fx = part({ Name = "RiftCore", Size = Vector3.new(2, 2, 2), CFrame = CFrame.new(164, 8, 0), Transparency = 1, CanCollide = false, Parent = rift })
 		local pe = Instance.new("ParticleEmitter")
 		pe.Name = "RiftSparks"
 		pe.Texture = "rbxasset://textures/particles/sparkles_main.dds"
@@ -505,35 +397,441 @@ local function buildLandmarks(parent: Instance)
 		pe.LightEmission = 0.8
 		pe.Size = NumberSequence.new(1.2, 0)
 		pe.Parent = fx
-		billboard(fx, "RiftTag", Vector2.new(12, 3.4), Vector3.new(0, 9, 0), "🌀 CHAOS RIFT", Color3.fromRGB(255, 120, 220))
+		billboard(fx, "RiftTag", Vector2.new(12, 3.4), Vector3.new(0, 9, 0), "CHAOS RIFT", Color3.fromRGB(255, 120, 220))
 	end
-	-- lamp posts lining both sides of the conveyor zone
-	for x = M.beltStartX + 12, M.beltEndX - 12, 34 do
+end
+
+-- ============================================================ GOOBER HUB
+-- The plaza between the two rows of bases is the Breach Arena, with the
+-- Goober Breach in the middle. Champions Plaza (leaderboards + Rebirth
+-- Shrine) is to the west, the Goober Mart (game passes), Chaos Rift and
+-- Spooky Portal to the east.
+local CollectionService = game:GetService("CollectionService")
+
+local HUB = {
+	arena = Color3.fromRGB(214, 200, 232),
+	arenaDark = Color3.fromRGB(176, 158, 206),
+	curb = Color3.fromRGB(110, 84, 160),
+	metal = Color3.fromRGB(62, 52, 92),
+	metalDark = Color3.fromRGB(40, 32, 62),
+	glow = Color3.fromRGB(123, 227, 90),
+	gold = Color3.fromRGB(255, 196, 61),
+	wood = Color3.fromRGB(120, 78, 50),
+	board = Color3.fromRGB(46, 30, 78),
+}
+
+local function weldTo(anchor: BasePart, p: BasePart)
+	p.Anchored = false
+	p.Massless = true
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = anchor
+	w.Part1 = p
+	w.Parent = p
+end
+
+local function signBoard(parent: Instance, cf: CFrame, size: Vector3, lines, color: Color3?)
+	local b = part({ Name = "Sign", Size = size, CFrame = cf, Color = color or HUB.board, Material = Enum.Material.SmoothPlastic, Parent = parent })
+	local gui = textGui(b, Enum.NormalId.Front, lines)
+	gui.PixelsPerStud = 30
+	return b
+end
+
+-- --------------------------------------------------------------- arena
+local function buildArena(parent: Instance)
+	local a = Instance.new("Model")
+	a.Name = "BreachArena"
+	a.Parent = parent
+	-- arena floor: a rounded rectangle (centre slab + round ends) between the base rows
+	part({ Name = "Floor", Size = Vector3.new(196, 0.4, 72), CFrame = CFrame.new(0, 0.2, 0), Color = HUB.arena, Material = Enum.Material.Cobblestone, Parent = a })
+	for _, sx in ipairs({ -1, 1 }) do
+		part({ Name = "FloorEnd", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 72, 72), CFrame = CFrame.new(sx * 98, 0.2, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = HUB.arena, Material = Enum.Material.Cobblestone, Parent = a })
+	end
+	-- low curb along the long edges (gaps where each base's gate opens onto the arena)
+	for _, sz in ipairs({ -1, 1 }) do
+		local x = -98
+		local gaps = {}
+		for _, px in ipairs(M.plotXs) do
+			table.insert(gaps, px)
+		end
+		while x < 98 do
+			local x1 = math.min(98, x + 8)
+			local mid = (x + x1) / 2
+			local blocked = false
+			for _, g in ipairs(gaps) do
+				if math.abs(mid - g) < 10 then
+					blocked = true
+				end
+			end
+			if not blocked then
+				part({ Name = "Curb", Size = Vector3.new(x1 - x, 0.9, 1.4), CFrame = CFrame.new(mid, 0.45, sz * 36.3), Color = HUB.curb, Material = Enum.Material.SmoothPlastic, Parent = a })
+			end
+			x = x1
+		end
+	end
+	-- rune circle around the Breach: two neon rings and spokes
+	for _, r in ipairs({ 19, 24 }) do
+		local seg = 36
+		for i = 0, seg - 1 do
+			local ang = i / seg * math.pi * 2
+			local len = 2 * math.pi * r / seg + 0.15
+			part({ Name = "Rune", Size = Vector3.new(len, 0.06, 0.6), CFrame = CFrame.new(math.cos(ang) * r, 0.43, math.sin(ang) * r) * CFrame.Angles(0, -ang + math.pi / 2, 0),
+				Color = HUB.glow, Material = Enum.Material.Neon, CanCollide = false, Parent = a })
+		end
+	end
+	for i = 0, 7 do
+		local ang = i / 8 * math.pi * 2 + math.pi / 8
+		part({ Name = "Rune", Size = Vector3.new(4.4, 0.06, 0.5), CFrame = CFrame.new(math.cos(ang) * 21.5, 0.43, math.sin(ang) * 21.5) * CFrame.Angles(0, -ang, 0),
+			Color = HUB.glow, Material = Enum.Material.Neon, CanCollide = false, Parent = a })
+	end
+	-- benches and lamps on the arena edge
+	for _, x in ipairs({ -56, 0, 56 }) do
 		for _, sz in ipairs({ -1, 1 }) do
-			placeProp(parent, "P_LampPost", CFrame.new(x, 0, sz * 18) * CFrame.Angles(0, math.rad(sz > 0 and 90 or -90), 0), "Lamp")
+			local b = Instance.new("Model")
+			b.Name = "Bench"
+			b.Parent = a
+			local cf = CFrame.new(x, 0.4, sz * 33.2) * CFrame.Angles(0, if sz > 0 then math.pi else 0, 0)
+			part({ Name = "Seat", Size = Vector3.new(6, 0.5, 1.6), CFrame = cf * CFrame.new(0, 1.3, 0), Color = HUB.wood, Material = Enum.Material.Wood, Parent = b })
+			part({ Name = "Back", Size = Vector3.new(6, 1.4, 0.4), CFrame = cf * CFrame.new(0, 2.2, 0.7), Color = HUB.wood, Material = Enum.Material.Wood, Parent = b })
+			for _, lx in ipairs({ -2.5, 2.5 }) do
+				part({ Name = "Leg", Size = Vector3.new(0.4, 1.1, 1.2), CFrame = cf * CFrame.new(lx, 0.55, 0), Color = HUB.metal, Parent = b })
+			end
 		end
 	end
-	-- meadow dressing behind the bases and at the ends
-	local rnd = Random.new(21)
-	for i = 1, 14 do
-		local side = if i % 2 == 0 then 1 else -1
-		local x = rnd:NextNumber(-190, 190)
-		local z = side * rnd:NextNumber(112, 140)
-		placeProp(parent, if i % 3 == 0 then "P_SlopBarrel" else "P_MushTree", CFrame.new(x, 0, z) * CFrame.Angles(0, rnd:NextNumber(0, 6.28), 0), "Meadow")
-	end
-	for _, x in ipairs({ -185, -150, 150, 185 }) do
-		for _, z in ipairs({ -40, 40 }) do
-			placeProp(parent, "P_MushTree", CFrame.new(x + rnd:NextNumber(-6, 6), 0, z + rnd:NextNumber(-8, 8)) * CFrame.Angles(0, rnd:NextNumber(0, 6.28), 0), "Meadow")
+	for _, x in ipairs({ -84, -28, 28, 84 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			local lx = x + (if x > 0 then -14 else 14)
+			placeProp(parent, "P_LampPost", CFrame.new(lx, 0.4, sz * 34.5) * CFrame.Angles(0, if sz > 0 then math.pi else 0, 0), "Lamp")
 		end
+	end
+	for _, sx in ipairs({ -1, 1 }) do
+		placeProp(parent, "P_LampPost", CFrame.new(sx * 130, 0.4, -10), "Lamp")
+		placeProp(parent, "P_LampPost", CFrame.new(sx * 130, 0.4, 10), "Lamp")
+	end
+	return a
+end
+
+-- --------------------------------------------------------------- breach
+-- The Goober Breach. Named parts the client animates (BreachFx):
+--   RingCenter (anchored; the ring segments are welded to it and spin with it),
+--   Core (neon ball; grows and glows as it charges), Glow (type-coloured strips),
+--   Gather / Sparks particle emitters. A Blender model replaces the stand-in
+--   frame when ReplicatedStorage.Assets.Props.P_GooberBreach exists.
+local function buildBreach(parent: Instance, name: string, center: Vector3, scale: number, site: string)
+	local m = Instance.new("Model")
+	m.Name = name
+	m:SetAttribute("Site", site)
+	local s = scale
+	local frame = prop("P_GooberBreach")
+	if frame then
+		frame:ScaleTo(s)
+		frame:PivotTo(CFrame.new(center))
+		frame.Name = "Frame"
+		frame.Parent = m
+	else
+		-- base platform: stacked discs and a lip
+		part({ Name = "Base", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.6 * s, 26 * s, 26 * s), CFrame = CFrame.new(center + Vector3.new(0, 0.8 * s, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = HUB.metalDark, Material = Enum.Material.DiamondPlate, Parent = m })
+		part({ Name = "Base", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.2 * s, 20 * s, 20 * s), CFrame = CFrame.new(center + Vector3.new(0, 2.1 * s, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = HUB.metal, Material = Enum.Material.Metal, Parent = m })
+		part({ Name = "Glow", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3 * s, 20.6 * s, 20.6 * s), CFrame = CFrame.new(center + Vector3.new(0, 1.55 * s, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = HUB.glow, Material = Enum.Material.Neon, CanCollide = false, Parent = m })
+		-- six curved claws holding the ring up
+		for i = 0, 5 do
+			local ang = i / 6 * math.pi * 2
+			local dir = Vector3.new(math.cos(ang), 0, math.sin(ang))
+			local foot = center + dir * 9.5 * s + Vector3.new(0, 2.6 * s, 0)
+			local look = CFrame.lookAt(foot, foot - dir)
+			part({ Name = "Claw", Size = Vector3.new(2 * s, 9 * s, 2 * s), CFrame = look * CFrame.new(0, 4 * s, 0) * CFrame.Angles(math.rad(-18), 0, 0), Color = HUB.metal, Material = Enum.Material.Metal, Parent = m })
+			part({ Name = "ClawTip", Size = Vector3.new(1.6 * s, 5 * s, 1.6 * s), CFrame = look * CFrame.new(0, 9.4 * s, -2.6 * s) * CFrame.Angles(math.rad(-48), 0, 0), Color = HUB.metal, Material = Enum.Material.Metal, Parent = m })
+			part({ Name = "Glow", Size = Vector3.new(0.5 * s, 7 * s, 0.3 * s), CFrame = look * CFrame.new(0, 4 * s, -1.05 * s) * CFrame.Angles(math.rad(-18), 0, 0), Color = HUB.glow, Material = Enum.Material.Neon, CanCollide = false, Parent = m })
+		end
+	end
+	-- the spinning ring (always built here so it can be animated)
+	local ringY = 12.5 * s
+	local rc = part({ Name = "RingCenter", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(center + Vector3.new(0, ringY, 0)), Transparency = 1, CanCollide = false, CanQuery = false, Parent = m })
+	local ringModel = prop("P_BreachRing")
+	if ringModel then
+		ringModel:ScaleTo(s)
+		ringModel:PivotTo(rc.CFrame)
+		ringModel.Name = "Ring"
+		for _, d in ipairs(ringModel:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.CanCollide = false
+				d.CanQuery = false
+				weldTo(rc, d)
+			end
+		end
+		ringModel.Parent = m
+	end
+	local segs = if ringModel then 0 else 22
+	local R = 7.2 * s
+	for i = 0, segs - 1 do
+		local ang = i / segs * math.pi * 2
+		local seg = part({ Name = "RingSeg", Size = Vector3.new(2 * math.pi * R / segs + 0.1, 1.1 * s, 1.1 * s), CFrame = rc.CFrame * CFrame.new(math.cos(ang) * R, 0, math.sin(ang) * R) * CFrame.Angles(0, -ang + math.pi / 2, 0),
+			Color = if i % 2 == 0 then HUB.gold else HUB.metal, Material = if i % 2 == 0 then Enum.Material.Neon else Enum.Material.Metal, CanCollide = false, CanQuery = false, Parent = m })
+		if i % 2 == 0 then
+			seg.Name = "Glow"
+		end
+		weldTo(rc, seg)
+	end
+	-- core
+	local core = part({ Name = "Core", Shape = Enum.PartType.Ball, Size = Vector3.new(5 * s, 5 * s, 5 * s), CFrame = CFrame.new(center + Vector3.new(0, ringY, 0)), Color = HUB.glow, Material = Enum.Material.Neon, Transparency = 0.3, CanCollide = false, CanQuery = false, Parent = m })
+	local light = Instance.new("PointLight")
+	light.Range = 24
+	light.Brightness = 1
+	light.Color = HUB.glow
+	light.Shadows = false
+	light.Parent = core
+	local att = Instance.new("Attachment")
+	att.Parent = core
+	local gather = Instance.new("ParticleEmitter")
+	gather.Name = "Gather"
+	gather.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	gather.LightEmission = 1
+	gather.Size = NumberSequence.new(0.9 * s, 0)
+	gather.Lifetime = NumberRange.new(0.5, 0.9)
+	gather.Speed = NumberRange.new(4, 9)
+	gather.SpreadAngle = Vector2.new(180, 180)
+	gather.Rate = 25
+	gather.Enabled = false
+	gather.Parent = att
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Name = "Sparks"
+	sparks.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new(1.4 * s, 0)
+	sparks.Lifetime = NumberRange.new(0.15, 0.3)
+	sparks.Speed = NumberRange.new(20, 34)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Rate = 40
+	sparks.Enabled = false
+	sparks.Parent = att
+	m.PrimaryPart = rc
+	CollectionService:AddTag(m, "BreachSite")
+	m.Parent = parent
+	return m
+end
+MapBuilder.BuildBreach = buildBreach
+
+-- ------------------------------------------------- Champions Plaza (west)
+local LB_CATEGORIES = require(ReplicatedStorage.Shared:Clone().Leaderboards).Categories
+
+local function leaderboardBoard(parent: Instance, cf: CFrame, cat)
+	local m = Instance.new("Model")
+	m.Name = "Leaderboard_" .. cat.key
+	m:SetAttribute("Category", cat.key)
+	local W, H = 13, 17
+	-- frame: posts, top crest
+	for _, sx in ipairs({ -1, 1 }) do
+		part({ Name = "Post", Size = Vector3.new(1, H + 3, 1), CFrame = cf * CFrame.new(sx * (W / 2 + 0.5), (H + 3) / 2, 0), Color = HUB.metalDark, Material = Enum.Material.Metal, Parent = m })
+	end
+	part({ Name = "Crest", Size = Vector3.new(W + 2.4, 1.6, 1.4), CFrame = cf * CFrame.new(0, H + 3, 0), Color = cat.color, Material = Enum.Material.Neon, Parent = m })
+	local board = part({ Name = "Board", Size = Vector3.new(W, H, 0.6), CFrame = cf * CFrame.new(0, 2.5 + H / 2, 0), Color = HUB.board, Parent = m })
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "BoardGui"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 36
+	gui.LightInfluence = 0
+	gui.MaxDistance = 140
+	local function lbl(parent2, name, pos, size, text, color, align)
+		local t = Instance.new("TextLabel")
+		t.Name = name
+		t.BackgroundTransparency = 1
+		t.Position = pos
+		t.Size = size
+		t.Text = text
+		t.TextScaled = true
+		t.Font = Enum.Font.FredokaOne
+		t.TextColor3 = color
+		t.TextXAlignment = align or Enum.TextXAlignment.Center
+		local s = Instance.new("UIStroke")
+		s.Thickness = 3
+		s.Color = Color3.fromRGB(24, 14, 40)
+		s.Parent = t
+		t.Parent = parent2
+		return t
+	end
+	lbl(gui, "Title", UDim2.fromScale(0.04, 0.015), UDim2.fromScale(0.92, 0.085), cat.title, cat.color)
+	lbl(gui, "Sub", UDim2.fromScale(0.04, 0.1), UDim2.fromScale(0.92, 0.04), cat.stat, Color3.fromRGB(220, 205, 245))
+	local rows = Instance.new("Frame")
+	rows.Name = "Rows"
+	rows.BackgroundTransparency = 1
+	rows.Position = UDim2.fromScale(0.04, 0.155)
+	rows.Size = UDim2.fromScale(0.92, 0.78)
+	rows.Parent = gui
+	local medal = { Color3.fromRGB(255, 201, 60), Color3.fromRGB(205, 215, 230), Color3.fromRGB(215, 140, 80) }
+	for i = 1, 10 do
+		local r = Instance.new("Frame")
+		r.Name = "Row" .. i
+		r.BackgroundColor3 = if i <= 3 then Color3.fromRGB(70, 48, 110) else Color3.fromRGB(58, 40, 92)
+		r.Position = UDim2.fromScale(0, (i - 1) / 10)
+		r.Size = UDim2.new(1, 0, 0.1, -6)
+		r.Visible = false
+		r.Parent = rows
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0.25, 0)
+		c.Parent = r
+		local rank = lbl(r, "Rank", UDim2.fromScale(0.01, 0.1), UDim2.fromScale(0.1, 0.8), tostring(i), medal[i] or Color3.new(1, 1, 1))
+		local _ = rank
+		local av = Instance.new("ImageLabel")
+		av.Name = "Avatar"
+		av.BackgroundTransparency = 1
+		av.Position = UDim2.fromScale(0.12, 0.05)
+		av.Size = UDim2.fromScale(0.11, 0.9)
+		av.SizeConstraint = Enum.SizeConstraint.RelativeYY
+		av.Parent = r
+		lbl(r, "Name_", UDim2.fromScale(0.25, 0.12), UDim2.fromScale(0.45, 0.76), "", Color3.new(1, 1, 1), Enum.TextXAlignment.Left)
+		lbl(r, "Value", UDim2.fromScale(0.68, 0.12), UDim2.fromScale(0.3, 0.76), "", medal[i] or Color3.fromRGB(255, 233, 120), Enum.TextXAlignment.Right)
+	end
+	lbl(gui, "Status", UDim2.fromScale(0.04, 0.94), UDim2.fromScale(0.92, 0.045), "Loading rankings...", Color3.fromRGB(200, 185, 230))
+	local empty = lbl(gui, "Empty", UDim2.fromScale(0.1, 0.4), UDim2.fromScale(0.8, 0.1), "No rankings yet - be the first!", Color3.fromRGB(220, 205, 245))
+	empty.Visible = false
+	gui.Parent = board
+	-- back face: a plain back panel so it doesn't look unfinished from behind
+	part({ Name = "Back", Size = Vector3.new(W + 0.6, H + 0.6, 0.3), CFrame = cf * CFrame.new(0, 2.5 + H / 2, 0.45), Color = HUB.metalDark, Parent = m })
+	CollectionService:AddTag(m, "LeaderboardBoard")
+	m.Parent = parent
+	return m
+end
+
+local function buildChampionsPlaza(parent: Instance)
+	local p = Instance.new("Model")
+	p.Name = "ChampionsPlaza"
+	p.Parent = parent
+	local c = Vector3.new(-160, 0, 0)
+	part({ Name = "Floor", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 74, 74), CFrame = CFrame.new(c + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = HUB.arenaDark, Material = Enum.Material.Cobblestone, Parent = p })
+	part({ Name = "Walk", Size = Vector3.new(30, 0.4, 14), CFrame = CFrame.new(-120, 0.2, 0), Color = HUB.arenaDark, Material = Enum.Material.Cobblestone, Parent = p })
+	-- five boards on an arc, all facing the plaza centre (the Rebirth Shrine)
+	local n = #LB_CATEGORIES
+	for i, cat in ipairs(LB_CATEGORIES) do
+		local ang = math.rad(180 + (i - (n + 1) / 2) * 32)
+		local pos = c + Vector3.new(math.cos(ang) * 30, 0, math.sin(ang) * 30)
+		leaderboardBoard(p, CFrame.lookAt(pos, Vector3.new(c.X, 0, c.Z)), cat)
+	end
+	signBoard(p, CFrame.new(-128, 13, 0) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(16, 3.6, 0.5), {
+		{ name = "Title", text = "CHAMPIONS PLAZA", size = 0.6, color = HUB.gold },
+		{ name = "Sub", text = "Global leaderboards  •  Rebirth Shrine", size = 0.32, color = Color3.new(1, 1, 1) },
+	})
+	for _, sz in ipairs({ -1, 1 }) do
+		part({ Name = "SignPost", Size = Vector3.new(0.8, 13, 0.8), CFrame = CFrame.new(-128, 6.5, sz * 7.4), Color = HUB.metalDark, Parent = p })
+	end
+end
+
+-- ---------------------------------------------------- Goober Mart (east)
+local function buildMart(parent: Instance)
+	local m = Instance.new("Model")
+	m.Name = "GooberMart"
+	m.Parent = parent
+	local stall = prop("P_MartStall")
+	local cf = CFrame.lookAt(Vector3.new(152, 0, 34), Vector3.new(100, 0, 34))
+	if stall then
+		stall:PivotTo(cf)
+		stall.Parent = m
+	else
+		part({ Name = "Counter", Size = Vector3.new(16, 3.6, 4), CFrame = cf * CFrame.new(0, 1.8, 0), Color = Color3.fromRGB(255, 196, 61), Material = Enum.Material.SmoothPlastic, Parent = m })
+		part({ Name = "CounterTop", Size = Vector3.new(16.6, 0.5, 4.6), CFrame = cf * CFrame.new(0, 3.85, 0), Color = Color3.fromRGB(255, 240, 200), Parent = m })
+		for _, sx in ipairs({ -1, 1 }) do
+			part({ Name = "Post", Size = Vector3.new(0.9, 11, 0.9), CFrame = cf * CFrame.new(sx * 7.6, 5.5, 2.2), Color = HUB.curb, Parent = m })
+		end
+		for i = 0, 5 do
+			part({ Name = "Awning", Size = Vector3.new(16 / 6 + 0.02, 0.5, 8), CFrame = cf * CFrame.new(-8 + 16 / 12 + i * 16 / 6, 11.2, 0.6) * CFrame.Angles(math.rad(-14), 0, 0),
+				Color = if i % 2 == 0 then Color3.fromRGB(255, 95, 162) else Color3.fromRGB(255, 255, 255), Parent = m })
+		end
+	end
+	signBoard(m, cf * CFrame.new(0, 13.6, 2.6) * CFrame.Angles(0, math.pi, 0), Vector3.new(15, 3.4, 0.5), {
+		{ name = "Title", text = "GOOBER MART", size = 0.6, color = Color3.fromRGB(255, 196, 61) },
+		{ name = "Sub", text = "Game passes and Slop bundles", size = 0.32, color = Color3.new(1, 1, 1) },
+	})
+	local trigger = part({ Name = "MartPrompt", Size = Vector3.new(6, 5, 6), CFrame = cf * CFrame.new(0, 2.5, -4), Transparency = 1, CanCollide = false, Parent = m })
+	trigger:SetAttribute("OpenPanel", "Shop")
+	local pr = Instance.new("ProximityPrompt")
+	pr.ActionText = "Browse"
+	pr.ObjectText = "Goober Mart"
+	pr.HoldDuration = 0
+	pr.MaxActivationDistance = 12
+	pr.RequiresLineOfSight = false
+	pr.Parent = trigger
+	-- a few display Goober stands on the counter side
+	for _, sx in ipairs({ -1, 1 }) do
+		placeProp(m, "P_Stand", cf * CFrame.new(sx * 11, 0, -1), "DisplayStand")
+	end
+end
+
+-- ------------------------------------------------------------- scenery
+local function buildScenery(parent: Instance)
+	local s = Instance.new("Folder")
+	s.Name = "Scenery"
+	s.Parent = parent
+	local rnd = Random.new(42)
+	-- rolling hills around the edge (outside the boundary walls) for a skyline
+	for i = 0, 27 do
+		local t = i / 28
+		local x, z
+		if t < 0.25 then
+			x, z = -230 + t * 4 * 460, -175
+		elseif t < 0.5 then
+			x, z = 230, -175 + (t - 0.25) * 4 * 350
+		elseif t < 0.75 then
+			x, z = 230 - (t - 0.5) * 4 * 460, 175
+		else
+			x, z = -230, 175 - (t - 0.75) * 4 * 350
+		end
+		local r = rnd:NextNumber(26, 44)
+		part({ Name = "Hill", Shape = Enum.PartType.Ball, Size = Vector3.new(r * 2, r * 2, r * 2), CFrame = CFrame.new(x + rnd:NextNumber(-10, 10), -r * 0.55, z + rnd:NextNumber(-10, 10)),
+			Color = if i % 2 == 0 then Color3.fromRGB(104, 196, 104) else Color3.fromRGB(92, 182, 98), Material = Enum.Material.Grass, CanCollide = false, CastShadow = false, Parent = s })
+	end
+	-- distant mountains (silhouettes in the haze)
+	for i = 0, 9 do
+		local ang = i / 10 * math.pi * 2 + 0.3
+		local d = rnd:NextNumber(950, 1100)
+		local h = rnd:NextNumber(120, 190)
+		-- skip the north, where Halloween Island floats
+		if math.abs(math.cos(ang)) > 0.35 or math.sin(ang) < 0 then
+			part({ Name = "Mountain", Shape = Enum.PartType.Ball, Size = Vector3.new(h * 2.4, h * 2.4, h * 2.4), CFrame = CFrame.new(math.cos(ang) * d, -h * 0.75, math.sin(ang) * d),
+				Color = Color3.fromRGB(176, 186, 226), Material = Enum.Material.SmoothPlastic, CanCollide = false, CastShadow = false, Parent = s })
+		end
+	end
+	-- tree clusters behind the bases and in the corners
+	local spots = {}
+	for _, x in ipairs({ -190, -150, -110, -56, 0, 56, 110, 150, 190 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			table.insert(spots, { x + rnd:NextNumber(-8, 8), sz * rnd:NextNumber(118, 140) })
+		end
+	end
+	for _, c in ipairs({ { -190, -40 }, { -190, 40 }, { 190, -95 }, { 190, 95 }, { -125, -70 }, { -125, 70 }, { 125, 95 } }) do
+		table.insert(spots, c)
+	end
+	for _, sp in ipairs(spots) do
+		local n = rnd:NextInteger(1, 3)
+		for k = 1, n do
+			placeProp(s, if rnd:NextNumber() < 0.75 then "P_MushTree" else "P_SlopBarrel", CFrame.new(sp[1] + rnd:NextNumber(-6, 6), 0, sp[2] + rnd:NextNumber(-6, 6)) * CFrame.Angles(0, rnd:NextNumber(0, 6.28), 0), "Tree")
+			local _ = k
+		end
+	end
+	-- flower beds along the arena ends
+	for _, sx in ipairs({ -1, 1 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			local c = Vector3.new(sx * 118, 0.3, sz * 26)
+			part({ Name = "Bed", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, 9, 9), CFrame = CFrame.new(c) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(120, 84, 60), Material = Enum.Material.Ground, Parent = s })
+			for f = 0, 6 do
+				local a = f / 7 * math.pi * 2
+				part({ Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.new(1.4, 1.4, 1.4), CFrame = CFrame.new(c + Vector3.new(math.cos(a) * 2.6, 0.9, math.sin(a) * 2.6)),
+					Color = ({ Color3.fromRGB(255, 95, 162), Color3.fromRGB(255, 201, 60), Color3.fromRGB(176, 120, 255) })[f % 3 + 1], CanCollide = false, Parent = s })
+			end
+		end
+	end
+	-- direction signpost at the arena ends
+	for _, sx in ipairs({ -1, 1 }) do
+		local cf = CFrame.new(sx * 112, 0.4, -36)
+		part({ Name = "SignPost", Size = Vector3.new(0.8, 10, 0.8), CFrame = cf * CFrame.new(0, 5, 0), Color = HUB.wood, Material = Enum.Material.Wood, Parent = s })
+		signBoard(s, cf * CFrame.new(0, 8.6, 0) * CFrame.Angles(0, if sx > 0 then math.rad(-90) else math.rad(90), 0), Vector3.new(11, 2.4, 0.4), {
+			{ name = "Title", text = if sx > 0 then "GOOBER MART  •  SPOOKY PORTAL" else "CHAMPIONS PLAZA  •  REBIRTH", size = 0.8, color = Color3.new(1, 1, 1) },
+		}, HUB.wood)
 	end
 end
 
 local function buildGround(parent: Instance)
-	part({ Name = "Ground", Size = Vector3.new(420, 4, 300), CFrame = CFrame.new(0, -2, 0), Color = COL.ground, Material = Enum.Material.Plastic, Parent = parent })
-	-- darker grass bands for depth
-	for i, z in ipairs({ -40, 40 }) do
-		part({ Name = "GrassBand", Size = Vector3.new(400, 0.1, 14), CFrame = CFrame.new(0, 0.02, z), Color = COL.groundDark, Material = Enum.Material.Plastic, CanCollide = false, Parent = parent })
-	end
+	part({ Name = "Ground", Size = Vector3.new(420, 4, 300), CFrame = CFrame.new(0, -2, 0), Color = COL.ground, Material = Enum.Material.Grass, Parent = parent })
+	-- the grass beyond the play area, so the edge of the world is hills, not a cliff
+	part({ Name = "OuterGround", Size = Vector3.new(2400, 4, 2400), CFrame = CFrame.new(0, -2.05, 0), Color = COL.ground, Material = Enum.Material.Grass, CastShadow = false, Parent = parent })
 	-- invisible boundary walls
 	for _, w in ipairs({
 		{ Vector3.new(420, 60, 2), Vector3.new(0, 30, 151) },
@@ -600,11 +898,12 @@ function MapBuilder.Build()
 	map.Name = "Map"
 	map.Parent = workspace
 	buildGround(map)
-	buildBelt(map, "Main", M.mainZ, 1)
-	buildBelt(map, "Gold", M.goldZ, -1)
-	buildMachines(map)
-	buildGoldGate(map)
+	buildArena(map)
+	buildBreach(map, "GooberBreach", Vector3.new(0, 0.4, 0), 1.35, "Central")
 	buildLandmarks(map)
+	buildChampionsPlaza(map)
+	buildMart(map)
+	buildScenery(map)
 
 	local plots = Instance.new("Folder")
 	plots.Name = "Plots"
@@ -626,7 +925,7 @@ function MapBuilder.Build()
 	end
 	spawn.Anchored = true
 	spawn.Size = Vector3.new(10, 1, 10)
-	spawn.CFrame = CFrame.new(0, 0.6, 0)
+	spawn.CFrame = CFrame.new(0, 0.6, -28)
 	spawn.Transparency = 1
 	spawn.CanCollide = false
 	spawn.Neutral = true

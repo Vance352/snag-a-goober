@@ -47,9 +47,22 @@ local VOLUME = {
 	Reward = 0.65,
 	Locked = 0.45,
 	Area = 0.5,
+	-- Goober Breach / Blaster sprite
+	BreachCharge = 0.45,
+	BreachAlarm = 0.5,
+	BreachOpen = 0.65,
+	Blast = 0.5,
+	Hit = 0.6,
+	HitConfirm = 0.55,
+	Drop = 0.55,
+	Deliver = 0.65,
 }
 -- until the Halloween sprite is uploaded, its effects borrow similar originals
-local FALLBACK = { Portal = "Event", Candy = "Coin", Bucket = "Coin", Quest = "Upgrade", EventLevel = "LevelUp", Reward = "Place", Locked = "Error", Area = "Rare" }
+local FALLBACK = {
+	Portal = "Event", Candy = "Coin", Bucket = "Coin", Quest = "Upgrade", EventLevel = "LevelUp", Reward = "Place", Locked = "Error", Area = "Rare",
+	-- Goober Breach / Blaster sprite (SAG_SFX3) not uploaded yet
+	BreachCharge = "Area", BreachAlarm = "StealAlarm", BreachOpen = "Portal", Blast = "Snag", Hit = "Caught", HitConfirm = "Coin", Drop = "Error", Deliver = "Place",
+}
 
 function Effects.Start()
 	local group = Instance.new("SoundGroup")
@@ -67,17 +80,20 @@ function Effects.Start()
 		s.Parent = SoundService
 		sounds[name] = s
 	end
-	if A.Sprite2 ~= "" then
-		for name, region in pairs(A.Regions2) do
-			local s = Instance.new("Sound")
-			s.Name = name
-			s.SoundId = A.Sprite2
-			s.Volume = VOLUME[name] or 0.5
-			s.PlaybackRegionsEnabled = true
-			s.PlaybackRegion = NumberRange.new(region[1], region[2])
-			s.SoundGroup = group
-			s.Parent = SoundService
-			sounds[name] = s
+	-- later sprites: Halloween (2), Goober Breach / Blaster (3)
+	for _, sprite in ipairs({ { A.Sprite2, A.Regions2 }, { A.Sprite3, A.Regions3 } }) do
+		if sprite[1] and sprite[1] ~= "" and sprite[2] then
+			for name, region in pairs(sprite[2]) do
+				local s = Instance.new("Sound")
+				s.Name = name
+				s.SoundId = sprite[1]
+				s.Volume = VOLUME[name] or 0.5
+				s.PlaybackRegionsEnabled = true
+				s.PlaybackRegion = NumberRange.new(region[1], region[2])
+				s.SoundGroup = group
+				s.Parent = SoundService
+				sounds[name] = s
+			end
 		end
 	end
 	for name, alt in pairs(FALLBACK) do

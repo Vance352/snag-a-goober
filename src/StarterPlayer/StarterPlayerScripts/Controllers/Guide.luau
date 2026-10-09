@@ -94,26 +94,26 @@ local function hide()
 end
 
 local function findGrabTarget(): BasePart?
-	local belt = Workspace:FindFirstChild("BeltGoobers")
+	local field = Workspace:FindFirstChild("LooseGoobers")
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
-	if not belt or not hrp then
+	if not field or not hrp then
 		return nil
 	end
 	local s = State.data
 	local best, bestScore = nil, math.huge
-	for _, m in ipairs(belt:GetChildren()) do
+	for _, m in ipairs(field:GetChildren()) do
 		local root = m:FindFirstChild("Root") :: BasePart
 		if root then
 			local reserved = m:GetAttribute("ReservedFor")
 			local def = GooberData.ById[m:GetAttribute("GooberId")]
 			local mine = reserved == player.UserId
 			local price = m:GetAttribute("Price") or def.price
-			local ok = (mine or not reserved) and m:GetAttribute("Line") == "Main" and (s == nil or price <= s.coins)
+			local ok = (mine or not reserved) and m:GetAttribute("Line") == "Main" and m:GetAttribute("Mode") == "loose" and (s == nil or price <= s.coins)
 			if ok then
 				local score = (root.Position - hrp.Position).Magnitude - (if mine then 1000 else 0)
-				-- prefer goobers that are still heading toward us / not about to fall off
-				if root.Position.X > 100 then
+				-- prefer Goobers that won't dive back into the Breach any second
+				if (m:GetAttribute("Expire") or math.huge) - Workspace:GetServerTimeNow() < 8 then
 					score += 500
 				end
 				if score < bestScore then

@@ -204,6 +204,7 @@ function StealService.Fail(thief: Player, reason: string)
 			left = "",
 			teleport = "The Goober slipped away - no shortcuts!",
 			victimLeft = "Its owner left - the Goober went home with them.",
+			blasted = "SPLAT! You were blasted and the stolen Goober ran home.",
 		})[reason] or "The stolen Goober got away!"
 		if thief.Parent and text ~= "" then
 			S.Session.Toast(thief, text, "red")

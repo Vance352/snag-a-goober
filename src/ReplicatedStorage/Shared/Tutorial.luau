@@ -4,7 +4,7 @@
 ]]
 local Tutorial = {}
 
-Tutorial.Grab = 0 -- snag your first Goober off the belt
+Tutorial.Grab = 0 -- snag your first Goober from the Goober Breach
 Tutorial.Home = 1 -- carry it into your base
 Tutorial.Collect = 2 -- step on the Cash Pad
 Tutorial.Upgrade = 3 -- buy any upgrade
@@ -19,7 +19,7 @@ Tutorial.Advance = {
 }
 
 Tutorial.Hints = {
-	[0] = "Grab a Goober off the conveyor!",
+	[0] = "The Goober Breach spits out Goobers - grab one!",
 	[1] = "Bring it home to your base!",
 	[2] = "Step on the Cash Pad to collect!",
 	[3] = "Buy an upgrade at the Slop-O-Matic!",

@@ -3,7 +3,7 @@
 	Assets/BlenderSource/scripts/goobers.py under the same ids.
 
 	income = Slop Coins per second (before multipliers)
-	price  = Slop Coins to snag it off the conveyor
+	price  = Slop Coins to snag it when the Goober Breach spits it out
 	anim   = idle animation style used by the client animator
 	eventOnly = only spawns during a CHAOS RIFT event
 	pool   = which conveyors can roll it: "Classic" (the Slop and Gold lines) or

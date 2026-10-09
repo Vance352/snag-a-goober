@@ -2,6 +2,12 @@
 
 Newest entry at the top.
 
+## 2026-10-10 (Goober Breach overhaul, part 1)
+- The conveyor belts are gone. The Goober Breach (a charging dimensional reactor in the new Breach Arena) blasts bursts of Goobers across the plaza every ~15 s: SLOP SURGE, GOLD RUSH (Gold Goobers, Lv 10) and RARE RIFT (rarer, announced). Rare Goobers keep hopping around and have to be chased; unsnagged ones dive back in. Personal Drops are spat out near your base. Halloween Island's cauldrons are spooky mini-breaches. (Shared/Breach, BreachService, BreachFx, World.)
+- Goober Blaster (CombatService, Blaster): splat a carrier to knock their Goober loose - it drops for anyone (including them) to grab; a stolen Goober goes straight home. Server-validated range/aim/line of sight/cooldowns, protections (own base, spawn, snag grace, post-hit immunity, same-target, new players). Dying drops your Goober (resetting no longer escapes a chase). New stats: delivered, combat steals, recovered, hits (save v3).
+- Global leaderboards (LeaderboardService, OrderedDataStores): Top Earners, Goobers Collected, Master Thieves, Highest Level, Rare Collectors - boards in the new Champions Plaza and a Leaderboard panel (global / this server).
+- Map: Breach Arena with the Breach, rune circle, benches and lamps; Champions Plaza (boards + Rebirth Shrine); Goober Mart stall (opens the Shop); hills, tree clusters, distant mountains; plot paths to the arena. Blender: Goober Breach frame + ring, Goober Blaster, Mart stall (Assets/Exports/SAG_Hub.fbx, import pending). New SFX sprite (SAG_SFX3, upload pending). Icons: crown, breach, blaster.
+
 ## 2026-10-10
 - Experience renamed to "[🎃 HALLOWEEN] Snag A Goober" and the Halloween icon set as the game icon (Creator Dashboard). The Halloween thumbnail (JPG copy for upload) still has to be added by hand.
 - Halloween store art: game icon (Assets/StorePage/icon_halloween_512.png) and thumbnail (thumb_halloween_1920x1080.png), rendered from the in-game models by Assets/BlenderSource/scripts/halloween_store.py.
