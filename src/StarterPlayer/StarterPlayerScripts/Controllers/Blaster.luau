@@ -91,6 +91,15 @@ local function buildGun(): Model
 		end
 	end
 	m.Name = "GooBlaster"
+	if player:GetAttribute("Glam") then
+		-- Goober Glam: a golden blaster
+		for _, d in ipairs(m:GetDescendants()) do
+			if d:IsA("BasePart") and d.Material ~= Enum.Material.Neon then
+				d.Color = Color3.fromRGB(255, 196, 61)
+				d.Material = Enum.Material.Foil
+			end
+		end
+	end
 	local tip = Instance.new("Attachment")
 	tip.Name = "Tip"
 	tip.Position = Vector3.new(0, 0.05, -1.6)

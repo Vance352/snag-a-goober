@@ -94,11 +94,35 @@ function CharacterService.RefreshTag(player: Player)
 	local name = tag:FindFirstChild("Name") :: TextLabel
 	name.Text = (if vip then "[VIP] " else "") .. player.DisplayName
 	name.TextColor3 = if vip then Color3.fromRGB(255, 214, 80) else Color3.new(1, 1, 1)
+	-- Goober Glam: a shimmering rainbow name
+	local grad = name:FindFirstChild("GlamGradient")
+	if st.passes.Glam and not grad then
+		grad = Instance.new("UIGradient")
+		grad.Name = "GlamGradient"
+		grad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 120, 160)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 230, 120)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(140, 210, 255)),
+		})
+		grad.Parent = name
+		name.TextColor3 = Color3.new(1, 1, 1)
+	end
 	local stars = if d.rebirths > 0 then ("  ★" .. d.rebirths) else ""
 	;(tag:FindFirstChild("Level") :: TextLabel).Text = ("Lv %d%s"):format(d.level, stars)
 	;(tag:FindFirstChild("Title") :: TextLabel).Text = d.title or ""
 	local thief = st.carry ~= nil and st.carry.source == "steal"
-	;(tag:FindFirstChild("Thief") :: TextLabel).Text = if thief then "THIEF!" else ""
+	local thiefLabel = tag:FindFirstChild("Thief") :: TextLabel
+	if thief then
+		thiefLabel.Text = "THIEF!"
+		thiefLabel.TextColor3 = Color3.fromRGB(255, 80, 100)
+	elseif st.carry then
+		-- carrying Breach loot: everyone can see what's worth chasing
+		local def = GooberData.ById[st.carry.id]
+		thiefLabel.Text = if def then ("CARRYING %s!"):format(string.upper(def.rarity)) else ""
+		thiefLabel.TextColor3 = if def then Config.Rarities[def.rarity].color else Color3.new(1, 1, 1)
+	else
+		thiefLabel.Text = ""
+	end
 	player:SetAttribute("VIP", vip)
 end
 
@@ -106,8 +130,8 @@ function CharacterService.ApplyVIP(player: Player)
 	local st = S.Session.Get(player)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not st or not hrp or not st.passes.VIP or hrp:FindFirstChild("VIPTrail") then
-		return
+	if not st or not hrp or not st.passes.VIP or hrp:FindFirstChild("VIPTrail") or st.passes.Glam then
+		return -- (Goober Glam's rainbow trail replaces the VIP one)
 	end
 	local a0 = Instance.new("Attachment")
 	a0.Name = "VIPTrailA0"
@@ -142,6 +166,60 @@ function CharacterService.ApplyVIP(player: Player)
 	sparkles.Parent = hrp
 end
 
+-- Goober Glam (cosmetic): rainbow glitter trail + the "Glam" attribute the
+-- client reads for the golden Goober Blaster and delivery glitter
+function CharacterService.ApplyGlam(player: Player)
+	local st = S.Session.Get(player)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not st or not st.passes.Glam then
+		return
+	end
+	player:SetAttribute("Glam", true)
+	if not hrp or hrp:FindFirstChild("GlamTrail") then
+		return
+	end
+	for _, n in ipairs({ "VIPTrail", "VIPSparkles" }) do
+		local old = hrp:FindFirstChild(n)
+		if old then
+			old:Destroy()
+		end
+	end
+	local a0 = hrp:FindFirstChild("GlamA0") or Instance.new("Attachment")
+	a0.Name = "GlamA0"
+	a0.Position = Vector3.new(0, 0.9, 0.4)
+	a0.Parent = hrp
+	local a1 = hrp:FindFirstChild("GlamA1") or Instance.new("Attachment")
+	a1.Name = "GlamA1"
+	a1.Position = Vector3.new(0, -1.5, 0.4)
+	a1.Parent = hrp
+	local trail = Instance.new("Trail")
+	trail.Name = "GlamTrail"
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Lifetime = 0.6
+	trail.LightEmission = 0.7
+	trail.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 90, 120)),
+		ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 200, 60)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(123, 227, 90)),
+		ColorSequenceKeypoint.new(0.75, Color3.fromRGB(80, 170, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 110, 255)),
+	})
+	trail.Transparency = NumberSequence.new(0.15, 1)
+	trail.Parent = hrp
+	local glitter = Instance.new("ParticleEmitter")
+	glitter.Name = "GlamGlitter"
+	glitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	glitter.Rate = 8
+	glitter.Lifetime = NumberRange.new(0.5, 0.9)
+	glitter.Speed = NumberRange.new(0.5, 2)
+	glitter.Size = NumberSequence.new(0.3, 0)
+	glitter.Color = ColorSequence.new(Color3.fromRGB(255, 160, 220), Color3.fromRGB(160, 220, 255))
+	glitter.LightEmission = 0.9
+	glitter.Parent = hrp
+end
+
 local function onCharacter(player: Player, char: Model)
 	local hum = char:WaitForChild("Humanoid", 10) :: Humanoid
 	local hrp = char:WaitForChild("HumanoidRootPart", 10) :: BasePart
@@ -163,6 +241,7 @@ local function onCharacter(player: Player, char: Model)
 	CharacterService.ApplySpeed(player)
 	CharacterService.RefreshTag(player)
 	CharacterService.ApplyVIP(player)
+	CharacterService.ApplyGlam(player)
 	hum.Died:Connect(function()
 		S.Carry.Settle(player, "died")
 	end)

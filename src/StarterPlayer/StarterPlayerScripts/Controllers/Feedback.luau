@@ -353,6 +353,11 @@ function EFFECT.PlaceFx(p)
 		local hrp = myHrp()
 		if hrp then
 			Effects.FloatText(hrp.Position + Vector3.new(0, 5, 0), "DELIVERED!", Color3.fromRGB(150, 255, 110), true)
+			if player:GetAttribute("Glam") then
+				-- Goober Glam: glitter splash
+				Effects.Burst(hrp.Position + Vector3.new(0, 2, 0), Color3.fromRGB(255, 150, 220), 50, 1)
+				Effects.Burst(hrp.Position + Vector3.new(0, 2, 0), Color3.fromRGB(140, 210, 255), 40, 0.8)
+			end
 		end
 	end
 end

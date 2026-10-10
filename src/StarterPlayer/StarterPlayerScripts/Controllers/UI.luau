@@ -37,7 +37,7 @@ local panelRefresh: { [string]: () -> () } = {}
 
 -- ------------------------------------------------------------ helpers
 local UPGRADE_ICON = { Speed = "shoe", Slots = "stand", Income = "flask", Lock = "lock" }
-local PASS_ICON = { VIP = "trophy", DoubleCoins = "coin", ExtraSlots = "stand", SprintBoots = "shoe", AutoCollect = "coin", Lucky = "gift" }
+local PASS_ICON = { VIP = "trophy", DoubleCoins = "coin", ExtraSlots = "stand", SprintBoots = "shoe", AutoCollect = "coin", Lucky = "gift", Glam = "blaster" }
 local PRODUCT_ICON = { CoinsSmall = "coin", CoinsMedium = "coin", CoinsLarge = "coin", Boost = "bolt" }
 
 local function rarityColor(r: string): Color3

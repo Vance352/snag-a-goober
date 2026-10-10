@@ -275,7 +275,7 @@ Config.GamePasses = {
 		icon = "rbxassetid://109009677275707",
 		name = "Sprint Boots",
 		price = 99,
-		desc = "Permanently +4 walk speed on top of your Zoomies upgrade.",
+		desc = "Permanently +4 walk speed on top of your Zoomies upgrade (not while carrying a Breach Goober - deliveries stay fair).",
 	},
 	AutoCollect = {
 		id = 2023184287,
@@ -289,11 +289,19 @@ Config.GamePasses = {
 		icon = "rbxassetid://131853608626044",
 		name = "Lucky Goober",
 		price = 199,
-		desc = "Better Personal Drops: Rare+ 18% -> 24.8%. Tap ODDS INFO for every rarity.",
+		desc = "Luckier Personal Drops from the Goober Breach: Rare+ 18% -> 24.8%. Tap ODDS INFO for every rarity.",
 		randomModifier = true,
 	},
+	-- Goober Breach update (cosmetic only)
+	Glam = {
+		id = 2026448294,
+		icon = "rbxassetid://102018635167993",
+		name = "Goober Glam",
+		price = 149,
+		desc = "Cosmetic bundle: rainbow glitter trail, a golden Goober Blaster, a shimmering name tag and a glitter splash when you deliver. No gameplay advantage.",
+	},
 }
-Config.PassOrder = { "DoubleCoins", "AutoCollect", "ExtraSlots", "Lucky", "SprintBoots", "VIP" }
+Config.PassOrder = { "DoubleCoins", "AutoCollect", "ExtraSlots", "Lucky", "SprintBoots", "VIP", "Glam" }
 
 Config.Products = {
 	CoinsSmall = {

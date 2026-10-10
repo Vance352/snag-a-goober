@@ -78,6 +78,9 @@ function MonetizationService.ApplyPass(player: Player, key: string)
 	elseif key == "VIP" then
 		S.Character.RefreshTag(player)
 		S.Character.ApplyVIP(player)
+	elseif key == "Glam" then
+		S.Character.RefreshTag(player)
+		S.Character.ApplyGlam(player)
 	end
 	S.Session.MarkDirty(player)
 end

@@ -3,6 +3,24 @@
 Evidence from real Roblox Studio sessions (place 90695592143707). "Harness" =
 Studio-only `ServerStorage.SAG_Test` (src/ServerScriptService/Testing/TestHarness.luau).
 
+## 2026-10-10 - Goober Breach + Goober Blaster, two-player tests (Studio server + 2 clients)
+
+Player1 (-1), Player2 (-2), both set to Lv 10 / tutorial done. Session started by Claude through Studio's Test menu
+(Server and Clients + Add Clients x2). Harness `call` runs the real handlers the remotes reach.
+
+| # | Brief test | Result |
+|---|---|---|
+| 1 | Breach blast -> snag -> carry | PASS - every site cycles Charging/Unstable/Blast; 18 Goobers on the field after one cycle (Central 5 + drop, cauldrons 4/3/3/2); snag removes it from the field, second snag ignored |
+| 2 | Delivery | PASS - carried home, placed, `delivered` +1 (solo test earlier) |
+| 3 | Combat hit | PASS - blast inside the 1.5 s snag grace refused ("They only just grabbed it!"); real hit: HitConfirm / GotBlasted, carrier staggered (WalkSpeed 0), pushed exactly 4 studs, Goober dropped beside them |
+| 4 | Counterplay / not auto-awarded | PASS - the hit carrier is "dizzy" for 1.2 s, then anyone can grab; the attacker had to walk over and grab it (free), victim told "grabbed your Goober" and later "got it home"; attacker `combatSteals` +1 only on delivery; carrier re-grabbing their own drop counts as `recovered` |
+| 5 | Race | PASS - both players grabbed the same dropped Goober in the same frame: exactly one carrier, one model |
+| 6 | Disconnects / resets | PASS - dying drops the Goober where you fell (no reset escape); unclaimed drops waddle home to the dropper; dropper leaving removes it from the field (it lands home before the save); carrier leaving leaves no model or duplicate behind |
+| 7 | Safe zones / limits | PASS - out of range (22 studs), through a leaderboard board, just-hit immunity, shooter carrying, shooter below Lv 3, target 1 stud outside their own base, target within spawn protection: all refused with a reason |
+| - | Console (server) | Clean |
+
+Not covered here: real touch input (Studio-emulated only), saving of the leaving players' Goobers (Studio test players don't persist - checked in a solo session instead).
+
 ## 2026-10-09 - Halloween update, two-player theft tests (Studio server + 2 clients)
 
 Players: Player1 (-1), Player2 (-2), build after review round 3 (6bd5743 + badge/daily-copy fixes). Session started
