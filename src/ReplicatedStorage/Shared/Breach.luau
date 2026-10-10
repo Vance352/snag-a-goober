@@ -30,7 +30,9 @@ Breach.Life = { Common = 38, Uncommon = 40, Rare = 42, Epic = 45, Legendary = 50
 Breach.HopEvery = { Rare = { 4.5, 6 }, Epic = { 3.2, 4.5 }, Legendary = { 2.6, 3.6 }, Secret = { 2.2, 3.0 } }
 Breach.HopDistance = { 7, 12 }
 Breach.DropLife = 20 -- seconds a knocked-loose Goober stays grabbable
-Breach.DropLockout = 1.2 -- the carrier who dropped it can't re-grab for this long (stagger)
+Breach.DropLockout = 1.0 -- the carrier who dropped it AND whoever blasted it can't grab for this long
+Breach.DropSnagRange = 8 -- dropped Goobers must be reached (a real race, not a click from afar)
+Breach.DropDistance = 11 -- a blasted Goober flies this far, off to the side of the shot
 
 -- blast types for the main Breach (picked each cycle); weight = how often
 Breach.Types = {
@@ -48,7 +50,7 @@ Breach.Sites = {
 	Central = {
 		center = Vector3.new(0, 0, 0),
 		mouth = Vector3.new(0, 17, 0),
-		field = { -104, 104, -32, 32 },
+		field = { -104, 104, -26, 26 }, -- (stays 13+ studs clear of the plot doors)
 		avoid = 21,
 		types = true, -- uses Breach.Types
 		personalDrops = true,

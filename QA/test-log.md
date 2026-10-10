@@ -3,6 +3,28 @@
 Evidence from real Roblox Studio sessions (place 90695592143707). "Harness" =
 Studio-only `ServerStorage.SAG_Test` (src/ServerScriptService/Testing/TestHarness.luau).
 
+## 2026-10-10 - Review round 1 fixes, two-player retest (Studio server + 2 clients)
+
+Player1 (-1), Player2 (-2), Lv 10 / tutorial done. New harness helpers: `get`, `tpLook`, `char`.
+
+| Check | Result |
+|---|---|
+| Blaster visible to others | PASS - server builds GooBlaster on both characters; Player1's client sees Player2's |
+| Snag grace | PASS - blast 0.3 s after snag refused while the carrier hadn't moved; after the carrier moved 7 studs a blast 0.28 s after the snag hit |
+| Drop race | PASS - hit at 6 studs: Goober landed (-54.5, -13.1), 10.8 studs from the carrier and 13.8 from the shooter; shooter "recoiling", carrier "dizzy" for 1 s; shooter at 13 studs told "Get closer" (8-stud drop range) |
+| Pair steal credit | PASS - first combat steal +1; same pair again 10 s later: delivered +1, combatSteals unchanged |
+| Leave mid-carry | PASS - real `Carry.OnRemoving`: Goober dropped in the field, refund $25 of $50, delivered unchanged, no carry; re-grabbing as the leaver charged the $25 back |
+| Full base + drop | PASS - drop kept its stand (16 used with drop), base filled to 18/18 -> new snag refused "Your base is full!"; drop expired and waddled home (17 -> 18 Goobers), nothing lost |
+| Facing check | PASS - shooter facing away with aim at the carrier: no hit; facing them: hit |
+| Sprint Boots rest | PASS - WalkSpeed 21.5 -> 17.5 right after firing -> 21.5 after 3 s |
+| Death drop | PASS - Health 0 while carrying: Goober dropped (dropBy, paidBy set), stand still reserved |
+| "Too slow" | PASS - second snagger told "Too slow - Player2 grabbed it!" |
+| Island cauldrons idle | PASS - all four stay in Cooldown with nobody there (0 island Goobers); Player1 in the Pumpkin Patch: Charging -> Unstable -> Blast, 4 Goobers |
+| Goober Mart | PASS - E at the stall opens the Shop |
+| Champions Plaza | PASS - client screenshot: all five boards visible from the entrance, shrine to the side |
+| Leaderboard panel | PASS - short tabs, "You: $59.7M  •  not in the top 10 yet" (test player never ranks) |
+| Console | Clean on server and client (one error came from a probe script) |
+
 ## 2026-10-10 - Goober Breach + Goober Blaster, two-player tests (Studio server + 2 clients)
 
 Player1 (-1), Player2 (-2), both set to Lv 10 / tutorial done. Session started by Claude through Studio's Test menu

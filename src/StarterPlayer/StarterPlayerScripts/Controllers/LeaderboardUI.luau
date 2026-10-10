@@ -54,13 +54,14 @@ function LeaderboardUI.Build()
 	local refresh
 
 	for i, c in ipairs(Leaderboards.Categories) do
-		local b = Theme.button({ Size = UDim2.fromOffset(150, 46), Text = "", Color = C.panel2, LayoutOrder = i, Parent = tabs }, function()
+		-- short tab names stay readable on phones (the full title is in the stat line)
+		local b = Theme.button({ Size = UDim2.fromOffset(138, 46), Text = "", Color = C.panel2, LayoutOrder = i, Parent = tabs }, function()
 			Effects.Play("Click")
 			current = c.key
 			refresh()
 		end)
 		Theme.icon(c.icon, { Position = UDim2.fromOffset(4, 5), Size = UDim2.fromOffset(36, 36), Parent = b })
-		Theme.label({ AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 42, 0.5, 0), Size = UDim2.new(1, -46, 0, 22), Text = c.title, MaxText = 15, MinText = 9, Parent = b })
+		Theme.label({ AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 42, 0.5, 0), Size = UDim2.new(1, -46, 0, 24), Text = c.tab or c.title, MaxText = 18, MinText = 14, Parent = b })
 		tabButtons[c.key] = { b, c.color }
 	end
 
@@ -108,7 +109,7 @@ function LeaderboardUI.Build()
 
 	local function show(data)
 		local cat = Leaderboards.ByKey[current]
-		statLine.Text = cat.stat .. (if scope == "server" then "  •  players in this server" else "  •  all servers")
+		statLine.Text = cat.title .. "  •  " .. cat.stat .. (if scope == "server" then "  •  this server" else "  •  all servers")
 		if not data then
 			status.Text = "Rankings unavailable - try again soon"
 			for _, r in ipairs(rows) do
@@ -144,7 +145,15 @@ function LeaderboardUI.Build()
 		end
 		empty.Visible = #entries == 0
 		empty.Text = if scope == "global" and not data.updatedAt then "Loading the global rankings..." else "Nobody on this board yet - be the first!"
-		you.Text = if data.you then ("You: %s"):format(fmt(current, data.you)) else ""
+		local myRank
+		for i, e in ipairs(entries) do
+			if e.userId == player.UserId then
+				myRank = e.rank or i
+			end
+		end
+		you.Text = if not data.you then ""
+			elseif myRank then ("You: #%d  •  %s"):format(myRank, fmt(current, data.you))
+			else ("You: %s  •  not in the top %d yet"):format(fmt(current, data.you), Leaderboards.Size)
 	end
 
 	refresh = function()

@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Edit-time tool: require a fresh copy so Studio's module cache never serves a
 -- stale Config after a sync.
 local Config = require(ReplicatedStorage.Shared:Clone().Config) -- whole folder: Config requires its siblings
+local Halloween = require(ReplicatedStorage.Shared:Clone().Halloween)
 
 local MapBuilder = {}
 local M = Config.Map
@@ -366,16 +367,18 @@ local function placeProp(parent: Instance, name: string, cf: CFrame, newName: st
 end
 
 local function buildLandmarks(parent: Instance)
-	-- Rebirth Shrine beyond the Gusher (west), Chaos Rift beyond the Slop Vat (east)
-	local shrineCf = CFrame.new(-160, 0.4, 0) * CFrame.Angles(0, math.rad(-90), 0)
+	-- Rebirth Shrine on the north-east side of Champions Plaza (out of the way of
+	-- the leaderboards), Chaos Rift in the east market
+	local spos = Vector3.new(-139, 0.4, -27)
+	local shrineCf = CFrame.lookAt(spos, Vector3.new(-160, 0.4, 0))
 	local shrine = placeProp(parent, "P_RebirthShrine", shrineCf, "RebirthShrine")
 	if not shrine then
 		shrine = Instance.new("Model")
 		shrine.Name = "RebirthShrine"
-		part({ Name = "Dais", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, 18, 18), CFrame = CFrame.new(-160, 1, 0) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(237, 230, 255), Parent = shrine })
+		part({ Name = "Dais", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, 18, 18), CFrame = CFrame.new(spos + Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(237, 230, 255), Parent = shrine })
 		shrine.Parent = parent
 	end
-	local sp = part({ Name = "RebirthPrompt", Size = Vector3.new(6, 6, 6), CFrame = CFrame.new(-160, 4.4, 0), Transparency = 1, CanCollide = false, Parent = shrine })
+	local sp = part({ Name = "RebirthPrompt", Size = Vector3.new(6, 6, 6), CFrame = CFrame.new(spos + Vector3.new(0, 4, 0)), Transparency = 1, CanCollide = false, Parent = shrine })
 	billboard(sp, "ShrineTag", Vector2.new(12, 3.4), Vector3.new(0, 15, 0), "REBIRTH SHRINE", Color3.fromRGB(210, 150, 255))
 	local rift = placeProp(parent, "P_ChaosRift", CFrame.new(164, 0, 0), "ChaosRift")
 	if rift then
@@ -504,8 +507,8 @@ local function buildArena(parent: Instance)
 		end
 	end
 	for _, sx in ipairs({ -1, 1 }) do
-		placeProp(parent, "P_LampPost", CFrame.new(sx * 130, 0.4, -10), "Lamp")
-		placeProp(parent, "P_LampPost", CFrame.new(sx * 130, 0.4, 10), "Lamp")
+		placeProp(parent, "P_LampPost", CFrame.new(sx * 130, 0.4, -14), "Lamp")
+		placeProp(parent, "P_LampPost", CFrame.new(sx * 130, 0.4, 14), "Lamp")
 	end
 	return a
 end
@@ -617,7 +620,7 @@ local function leaderboardBoard(parent: Instance, cf: CFrame, cat)
 	local m = Instance.new("Model")
 	m.Name = "Leaderboard_" .. cat.key
 	m:SetAttribute("Category", cat.key)
-	local W, H = 13, 17
+	local W, H = 16, 22 -- (big rows: readable from across the plaza)
 	-- frame: posts, top crest
 	for _, sx in ipairs({ -1, 1 }) do
 		part({ Name = "Post", Size = Vector3.new(1, H + 3, 1), CFrame = cf * CFrame.new(sx * (W / 2 + 0.5), (H + 3) / 2, 0), Color = HUB.metalDark, Material = Enum.Material.Metal, Parent = m })
@@ -628,7 +631,7 @@ local function leaderboardBoard(parent: Instance, cf: CFrame, cat)
 	gui.Name = "BoardGui"
 	gui.Face = Enum.NormalId.Front
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 36
+	gui.PixelsPerStud = 30
 	gui.LightInfluence = 0
 	gui.MaxDistance = 140
 	local function lbl(parent2, name, pos, size, text, color, align)
@@ -699,19 +702,25 @@ local function buildChampionsPlaza(parent: Instance)
 	local c = Vector3.new(-160, 0, 0)
 	part({ Name = "Floor", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 74, 74), CFrame = CFrame.new(c + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = HUB.arenaDark, Material = Enum.Material.Cobblestone, Parent = p })
 	part({ Name = "Walk", Size = Vector3.new(30, 0.4, 14), CFrame = CFrame.new(-120, 0.2, 0), Color = HUB.arenaDark, Material = Enum.Material.Cobblestone, Parent = p })
-	-- five boards on an arc, all facing the plaza centre (the Rebirth Shrine)
+	-- five boards on an arc around the west half, all facing the plaza centre;
+	-- nothing stands between them and the entrance (the shrine is off to the side)
 	local n = #LB_CATEGORIES
 	for i, cat in ipairs(LB_CATEGORIES) do
-		local ang = math.rad(180 + (i - (n + 1) / 2) * 32)
-		local pos = c + Vector3.new(math.cos(ang) * 30, 0, math.sin(ang) * 30)
-		leaderboardBoard(p, CFrame.lookAt(pos, Vector3.new(c.X, 0, c.Z)), cat)
+		local ang = math.rad(180 + (i - (n + 1) / 2) * 34)
+		local pos = c + Vector3.new(math.cos(ang) * 33, 0, math.sin(ang) * 33)
+		leaderboardBoard(p, CFrame.lookAt(pos, Vector3.new(c.X + 14, 0, c.Z)), cat)
 	end
-	signBoard(p, CFrame.new(-128, 13, 0) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(16, 3.6, 0.5), {
-		{ name = "Title", text = "CHAMPIONS PLAZA", size = 0.6, color = HUB.gold },
-		{ name = "Sub", text = "Global leaderboards  •  Rebirth Shrine", size = 0.32, color = Color3.new(1, 1, 1) },
+	-- a medal mosaic in the middle of the plaza (flat: it hides nothing)
+	for i, col in ipairs({ HUB.gold, Color3.fromRGB(205, 215, 230), Color3.fromRGB(215, 140, 80) }) do
+		part({ Name = "Medal", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 16 - i * 4, 16 - i * 4), CFrame = CFrame.new(c + Vector3.new(0, 0.42 + i * 0.02, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = col, Material = Enum.Material.SmoothPlastic, CanCollide = false, Parent = p })
+	end
+	signBoard(p, CFrame.new(-128, 13, 0) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(21, 3.8, 0.5), {
+		{ name = "Title", text = "CHAMPIONS PLAZA", size = 0.58, color = HUB.gold },
+		{ name = "Sub", text = "Leaderboards  •  Rebirth Shrine", size = 0.3, color = Color3.new(1, 1, 1) },
 	})
 	for _, sz in ipairs({ -1, 1 }) do
-		part({ Name = "SignPost", Size = Vector3.new(0.8, 13, 0.8), CFrame = CFrame.new(-128, 6.5, sz * 7.4), Color = HUB.metalDark, Parent = p })
+		part({ Name = "SignPost", Size = Vector3.new(0.8, 13, 0.8), CFrame = CFrame.new(-128, 6.5, sz * 9.9), Color = HUB.metalDark, Parent = p })
 	end
 end
 
@@ -752,6 +761,50 @@ local function buildMart(parent: Instance)
 	-- a few display Goober stands on the counter side
 	for _, sx in ipairs({ -1, 1 }) do
 		placeProp(m, "P_Stand", cf * CFrame.new(sx * 11, 0, -1), "DisplayStand")
+	end
+end
+
+-- ---------------------------------------------------- east market (paths)
+-- Paving and paths so the Chaos Rift, the Goober Mart and the Spooky Portal sit
+-- in a market square joined to the arena, instead of on bare grass.
+local function buildEastMarket(parent: Instance)
+	local e = Instance.new("Model")
+	e.Name = "EastMarket"
+	e.Parent = parent
+	local function pave(name, size, cf)
+		return part({ Name = name, Size = size, CFrame = cf, Color = HUB.arenaDark, Material = Enum.Material.Cobblestone, Parent = e })
+	end
+	local function disc(name, pos: Vector3, d: number)
+		return part({ Name = name, Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.38, d, d), CFrame = CFrame.new(pos.X, 0.19, pos.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = HUB.arenaDark, Material = Enum.Material.Cobblestone, Parent = e })
+	end
+	local function path(name, a: Vector3, b: Vector3, w: number)
+		local mid = (a + b) / 2
+		local len = (Vector3.new(b.X, 0, b.Z) - Vector3.new(a.X, 0, a.Z)).Magnitude
+		return pave(name, Vector3.new(w, 0.38, len), CFrame.lookAt(Vector3.new(mid.X, 0.19, mid.Z), Vector3.new(b.X, 0.19, b.Z)))
+	end
+	local rift, mart, portal = Vector3.new(164, 0, 0), Vector3.new(146, 0, 34), Halloween.MainPortal.pos
+	disc("Square", rift, 46)
+	disc("MartPad", mart, 34)
+	disc("PortalPad", portal, 30)
+	path("Path", Vector3.new(128, 0, 0), rift, 14)
+	path("Path", rift, mart, 12)
+	path("Path", rift, portal, 12)
+	-- lamps and planters along the edges
+	for _, a in ipairs({ 30, 150, 210, 330 }) do
+		local r = math.rad(a)
+		placeProp(parent, "P_LampPost", CFrame.new(rift.X + math.cos(r) * 21, 0.4, rift.Z + math.sin(r) * 21), "Lamp")
+	end
+	for _, pos in ipairs({ Vector3.new(146, 0, -24), Vector3.new(160, 0, 24), Vector3.new(134, 0, -40) }) do
+		placeProp(parent, "P_LampPost", CFrame.new(pos.X, 0.4, pos.Z), "Lamp")
+	end
+	for i = 0, 5 do
+		local r = math.rad(60 * i + 15)
+		local pos = mart + Vector3.new(math.cos(r) * 17.5, 0, math.sin(r) * 17.5)
+		if pos.X > mart.X - 6 then -- (the side facing away from the counter)
+			part({ Name = "Planter", Size = Vector3.new(3, 1.4, 3), CFrame = CFrame.new(pos.X, 0.9, pos.Z), Color = HUB.wood, Material = Enum.Material.Wood, Parent = e })
+			part({ Name = "Shrub", Shape = Enum.PartType.Ball, Size = Vector3.new(3.2, 3.2, 3.2), CFrame = CFrame.new(pos.X, 2.6, pos.Z), Color = Color3.fromRGB(95, 180, 70), Material = Enum.Material.Grass, Parent = e })
+		end
 	end
 end
 
@@ -903,7 +956,9 @@ function MapBuilder.Build()
 	buildLandmarks(map)
 	buildChampionsPlaza(map)
 	buildMart(map)
+	buildEastMarket(map)
 	buildScenery(map)
+
 
 	local plots = Instance.new("Folder")
 	plots.Name = "Plots"

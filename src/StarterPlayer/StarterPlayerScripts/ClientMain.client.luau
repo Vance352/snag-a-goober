@@ -28,6 +28,9 @@ end
 World.OpenRebirth = function()
 	UI.Open("Rebirth")
 end
+World.OpenPanel = function(name)
+	UI.Open(name)
+end
 World.Start()
 HalloweenClient.Start()
 BreachFx.Start()

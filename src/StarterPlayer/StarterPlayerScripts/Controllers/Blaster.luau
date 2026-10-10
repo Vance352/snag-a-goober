@@ -14,7 +14,6 @@ local ContextActionService = game:GetService("ContextActionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
@@ -25,7 +24,6 @@ local Tutorial = require(ReplicatedStorage.Shared.Tutorial)
 
 local Effects = require(script.Parent.Effects)
 local State = require(script.Parent.State)
-local Theme = require(script.Parent.Theme)
 local UI = require(script.Parent.UI)
 
 local player = Players.LocalPlayer
@@ -35,6 +33,7 @@ local GOO = Color3.fromRGB(123, 227, 90)
 
 local readyAt = 0
 local gun: Model? = nil
+local lockedToastAt = -100
 
 local function hrp(): BasePart?
 	local c = player.Character
@@ -47,89 +46,11 @@ local function canUse(): boolean
 end
 
 -- --------------------------------------------------------------- the gun
-local function buildGun(): Model
-	local tpl = ReplicatedStorage:FindFirstChild("Assets") and ReplicatedStorage.Assets:FindFirstChild("Props") and ReplicatedStorage.Assets.Props:FindFirstChild("P_GooBlaster")
-	local m: Model
-	if tpl then
-		m = tpl:Clone()
-		m:ScaleTo(0.55)
-	else
-		-- simple built-in stand-in (until the Blender model is imported)
-		m = Instance.new("Model")
-		local function p(name, size, cf, color, mat, shape)
-			local x = Instance.new("Part")
-			x.Name = name
-			x.Size = size
-			x.CFrame = cf
-			x.Color = color
-			x.Material = mat or Enum.Material.SmoothPlastic
-			if shape then
-				x.Shape = shape
-			end
-			x.Parent = m
-			return x
-		end
-		local body = p("Body", Vector3.new(0.7, 0.75, 1.9), CFrame.new(0, 0, 0), Color3.fromRGB(110, 70, 190))
-		p("Tank", Vector3.new(0.9, 0.9, 0.9), CFrame.new(0, 0.7, 0.2), GOO, Enum.Material.Neon, Enum.PartType.Ball)
-		p("Nozzle", Vector3.new(0.9, 0.45, 0.45), CFrame.new(0, 0.05, -1.25) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 201, 60), nil, Enum.PartType.Cylinder)
-		p("Grip", Vector3.new(0.35, 0.8, 0.45), CFrame.new(0, -0.6, 0.45) * CFrame.Angles(math.rad(-15), 0, 0), Color3.fromRGB(40, 28, 60))
-		m.PrimaryPart = body
-	end
-	for _, d in ipairs(m:GetDescendants()) do
-		if d:IsA("BasePart") then
-			d.Anchored = false
-			d.CanCollide = false
-			d.CanQuery = false
-			d.CanTouch = false
-			d.Massless = true
-			if d ~= m.PrimaryPart then
-				local w = Instance.new("WeldConstraint")
-				w.Part0 = m.PrimaryPart
-				w.Part1 = d
-				w.Parent = d
-			end
-		end
-	end
-	m.Name = "GooBlaster"
-	if player:GetAttribute("Glam") then
-		-- Goober Glam: a golden blaster
-		for _, d in ipairs(m:GetDescendants()) do
-			if d:IsA("BasePart") and d.Material ~= Enum.Material.Neon then
-				d.Color = Color3.fromRGB(255, 196, 61)
-				d.Material = Enum.Material.Foil
-			end
-		end
-	end
-	local tip = Instance.new("Attachment")
-	tip.Name = "Tip"
-	tip.Position = Vector3.new(0, 0.05, -1.6)
-	tip.Parent = m.PrimaryPart
-	return m
-end
-
-
+-- The gun itself is built by the server (CharacterService.ApplyBlaster) so
+-- everyone sees it; the client just finds it for the muzzle position.
 local function refreshGun()
 	local char = player.Character
-	local want = char ~= nil and canUse()
-	if want and (not gun or not gun.Parent or gun.Parent ~= char) then
-		if gun then
-			gun:Destroy()
-		end
-		local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if root then
-			-- held at the right hip, always pointing where you face
-			gun = buildGun()
-			gun:PivotTo(root.CFrame * CFrame.new(1.25, -0.25, -0.7))
-			local w = Instance.new("WeldConstraint")
-			w.Part0 = root
-			w.Part1 = gun.PrimaryPart
-			w.Parent = gun.PrimaryPart
-			gun.Parent = char
-		end
-	elseif not want and gun then
-		gun:Destroy()
-		gun = nil
-	end
+	gun = if char then char:FindFirstChild("GooBlaster") :: Model? else nil
 end
 
 -- -------------------------------------------------------------- effects
@@ -175,7 +96,7 @@ local function autoTarget(origin: Vector3, look: Vector3): Vector3?
 			if r then
 				local off = r.Position - origin
 				local d = off.Magnitude
-				if d <= C.range + 2 and d > 0.1 and Vector3.new(off.X, 0, off.Z).Unit:Dot(Vector3.new(look.X, 0, look.Z).Unit) > 0.2 and d < bestD then
+				if d <= C.range and d > 0.1 and Vector3.new(off.X, 0, off.Z).Unit:Dot(Vector3.new(look.X, 0, look.Z).Unit) > 0.2 and d < bestD then
 					best, bestD = off.Unit, d
 				end
 			end
@@ -212,7 +133,8 @@ end
 function Blaster.Fire(fromMouse: boolean)
 	if not canUse() then
 		local s = State.data
-		if s and s.carry == nil and s.level < C.minLevel then
+		if s and s.carry == nil and s.level < C.minLevel and os.clock() - lockedToastAt > 15 then
+			lockedToastAt = os.clock() -- (once in a while, not on every click)
 			UI.Toast(("The Goober Blaster unlocks at Level %d!"):format(C.minLevel), "purple", 2)
 		end
 		return
@@ -232,6 +154,7 @@ function Blaster.Fire(fromMouse: boolean)
 	if flat.Magnitude > 0.1 then
 		root.CFrame = CFrame.lookAt(root.Position, root.Position + flat.Unit)
 	end
+	refreshGun()
 	local tip = gun and gun.PrimaryPart and gun.PrimaryPart:FindFirstChild("Tip") :: Attachment?
 	local from = if tip then tip.WorldPosition else root.Position + Vector3.new(0, 1.2, 0) + flat.Unit * 1.5
 	Blaster.DrawShot(from, dir)
@@ -275,8 +198,6 @@ function Blaster.Start()
 	end)
 	player.CharacterAdded:Connect(function()
 		gun = nil
-		task.wait(0.5)
-		refreshGun()
 	end)
 
 	-- other players' shots and confirmed hits
@@ -293,12 +214,6 @@ function Blaster.Start()
 			if p.target == player.UserId then
 				Effects.Kick(0.9)
 			end
-		end
-	end)
-	RunService.Heartbeat:Connect(function()
-		-- keep the gun in sync if the character changes under us
-		if gun and not gun.Parent then
-			gun = nil
 		end
 	end)
 end

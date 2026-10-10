@@ -173,6 +173,11 @@ function Session.Used(player: Player): number
 	if st.pendingHome then
 		n += #st.pendingHome
 	end
+	-- Goobers you dropped that are still lying in the field keep their stand
+	-- reserved (they waddle home if nobody grabs them)
+	if S and S.Breach then
+		n += S.Breach.DroppedCount(player)
+	end
 	return n
 end
 
@@ -193,13 +198,17 @@ function Session.Spend(player: Player, amount: number): boolean
 	return true
 end
 
-function Session.AddCoins(player: Player, amount: number)
+-- notEarned: refunds, compensation and Robux coin packs (they don't count
+-- towards totalEarned, which ranks the Top Earners leaderboard)
+function Session.AddCoins(player: Player, amount: number, notEarned: boolean?)
 	local st = states[player]
 	if not st or amount <= 0 or amount ~= amount or amount == math.huge then
 		return
 	end
 	st.data.coins += amount
-	st.data.totalEarned += amount
+	if not notEarned then
+		st.data.totalEarned += amount
+	end
 	st.dirty = true
 end
 

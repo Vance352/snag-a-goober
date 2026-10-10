@@ -296,12 +296,16 @@ function LeaderboardService.Start()
 			end
 		end
 	end)
-	-- leaving: write the final scores (DataService calls this before the save)
+	-- leaving: write the final scores. DataService calls this before the save, so
+	-- it runs in its own thread (it reads the session up to its first yield) and
+	-- the save never waits on the OrderedDataStore budget
 	S.Data.OnRemoving(function(player)
-		pcall(writePlayer, player)
-		written[player] = nil
-		lastWrite[player] = nil
-		dirty[player] = nil
+		task.spawn(function()
+			pcall(writePlayer, player)
+			written[player] = nil
+			lastWrite[player] = nil
+			dirty[player] = nil
+		end)
 	end)
 end
 

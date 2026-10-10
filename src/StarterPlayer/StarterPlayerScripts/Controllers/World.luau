@@ -28,6 +28,7 @@ World.OpenUpgrades = nil :: (() -> ())?
 World.OpenRebirth = nil :: (() -> ())?
 
 local ANIM_RANGE = 130
+local FAR_RANGE = 260 -- loose Goobers further than this from the camera aren't animated
 local tracked: { [Model]: { phase: number, weld: Weld?, prompt: ProximityPrompt?, kind: string? } } = {}
 
 local function serverNow()
@@ -68,8 +69,12 @@ local function loosePromptText(model: Model): (string, boolean)
 		return "Hands full", false
 	end
 	local dropped = model:GetAttribute("Mode") == "dropped"
-	if dropped and model:GetAttribute("DroppedBy") == player.UserId and t < (model:GetAttribute("DropLockUntil") or 0) then
-		return "Dizzy...", false
+	if dropped and t < (model:GetAttribute("DropLockUntil") or 0) then
+		if model:GetAttribute("DroppedBy") == player.UserId then
+			return "Dizzy...", false
+		elseif model:GetAttribute("BlastedBy") == player.UserId then
+			return "Recoiling...", false
+		end
 	end
 	local reserved = model:GetAttribute("ReservedFor")
 	if reserved and reserved ~= player.UserId then
@@ -365,6 +370,14 @@ function World.Start()
 		end
 	end)
 
+	-- shop stalls (the Goober Mart): their prompt's part names a panel to open
+	game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt, who)
+		local panel = prompt.Parent and prompt.Parent:GetAttribute("OpenPanel")
+		if who == player and type(panel) == "string" and World.OpenPanel then
+			World.OpenPanel(panel)
+		end
+	end)
+
 	-- the Chaos Rift wakes up during Goober Chaos events
 	task.spawn(function()
 		local rift = map:WaitForChild("ChaosRift", 10)
@@ -408,6 +421,9 @@ function World.Start()
 			if mode == "loose" or mode == "dropped" then
 				-- fly / land / hop along the server's plan
 				local pos = Breach.PositionAt(Breach.PathOf(model), now)
+				if info.lastPos and (pos - camPos).Magnitude > FAR_RANGE then
+					continue -- far away (e.g. the island while you're in the hub): not worth animating
+				end
 				local last = info.lastPos or pos
 				local flat = Vector3.new(pos.X - last.X, 0, pos.Z - last.Z)
 				if flat.Magnitude > 0.05 then
@@ -422,6 +438,8 @@ function World.Start()
 					local text, enabled = loosePromptText(model)
 					info.prompt.ActionText = text
 					info.prompt.Enabled = enabled
+					-- a knocked-loose Goober has to be reached (BreachService checks the same)
+					info.prompt.MaxActivationDistance = if mode == "dropped" then Breach.DropSnagRange else 12
 				end
 			elseif mode == "stand" and refreshPrompts and info.prompt and info.kind == "other" then
 				local ok, text = stealPromptState(model)

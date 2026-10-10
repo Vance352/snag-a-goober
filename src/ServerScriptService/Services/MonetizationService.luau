@@ -176,7 +176,7 @@ local function grant(player: Player, key: string): boolean
 		if q and os.clock() - q.t <= QUOTE_TTL then
 			amount = math.max(amount, q.value)
 		end
-		S.Session.AddCoins(player, amount)
+		S.Session.AddCoins(player, amount, true) -- bought, not earned
 		S.Session.Notify(player, "Purchased", { text = ("+$%s Slop Coins!"):format(Util.Comma(amount)), kind = "coins" })
 		return true
 	elseif p.boostSeconds then

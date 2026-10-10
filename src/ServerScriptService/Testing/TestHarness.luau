@@ -136,15 +136,16 @@ function TestHarness.Start(S)
 		local out = {}
 		for uid, e in pairs(S.Breach.All()) do
 			local pos = S.Breach.PositionOf(e)
-			table.insert(out, { uid = uid, id = e.id, line = e.line, site = e.site, dropped = e.dropped, x = math.floor(pos.X), y = math.floor(pos.Y), z = math.floor(pos.Z), landT = e.path.pts[1][3] - workspace:GetServerTimeNow() })
+			table.insert(out, { uid = uid, id = e.id, line = e.line, site = e.site, dropped = e.dropped, dropBy = e.dropBy, paidBy = e.paidBy, paid = e.paid, refundedTo = e.refundedTo, refundAmt = e.refundAmt, x = math.floor(pos.X), y = math.floor(pos.Y), z = math.floor(pos.Z), landT = e.path.pts[1][3] - workspace:GetServerTimeNow() })
 		end
 		return out
 	end
 
 	-- spawn one on a site (lands at a random spot): spawnBelt(gid, line, reservedId, site)
 	function C.spawnBelt(gid, line, reservedId, site)
-		local e = S.Breach.Spawn(gid, line or "Main", site or "Central", reservedId and P(reservedId) or nil)
-		return e.uid
+		local e = S.Breach.Spawn(gid, line or "Main", site or "Central", reservedId and P(reservedId) or nil, { quiet = true })
+		local pos = e.path.pts[1]
+		return { uid = e.uid, x = pos[1], z = pos[2], landT = pos[3] - workspace:GetServerTimeNow(), price = e.price }
 	end
 
 	function C.place(gid, id)
@@ -261,6 +262,39 @@ function TestHarness.Start(S)
 		local p = P(id)
 		S.MoveGuard.ServerMove(p, CFrame.new(x, y, z))
 		return true
+	end
+
+	-- teleport facing a point: tpLook(x, y, z, lookX, lookZ, id)
+	function C.tpLook(x, y, z, lx, lz, id)
+		S.MoveGuard.ServerMove(P(id), CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(lx, y, lz)))
+		return true
+	end
+
+	-- read a value from the session: get("data.stats.combatSteals", id) / get("carry.id", id)
+	function C.get(path, id)
+		local v = S.Session.Get(P(id))
+		for key in string.gmatch(path, "[^%.]+") do
+			if type(v) ~= "table" then
+				return nil
+			end
+			v = v[key]
+		end
+		if type(v) == "table" then
+			local out = {}
+			for k, x in pairs(v) do
+				out[tostring(k)] = if typeof(x) == "Instance" then x:GetFullName() elseif type(x) == "table" then "{table}" elseif typeof(x) == "Vector3" then tostring(x) else x
+			end
+			return out
+		end
+		return if typeof(v) == "Vector3" or typeof(v) == "Instance" then tostring(v) else v
+	end
+
+	-- character position, facing and walk speed
+	function C.char(id)
+		local c = P(id).Character
+		local hrp = c and c:FindFirstChild("HumanoidRootPart")
+		local hum = c and c:FindFirstChildOfClass("Humanoid")
+		return hrp and { pos = tostring(hrp.Position), look = tostring(hrp.CFrame.LookVector), speed = hum and hum.WalkSpeed, blaster = c:FindFirstChild("GooBlaster") ~= nil } or nil
 	end
 
 	function C.tpPlot(part, id, offsetZ)

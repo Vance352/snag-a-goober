@@ -30,6 +30,9 @@ local C = Config.Combat
 
 -- per-player combat state (not saved)
 local state: { [Player]: { nextAt: number, immuneUntil: number, spawnSafeUntil: number, lastHitOn: { [number]: number } } } = {}
+-- recent positions of every character (lag compensation: what the shooter saw)
+local history: { [Player]: { { t: number, pos: Vector3 } } } = {}
+local HISTORY_SPAN = 0.4
 
 function CombatService.Init(registry)
 	S = registry
@@ -77,7 +80,8 @@ function CombatService.CanHit(attacker: Player, target: Player): (boolean, strin
 	if t < tc.immuneUntil then
 		return false, "They were just hit - give them a second!"
 	end
-	if t < (tst.carry.protectUntil or 0) then
+	local thrp0 = hrpOf(target)
+	if t < (tst.carry.protectUntil or 0) and (not thrp0 or (thrp0.Position - (tst.carry.origPos or thrp0.Position)).Magnitude < C.graceMove) then
 		return false, "They only just grabbed it!"
 	end
 	if t < (cs(attacker).lastHitOn[target.UserId] or 0) then
@@ -136,21 +140,49 @@ function CombatService.Blast(attacker: Player, aim: any)
 		aim = ahrp.CFrame.LookVector
 	end
 	aim = Vector3.new(aim.X, math.clamp(aim.Y, -0.6, 0.6), aim.Z).Unit
+	-- you shoot where you're facing (the client turns you before it fires; the
+	-- slack covers the turn arriving a frame late) - no 360-degree auto-aim
+	local look = ahrp.CFrame.LookVector
+	local flatAim = Vector3.new(aim.X, 0, aim.Z)
+	local flatLook = Vector3.new(look.X, 0, look.Z)
+	if flatAim.Magnitude > 0.05 and flatLook.Magnitude > 0.05 and flatAim.Unit:Dot(flatLook.Unit) < -0.2 then
+		aim = flatLook.Unit
+	end
+	-- Sprint Boots rest for a moment after firing
+	if ast.passes.SprintBoots then
+		ast.bootsRestUntil = t + C.bootsRest
+		S.Character.ApplySpeed(attacker)
+		task.delay(C.bootsRest + 0.05, function()
+			if attacker.Parent then
+				S.Character.ApplySpeed(attacker)
+			end
+		end)
+	end
 	-- everyone sees the splat fly (the shooter has already drawn their own)
 	S.Session.Effect("BlastFx", { by = attacker.UserId, from = ahrp.Position, dir = aim })
 	-- pick the closest valid carrier inside range, in front of the aim, in sight
 	local eye = ahrp.Position + Vector3.new(0, 1.4, 0)
 	local best, bestD, why = nil, math.huge, nil
+	-- where targets were when the shooter fired (their ping ago, capped)
+	local lag = math.clamp(attacker:GetNetworkPing(), 0, HISTORY_SPAN)
 	for _, target in ipairs(Players:GetPlayers()) do
 		local thrp = target ~= attacker and hrpOf(target)
 		if thrp then
-			local off = thrp.Position - ahrp.Position
-			local d = off.Magnitude
-			if d <= C.range and d > 0.1 and off.Unit:Dot(aim) >= C.cone then
+			-- accept either where they are now or where the shooter saw them
+			local seen = CombatService.PositionAgo(target, lag) or thrp.Position
+			local pick, d = nil, math.huge
+			for _, p in ipairs({ thrp.Position, seen }) do
+				local off = p - ahrp.Position
+				local dd = off.Magnitude
+				if dd <= C.range and dd > 0.1 and off.Unit:Dot(aim) >= C.cone and dd < d then
+					pick, d = p, dd
+				end
+			end
+			if pick then
 				local ok, reason = CombatService.CanHit(attacker, target)
 				if ok then
 					local ignore = { attacker.Character, target.Character, workspace:FindFirstChild("LooseGoobers") }
-					if clearShot(eye, thrp.Position + Vector3.new(0, 1, 0), ignore) and d < bestD then
+					if clearShot(eye, pick + Vector3.new(0, 1, 0), ignore) and d < bestD then
 						best, bestD = target, d
 					end
 				elseif reason and not why then
@@ -183,7 +215,11 @@ function CombatService.ApplyHit(attacker: Player, target: Player)
 	local carried = tst.carry
 	local gid = carried.id
 	if carried.source == "belt" then
-		S.Breach.DropFromCarry(target, dir, "blasted")
+		-- it flies off to one side of the shot: the carrier (pushed away) and the
+		-- shooter end up about the same distance from it, and both wait the same
+		-- lockout - a fair race, which anyone else nearby can also win
+		local side = Vector3.new(-dir.Z, 0, dir.X) * (if math.random() < 0.5 then -1 else 1)
+		S.Breach.DropFromCarry(target, (side + dir * 0.25).Unit, "blasted", attacker)
 	else
 		-- a Goober stolen from a base: the theft fails and it goes home to its owner
 		S.Steal.Fail(target, "blasted")
@@ -216,9 +252,50 @@ function CombatService.OnSpawn(player: Player)
 	player:SetAttribute("SpawnSafeUntil", workspace:GetServerTimeNow() + C.spawnProtection)
 end
 
+-- where `player` was `ago` seconds back (nil if no history yet)
+function CombatService.PositionAgo(player: Player, ago: number): Vector3?
+	local h = history[player]
+	if not h or #h == 0 then
+		return nil
+	end
+	local want = os.clock() - ago
+	local best = h[#h]
+	for i = #h, 1, -1 do
+		best = h[i]
+		if h[i].t <= want then
+			break
+		end
+	end
+	return best.pos
+end
+
 function CombatService.Start()
+	task.spawn(function()
+		while true do
+			task.wait(0.05)
+			local t = os.clock()
+			for _, p in ipairs(Players:GetPlayers()) do
+				local hrp = hrpOf(p)
+				if hrp then
+					local h = history[p]
+					if not h then
+						h = {}
+						history[p] = h
+					end
+					table.insert(h, { t = t, pos = hrp.Position })
+					while #h > 0 and t - h[1].t > HISTORY_SPAN + 0.1 do
+						table.remove(h, 1)
+					end
+				else
+					history[p] = nil
+				end
+			end
+		end
+	end)
 	Players.PlayerRemoving:Connect(function(player)
 		state[player] = nil
+		history[player] = nil
+
 		for _, t in pairs(state) do
 			t.lastHitOn[player.UserId] = nil
 		end

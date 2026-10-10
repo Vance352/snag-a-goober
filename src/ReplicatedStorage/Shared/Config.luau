@@ -198,8 +198,11 @@ Config.Combat = {
 	hitImmunity = 4, -- after a hit, that player can't be hit again for this long
 	sameTarget = 8, -- the same attacker can't hit the same player again for this long
 	spawnProtection = 5, -- seconds after (re)spawning
-	snagGrace = 1.5, -- seconds after snagging before you can be blasted
+	snagGrace = 1.5, -- seconds after snagging before you can be blasted...
+	graceMove = 6, -- ...or until you've carried it this many studs (no blast-proof doorstep snags)
 	minLevel = 3, -- like stealing: new players can't blast or be blasted
+	stealCredit = 300, -- a combat steal from the same player only counts (stats/leaderboard) once per 5 min
+	bootsRest = 3, -- Sprint Boots switch off for this long after you fire (no paid edge in the grab race)
 }
 -- walk speed while carrying a Breach Goober, by rarity (rare loot is heavier)
 Config.CarrySpeed = { Common = 1, Uncommon = 1, Rare = 0.95, Epic = 0.92, Legendary = 0.88, Secret = 0.85 }
@@ -212,7 +215,7 @@ Config.Chaos = {
 	types = {
 		SlopStorm = {
 			title = "SLOP STORM",
-			desc = "Goobers are pouring out 3x faster!",
+			desc = "The Breach is erupting twice as often!",
 			intervalMult = 0.33,
 			luck = 1,
 			color = Color3.fromRGB(123, 227, 90),
@@ -275,7 +278,7 @@ Config.GamePasses = {
 		icon = "rbxassetid://109009677275707",
 		name = "Sprint Boots",
 		price = 99,
-		desc = "Permanently +4 walk speed on top of your Zoomies upgrade (not while carrying a Breach Goober - deliveries stay fair).",
+		desc = "Permanently +4 walk speed to get around. Fair-play rule: the boots rest while you carry a Breach Goober and for 3 s after you fire the Goober Blaster.",
 	},
 	AutoCollect = {
 		id = 2023184287,

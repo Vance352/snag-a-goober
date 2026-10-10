@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local GooberData = require(ReplicatedStorage.Shared.GooberData)
+local Tutorial = require(ReplicatedStorage.Shared.Tutorial)
 local Util = require(ReplicatedStorage.Shared.Util)
 
 local CharacterService = {}
@@ -27,7 +28,10 @@ function CharacterService.ApplySpeed(player: Player)
 	local carry = st.carry
 	-- Sprint Boots help you reach the Breach and chase - not outrun everyone
 	-- while carrying a Breach Goober (paid speed must not make deliveries risk-free)
-	local speed = Util.WalkSpeed(st.data.upgrades.Speed, st.passes.SprintBoots == true and not (carry and carry.source == "belt"))
+	-- ...and they rest for a moment after you fire the Goober Blaster, so the
+	-- race for a knocked-loose Goober is never won by a paid pass
+	local boots = st.passes.SprintBoots == true and not (carry and carry.source == "belt") and os.clock() >= (st.bootsRestUntil or 0)
+	local speed = Util.WalkSpeed(st.data.upgrades.Speed, boots)
 	if carry and carry.source == "steal" then
 		speed *= Config.Steal.carrySpeedMult
 	elseif carry then
@@ -124,6 +128,96 @@ function CharacterService.RefreshTag(player: Player)
 		thiefLabel.Text = ""
 	end
 	player:SetAttribute("VIP", vip)
+	CharacterService.ApplyBlaster(player)
+end
+
+-- ------------------------------------------------------- the Goober Blaster
+-- Built on the server (welded at the right hip) so everyone can see who's
+-- armed - and whose Blaster is golden (Goober Glam). It's put away while you
+-- carry a Goober, like the BLAST button.
+local GOO = Color3.fromRGB(123, 227, 90)
+
+local function buildBlaster(gold: boolean): Model
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local props = assets and assets:FindFirstChild("Props")
+	local tpl = props and props:FindFirstChild("P_GooBlaster")
+	local m: Model
+	if tpl and tpl:IsA("Model") and tpl.PrimaryPart then
+		m = tpl:Clone()
+		m:ScaleTo(0.55)
+	else
+		-- simple built-in stand-in (until the Blender model is imported)
+		m = Instance.new("Model")
+		local function p(name, size, cf, color, mat, shape)
+			local x = Instance.new("Part")
+			x.Name = name
+			x.Size = size
+			x.CFrame = cf
+			x.Color = color
+			x.Material = mat or Enum.Material.SmoothPlastic
+			if shape then
+				x.Shape = shape
+			end
+			x.Parent = m
+			return x
+		end
+		local body = p("Body", Vector3.new(0.7, 0.75, 1.9), CFrame.new(0, 0, 0), Color3.fromRGB(110, 70, 190))
+		p("Tank", Vector3.new(0.9, 0.9, 0.9), CFrame.new(0, 0.7, 0.2), GOO, Enum.Material.Neon, Enum.PartType.Ball)
+		p("Nozzle", Vector3.new(0.9, 0.45, 0.45), CFrame.new(0, 0.05, -1.25) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 201, 60), nil, Enum.PartType.Cylinder)
+		p("Grip", Vector3.new(0.35, 0.8, 0.45), CFrame.new(0, -0.6, 0.45) * CFrame.Angles(math.rad(-15), 0, 0), Color3.fromRGB(40, 28, 60))
+		m.PrimaryPart = body
+	end
+	for _, d in ipairs(m:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = false
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Massless = true
+			if gold and d.Material ~= Enum.Material.Neon then
+				d.Color = Color3.fromRGB(255, 196, 61)
+				d.Material = Enum.Material.Foil
+			end
+			if d ~= m.PrimaryPart then
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = m.PrimaryPart
+				w.Part1 = d
+				w.Parent = d
+			end
+		end
+	end
+	m.Name = "GooBlaster"
+	m:SetAttribute("Gold", gold)
+	local tip = Instance.new("Attachment")
+	tip.Name = "Tip"
+	tip.Position = Vector3.new(0, 0.05, -1.6)
+	tip.Parent = m.PrimaryPart
+	return m
+end
+
+function CharacterService.ApplyBlaster(player: Player)
+	local st = S.Session.Get(player)
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart
+	if not st or not root then
+		return
+	end
+	local want = st.ready and st.carry == nil and st.data.level >= Config.Combat.minLevel and st.data.tutorial == Tutorial.DONE
+	local gold = st.passes.Glam == true
+	local have = char:FindFirstChild("GooBlaster")
+	if have and (not want or have:GetAttribute("Gold") ~= gold) then
+		have:Destroy()
+		have = nil
+	end
+	if want and not have then
+		local gun = buildBlaster(gold)
+		gun:PivotTo(root.CFrame * CFrame.new(1.25, -0.25, -0.7))
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = root
+		w.Part1 = gun.PrimaryPart
+		w.Parent = gun.PrimaryPart
+		gun.Parent = char
+	end
 end
 
 function CharacterService.ApplyVIP(player: Player)
@@ -261,6 +355,16 @@ function CharacterService.Start()
 	for _, p in ipairs(Players:GetPlayers()) do
 		hook(p)
 	end
+	-- the Blaster also appears at moments that don't refresh the tag (finishing the tutorial)
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for _, p in ipairs(Players:GetPlayers()) do
+				CharacterService.ApplyBlaster(p)
+			end
+		end
+	end)
+
 end
 
 return CharacterService

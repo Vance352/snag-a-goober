@@ -208,7 +208,7 @@ function BaseService.Sell(player: Player, uid: string)
 	local def = GooberData.ById[g.id]
 	local refund = math.floor((g.paid or def.price) * Config.SellRefund)
 	BaseService.RemoveRecord(player, uid)
-	S.Session.AddCoins(player, refund)
+	S.Session.AddCoins(player, refund, true)
 	st.data.stats.sold += 1
 	S.Session.Toast(player, ("Sold %s for $%s"):format(def.name, Util.Short(refund)), "gold")
 	S.Session.Effect("Coins", { amount = refund, pos = m:GetPivot().Position }, player)

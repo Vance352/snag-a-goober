@@ -281,7 +281,7 @@ local function succeed(thief: Player)
 	if os.clock() >= (vs.compensatedAt or -1e9) + C.compensationCooldown then
 		comp = math.floor(victimPaid * C.compensation) -- based on what they actually paid
 		vs.compensatedAt = os.clock()
-		S.Session.AddCoins(victim, comp)
+		S.Session.AddCoins(victim, comp, true)
 	end
 	S.Base.LockFor(victim, C.victimShield, false)
 	S.Session.Notify(thief, "StealSuccess", { id = carry.id, victim = victim.DisplayName })

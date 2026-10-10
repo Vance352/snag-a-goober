@@ -20,6 +20,7 @@ local Util = require(ReplicatedStorage.Shared.Util)
 
 local CarryService = {}
 local S
+local stealCreditAt: { [string]: number } = {} -- "thief:victim" -> next time a combat steal counts
 
 function CarryService.Init(registry)
 	S = registry
@@ -70,8 +71,10 @@ local function clear(player: Player)
 end
 CarryService._clear = clear
 
--- Put a carried belt Goober on a stand at home.
-function CarryService.PlaceHome(player: Player)
+-- Put a carried belt Goober on a stand at home. (credit = false: it was put
+-- there for safekeeping, not delivered, so no stats/XP)
+function CarryService.PlaceHome(player: Player, credit: boolean?)
+	credit = credit ~= false
 	local st = S.Session.Get(player)
 	local carry = st and st.carry
 	if not carry or carry.source ~= "belt" then
@@ -82,20 +85,29 @@ function CarryService.PlaceHome(player: Player)
 	local uid = S.Base.Place(player, carry.id, { uid = carry.uid, paid = carry.price })
 	if not uid then
 		-- should not happen (slot reserved at snag); refund rather than lose it
-		S.Session.AddCoins(player, carry.price)
+		S.Session.AddCoins(player, carry.price, true)
 		S.Session.Toast(player, "No free stand - refunded your coins.", "red")
 		return false
 	end
 	local def = GooberData.ById[carry.id]
+	if not credit then
+		return true
+	end
 	-- snag XP is paid when the Goober actually lands at home (not on snag, so
 	-- snag-and-drop can't farm XP)
 	S.Session.AddXP(player, Config.Rarities[def.rarity].xp)
 	S.Session.Effect("PlaceFx", { id = carry.id, rarity = def.rarity, delivered = true }, player)
 	st.data.stats.delivered += 1
 	if carry.takenFrom then
-		-- knocked loose from someone else and brought home: a real combat steal
-		st.data.stats.combatSteals += 1
-		S.Hooks.Fire("stolen", player, { id = carry.id, combat = true })
+		-- knocked loose from someone else and brought home: a real combat steal.
+		-- It only counts once per Config.Combat.stealCredit per pair of players,
+		-- so two friends can't farm Master Thieves by passing a Blorp back and forth
+		local key = player.UserId .. ":" .. carry.takenFrom
+		if os.clock() >= (stealCreditAt[key] or -1e9) then
+			stealCreditAt[key] = os.clock() + Config.Combat.stealCredit
+			st.data.stats.combatSteals += 1
+			S.Hooks.Fire("stolen", player, { id = carry.id, combat = true })
+		end
 		local from = Players:GetPlayerByUserId(carry.takenFrom)
 		if from then
 			S.Session.Notify(from, "GooberLost", { id = carry.id, by = player.DisplayName })
@@ -116,12 +128,17 @@ function CarryService.Settle(player: Player, reason: string)
 		return
 	end
 	if carry.source == "belt" then
-		if reason == "died" or reason == "lost" then
+		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart
+		local plot = S.Plot.Get(player)
+		local atHome = hrp ~= nil and plot ~= nil and S.Plot.Inside(plot, hrp.Position)
+		if reason == "died" or reason == "lost" or (reason == "left" and not atHome and hrp) then
 			-- falling over (or resetting) drops it where you were: anyone can grab it,
-			-- and if nobody does it waddles home to you (so a reset never escapes a chase)
+			-- and if nobody does it waddles home to you (so a reset never escapes a chase).
+			-- Leaving drops it too (BreachService.OnRemoving refunds what you paid).
 			S.Breach.DropFromCarry(player, nil, reason)
 		else
-			CarryService.PlaceHome(player)
+			-- shutting down / no character / already standing at home
+			CarryService.PlaceHome(player, reason ~= "left" and reason ~= "shutdown")
 		end
 	else
 		S.Steal.Fail(player, reason)
@@ -142,7 +159,7 @@ function CarryService.Drop(player: Player)
 		local refund = math.floor(carry.price * Config.SellRefund)
 		carry.model:Destroy()
 		clear(player)
-		S.Session.AddCoins(player, refund)
+		S.Session.AddCoins(player, refund, true)
 		S.Session.Toast(player, ("Released it back into the wild (+$%s)"):format(Util.Short(refund)), "gold")
 	else
 		S.Steal.Fail(player, "dropped")
@@ -212,7 +229,7 @@ end
 function CarryService.LandPending(player: Player, p)
 	local uid = S.Base.Place(player, p.id, { uid = p.uid, paid = p.price })
 	if not uid then
-		S.Session.AddCoins(player, p.price)
+		S.Session.AddCoins(player, p.price, true)
 		S.Session.Toast(player, "No free stand - refunded your coins.", "red")
 		return
 	end
@@ -226,11 +243,14 @@ end
 -- called by DataService right before the final save
 function CarryService.OnRemoving(player: Player)
 	local st = S.Session.Get(player)
-	-- a Goober knocked out of your hands and still lying there comes home with you
-	S.Breach.OnRemoving(player)
+	local shuttingDown = S.Data.ShuttingDown == true
 	if st and st.carry then
-		CarryService.Settle(player, "left")
+		CarryService.Settle(player, if shuttingDown then "shutdown" else "left")
 	end
+	-- Goobers you dropped (including the one just dropped above) stay in the field
+	-- with a refund - or come home if the server is closing
+	S.Breach.OnRemoving(player, shuttingDown)
+
 	-- anything still walking home lands now so it is saved
 	if st and st.pendingHome then
 		for _, p in ipairs(st.pendingHome) do

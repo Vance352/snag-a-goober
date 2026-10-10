@@ -219,6 +219,7 @@ local function buildHUD(root: Frame)
 	grid.CellPadding = UDim2.fromOffset(6, 6)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = menu
+	refs.menu, refs.menuGrid = menu, grid
 	for i, n in ipairs(NAV) do
 		local b = Theme.button({ Name = n.key, Text = "", Color = n.color, LayoutOrder = i, Radius = 16, Parent = menu }, function()
 			Effects.Play("Click")
@@ -1335,6 +1336,13 @@ function UI.Start()
 		local card = root:FindFirstChild("Status") and root.Status:FindFirstChild("Player")
 		if card then
 			card.Visible = not UI.small
+		end
+		-- phones: a tighter nav grid, moved up over the next-unlock line, so its
+		-- bottom row ends above the thumbstick (Roblox's top bar is taller there)
+		if refs.menu then
+			refs.menu.Position = UDim2.fromOffset(8, if UI.small then 132 else 154)
+			refs.menuGrid.CellSize = if UI.small then UDim2.fromOffset(55, 55) else UDim2.fromOffset(60, 62)
+			refs.nextUnlock.Visible = not UI.small
 		end
 	end
 	rescale()

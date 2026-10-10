@@ -40,14 +40,18 @@ type Loose = {
 	path: any,
 	price: number,
 	paid: number?, -- dropped Goobers keep what the first carrier paid (sell value)
+	paidBy: number?, -- ...and who paid it
 	reservedFor: number?,
 	dropped: boolean?,
 	dropBy: number?,
-	lockUntil: number?,
+	locks: { [number]: number }?, -- userId -> can't grab before this (the dropper and the blaster)
+	refundedTo: number?, -- the dropper left and was refunded: they pay that back to re-grab it
+	refundAmt: number?,
 	model: Model,
 }
 
 local loose: { [string]: Loose } = {}
+local claimed: { [string]: { name: string, by: number, t: number } } = {} -- recent snags (for "too slow!")
 local folder: Folder
 local stateFolder: Folder
 local candidates: { [string]: { Vector3 } } = {}
@@ -272,6 +276,17 @@ function BreachService.All()
 	return loose
 end
 
+-- dropped Goobers of this player still lying in a field (they keep a stand reserved)
+function BreachService.DroppedCount(player: Player): number
+	local n = 0
+	for _, e in pairs(loose) do
+		if e.dropped and e.dropBy == player.UserId then
+			n += 1
+		end
+	end
+	return n
+end
+
 function BreachService.PositionOf(e: Loose, t: number?): Vector3
 	return (Breach.PositionAt(e.path, t or now()))
 end
@@ -297,7 +312,15 @@ function BreachService.Snag(player: Player, uid: any)
 	end
 	local st = S.Session.Get(player)
 	local e = loose[uid]
-	if not st or not st.ready or not e then
+	if not st or not st.ready then
+		return
+	end
+	if not e then
+		-- lost the race (or it just dove back in): say so instead of nothing
+		local c = claimed[uid]
+		if c and c.by ~= player.UserId and os.clock() - c.t < 5 then
+			return fail(player, ("Too slow - %s grabbed it!"):format(c.name))
+		end
 		return
 	end
 	if st.carry then
@@ -307,8 +330,8 @@ function BreachService.Snag(player: Player, uid: any)
 		return fail(player, "That Goober is someone's Personal Drop!")
 	end
 	local t = now()
-	if e.dropped and e.dropBy == player.UserId and t < (e.lockUntil or 0) then
-		return fail(player, "You're still dizzy - grab it in a moment!")
+	if e.dropped and e.locks and t < (e.locks[player.UserId] or 0) then
+		return fail(player, if e.dropBy == player.UserId then "You're still dizzy - grab it in a moment!" else "Your Blaster is still recoiling - grab it in a moment!")
 	end
 	local line = Config.Lines[e.line]
 	if st.data.level < line.levelRequired then
@@ -320,15 +343,16 @@ function BreachService.Snag(player: Player, uid: any)
 	if not hrp or not hum or hum.Health <= 0 then
 		return
 	end
-	if line.area and not e.dropped then
-		-- island cauldrons: the area's gate rules, and you must be inside the area
+	if line.area then
+		-- island cauldrons: the area's gate rules (even for a dropped one), and a
+		-- fresh one can only be snagged from inside the area
 		local Halloween = require(ReplicatedStorage.Shared.Halloween)
 		local area = Halloween.AreaByKey[line.area]
 		if not S.Event.AreaOpen(st, area) then
 			return fail(player, S.Event.LockText(area))
 		end
 		local here = S.Event.AreaAt(hrp.Position)
-		if not here or here.key ~= area.key then
+		if not e.dropped and (not here or here.key ~= area.key) then
 			return fail(player, ("Step into the %s to snag its Goobers!"):format(area.name))
 		end
 	end
@@ -342,20 +366,30 @@ function BreachService.Snag(player: Player, uid: any)
 		return fail(player, "Wait for it to land!")
 	end
 	local dist = math.min((hrp.Position - p0).Magnitude, (hrp.Position - p1).Magnitude)
-	if dist > Config.SnagRange then
+	if dist > (if e.dropped then Breach.DropSnagRange else Config.SnagRange) then
 		return fail(player, "Get closer to snag it!")
 	end
-	if not S.Session.HasFreeSlot(player) then
+	-- (your own drop already holds a stand for you)
+	local own = e.dropped and e.dropBy == player.UserId
+	if not own and not S.Session.HasFreeSlot(player) then
 		return fail(player, "Your base is full! Sell a Goober or buy More Stands.")
 	end
 	local def = GooberData.ById[e.id]
 	local cost = if e.dropped then 0 else e.price
+	if e.dropped and e.refundedTo == player.UserId then
+		cost = e.refundAmt or 0 -- refunded when they left: rejoining is no free Goober
+	end
 	if cost > 0 and not S.Session.Spend(player, cost) then
 		return fail(player, ("You need $%s to snag %s."):format(Util.Short(cost), def.name))
 	end
 	-- commit: removed from the field first, so nobody else can have it
 	loose[uid] = nil
-	local carry = { uid = uid, id = e.id, source = "belt", model = e.model, price = e.paid or e.price, line = e.line }
+	claimed[uid] = { name = player.DisplayName, by = player.UserId, t = os.clock() }
+	local paidBy = if e.dropped then e.paidBy else player.UserId
+	if e.dropped and e.refundedTo == player.UserId then
+		paidBy = player.UserId
+	end
+	local carry = { uid = uid, id = e.id, source = "belt", model = e.model, price = e.paid or e.price, paidBy = paidBy, line = e.line }
 	if e.dropped then
 		if e.dropBy and e.dropBy ~= player.UserId then
 			carry.takenFrom = e.dropBy -- counts as a combat steal when it gets home
@@ -378,9 +412,15 @@ function BreachService.Snag(player: Player, uid: any)
 end
 
 -- ------------------------------------------------------------- dropping
--- The carrier lost their Goober (blasted, or their character died). It flies a
--- few studs and lands where anyone - including them, after a moment - can grab it.
-function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: string)
+-- The carrier lost their Goober (blasted, died, or left). It flies a few studs
+-- and lands where anyone can grab it. The dropper - and the blaster, if any -
+-- must wait Breach.DropLockout first, so it's a fair race.
+local function inAnyPlot(inst: Instance): boolean
+	local plots = workspace:FindFirstChild("Plots")
+	return plots ~= nil and inst:IsDescendantOf(plots)
+end
+
+function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: string, blaster: Player?)
 	local st = S.Session.Get(player)
 	local carry = st and st.carry
 	if not carry or carry.source ~= "belt" then
@@ -403,12 +443,14 @@ function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: stri
 	-- land a few studs away on open ground (straight down if blocked)
 	local flat = if dir and dir.Magnitude > 0.01 then Vector3.new(dir.X, 0, dir.Z).Unit else Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)).Unit
 	local land
-	for _, d in ipairs({ 7, 5, 3, 0 }) do
+	local far = Breach.DropDistance
+	for _, d in ipairs({ far, far * 0.66, far * 0.33, 0 }) do
 		local p = origin + flat * d
-		rayParams.FilterDescendantsInstances = { folder, char }
+		rayParams.FilterDescendantsInstances = { folder, char, (blaster and blaster.Character) or folder }
 		local blocked = d > 0 and workspace:Raycast(origin, flat * d, rayParams)
 		local g = not blocked and workspace:Raycast(Vector3.new(p.X, origin.Y + 4, p.Z), Vector3.new(0, -40, 0), rayParams)
-		if g then
+		-- never into someone's base (it would be safe from everyone but the owner)
+		if g and (d == 0 or not inAnyPlot(g.Instance)) then
 			land = g.Position
 			break
 		end
@@ -430,6 +472,11 @@ function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: stri
 	model:SetAttribute("Price", 0)
 	model:SetAttribute("DroppedBy", player.UserId)
 	model:SetAttribute("DropLockUntil", t + Breach.DropLockout)
+	model:SetAttribute("BlastedBy", if blaster then blaster.UserId else nil)
+	local locks = { [player.UserId] = t + Breach.DropLockout }
+	if blaster then
+		locks[blaster.UserId] = t + Breach.DropLockout
+	end
 	S.Model.PlaceAt(model, CFrame.new(land))
 	model.Parent = folder
 	local e: Loose = {
@@ -440,9 +487,10 @@ function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: stri
 		path = path,
 		price = 0,
 		paid = carry.price,
+		paidBy = carry.paidBy,
 		dropped = true,
 		dropBy = player.UserId,
-		lockUntil = t + Breach.DropLockout,
+		locks = locks,
 		model = model,
 	}
 	loose[e.uid] = e
@@ -455,6 +503,7 @@ local function settleDropped(e: Loose)
 	loose[e.uid] = nil
 	local owner = e.dropBy and Players:GetPlayerByUserId(e.dropBy)
 	local st = owner and S.Session.Get(owner)
+	-- (its stand was held for it: Session.Used counted it until the line above)
 	if st and st.ready and S.Session.HasFreeSlot(owner) then
 		st.pendingHome = st.pendingHome or {}
 		table.insert(st.pendingHome, { uid = e.uid, id = e.id, price = e.paid or 0, at = os.clock() + 6 })
@@ -463,6 +512,11 @@ local function settleDropped(e: Loose)
 		e.model:Destroy()
 	else
 		vanish(e)
+		-- no stand after all (their stands changed): never lose a paid Goober silently
+		if st and st.ready and e.paidBy == owner.UserId and (e.paid or 0) > 0 then
+			S.Session.AddCoins(owner, e.paid, true)
+			S.Session.Toast(owner, ("No free stand for your %s - refunded $%s."):format(GooberData.ById[e.id].name, Util.Short(e.paid)), "red")
+		end
 	end
 end
 
@@ -525,6 +579,21 @@ local function blast(name: string)
 	end
 end
 
+local function anyoneNear(site): boolean
+	local f = site.field
+	for player in pairs(S.Session.All()) do
+		local c = player.Character
+		local hrp = c and c:FindFirstChild("HumanoidRootPart") :: BasePart
+		if hrp then
+			local p = hrp.Position
+			if p.X > f[1] - 40 and p.X < f[2] + 40 and p.Z > f[3] - 40 and p.Z < f[4] + 40 then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function stepSite(name: string, t: number)
 	local s = siteState[name]
 	if t < s.endsAt then
@@ -534,8 +603,17 @@ local function stepSite(name: string, t: number)
 	local stage = Breach.Stages[s.stage]
 	local seconds = stage.seconds
 	local chaos = S.Chaos.Active()
-	if chaos and stage.key == "Charging" then
-		seconds *= chaos.intervalMult -- chaos events charge faster
+	if chaos and stage.key ~= "Blast" then
+		seconds *= chaos.intervalMult -- chaos events erupt more often
+	end
+	-- island cauldrons rest while nobody is near them (no Goobers for nobody)
+	local site = Breach.Sites[name]
+	if site.spooky and stage.key == "Charging" and not anyoneNear(site) then
+		s.stage = 1
+		s.endsAt = t + 2
+		s.typ = nil
+		publish(name)
+		return
 	end
 	s.endsAt = t + seconds * (Breach.Sites[name].cycleMult or 1)
 	if stage.key == "Charging" and Breach.Sites[name].types then
@@ -551,16 +629,28 @@ local function stepSite(name: string, t: number)
 	publish(name)
 end
 
--- leaving: a Goober you dropped that nobody has grabbed yet goes home with you
-function BreachService.OnRemoving(player: Player)
+-- leaving: Goobers you dropped stay in the field for anyone to grab (leaving is
+-- never a safe way out of a chase). You get the usual release refund for the
+-- ones you paid for. When the server is shutting down they go home instead.
+function BreachService.OnRemoving(player: Player, shuttingDown: boolean?)
 	local st = S.Session.Get(player)
 	for _, e in pairs(loose) do
 		if e.dropped and e.dropBy == player.UserId then
-			loose[e.uid] = nil
-			e.model:Destroy()
-			if st and S.Session.HasFreeSlot(player) then
-				st.pendingHome = st.pendingHome or {}
-				table.insert(st.pendingHome, { uid = e.uid, id = e.id, price = e.paid or 0, at = 0 })
+			if shuttingDown then
+				loose[e.uid] = nil
+				e.model:Destroy()
+				if st then
+					st.pendingHome = st.pendingHome or {}
+					table.insert(st.pendingHome, { uid = e.uid, id = e.id, price = e.paid or 0, at = 0 })
+				end
+			else
+				e.dropBy = nil -- nobody to waddle home to now
+				e.model:SetAttribute("DroppedBy", nil)
+				if st and e.paidBy == player.UserId and (e.paid or 0) > 0 then
+					local refund = math.floor(e.paid * Config.SellRefund)
+					S.Session.AddCoins(player, refund, true)
+					e.refundedTo, e.refundAmt = player.UserId, refund
+				end
 			end
 		end
 	end
@@ -621,6 +711,11 @@ function BreachService.Start()
 				stepSite(name, t)
 			end
 			personalDrops()
+			for uid, c in pairs(claimed) do
+				if os.clock() - c.t > 5 then
+					claimed[uid] = nil
+				end
+			end
 			for _, e in pairs(loose) do
 				if t >= e.path.expire then
 					if e.dropped then

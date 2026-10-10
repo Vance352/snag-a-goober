@@ -488,6 +488,7 @@ function DataService.Start()
 		end
 	end)
 	game:BindToClose(function()
+		DataService.ShuttingDown = true -- (carried / dropped Goobers go home instead of into the field)
 		local pending = 0
 		for player in pairs(profiles) do
 			pending += 1

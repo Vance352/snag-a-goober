@@ -2,6 +2,18 @@
 
 Newest entry at the top.
 
+## 2026-10-10 (Goober Breach overhaul, review round 1 fixes)
+- Leaving mid-carry no longer banks the Goober: it drops into the field for anyone to grab and you get the usual 50% release refund (pay it back to re-grab after rejoining). Server shutdown still lands carried and dropped Goobers at home. Nothing is credited as a delivery or combat steal on leave.
+- Combat steals count towards stats and Master Thieves once per 5 min per pair of players (no friend farming). Top Earners no longer counts sell/release refunds, theft compensation or Robux coin packs.
+- A dropped Goober keeps its stand reserved, so a full base can't make it vanish; a refund with a message if it still can't land.
+- Fair grab race: a blasted Goober flies 11 studs off to the side of the shot; the carrier AND the shooter wait 1 s; dropped Goobers must be reached (8 studs). Snag grace also ends once you've carried 6 studs. Aim must roughly match where you face; lag compensation on hits (target position up to 0.4 s back); client auto-aim range matches the server.
+- Sprint Boots rest for 3 s after you fire the Blaster (no paid edge in the race); description updated.
+- The Goober Blaster is built on the server, so everyone sees who's armed and Glam's golden Blaster; it re-colours when Glam is granted.
+- Leaderboard writes on leave run in their own thread (the save never waits on them). Leaderboard panel: short tab names readable on phones, "You: #rank" line.
+- Map: Rebirth Shrine moved off to the side of Champions Plaza (no longer hides a board), bigger boards, wider arch sign; new east market square with paths joining the arena, Chaos Rift, Goober Mart and Spooky Portal. Goober Mart prompt opens the Shop.
+- Island cauldrons rest while nobody is near; far-away loose Goobers aren't animated on the client. Central field kept 13+ studs clear of plot doors. SLOP STORM really is about twice as fast (copy fixed).
+- Phones: tighter nav grid ends above the thumbstick. Lv 1-2 Blaster toast throttled. "Too slow - X grabbed it!" when you lose a race. Dropped island Goobers keep the area gate and never land inside a base.
+
 ## 2026-10-10 (Goober Breach overhaul, part 1)
 - The conveyor belts are gone. The Goober Breach (a charging dimensional reactor in the new Breach Arena) blasts bursts of Goobers across the plaza every ~15 s: SLOP SURGE, GOLD RUSH (Gold Goobers, Lv 10) and RARE RIFT (rarer, announced). Rare Goobers keep hopping around and have to be chased; unsnagged ones dive back in. Personal Drops are spat out near your base. Halloween Island's cauldrons are spooky mini-breaches. (Shared/Breach, BreachService, BreachFx, World.)
 - Goober Blaster (CombatService, Blaster): splat a carrier to knock their Goober loose - it drops for anyone (including them) to grab; a stolen Goober goes straight home. Server-validated range/aim/line of sight/cooldowns, protections (own base, spawn, snag grace, post-hit immunity, same-target, new players). Dying drops your Goober (resetting no longer escapes a chase). New stats: delivered, combat steals, recovered, hits (save v3).
