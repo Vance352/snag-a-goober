@@ -1341,7 +1341,7 @@ function UI.Start()
 		-- bottom row ends above the thumbstick (Roblox's top bar is taller there)
 		if refs.menu then
 			refs.menu.Position = UDim2.fromOffset(8, if UI.small then 132 else 154)
-			refs.menuGrid.CellSize = if UI.small then UDim2.fromOffset(55, 55) else UDim2.fromOffset(60, 62)
+			refs.menuGrid.CellSize = if UI.small then UDim2.fromOffset(53, 52) else UDim2.fromOffset(60, 62)
 			refs.nextUnlock.Visible = not UI.small
 		end
 	end

@@ -2,6 +2,13 @@
 
 Newest entry at the top.
 
+## 2026-10-10 (Goober Breach overhaul, review round 2 fixes)
+- Closed a coin loop: the leave refund can only ever be paid once per Goober. After it the Goober is worth $0 to whoever holds it, and the refunded player pays the refund back to grab it again, however many times it changes hands.
+- A real disconnect while carrying now drops the Goober where you last stood (the character is already gone when the leave hook runs).
+- The per-pair combat-steal limit is saved with the thief's data (server-hopping can't reset it).
+- Blaster: aim must be within 60 degrees of where you face (re-checked 0.2 s later if your turn hasn't reached the server yet); lag forgiveness capped at 0.25 s; a blasted Goober flies to whichever side keeps it out of a base doorway.
+- SLOP STORM now really erupts twice as often. Phone nav cells trimmed to clear the thumbstick; leaderboard tabs no longer wrap; Champions Plaza arch sign raised so it doesn't hide the board titles.
+
 ## 2026-10-10 (Goober Breach overhaul, review round 1 fixes)
 - Leaving mid-carry no longer banks the Goober: it drops into the field for anyone to grab and you get the usual 50% release refund (pay it back to re-grab after rejoining). Server shutdown still lands carried and dropped Goobers at home. Nothing is credited as a delivery or combat steal on leave.
 - Combat steals count towards stats and Master Thieves once per 5 min per pair of players (no friend farming). Top Earners no longer counts sell/release refunds, theft compensation or Robux coin packs.

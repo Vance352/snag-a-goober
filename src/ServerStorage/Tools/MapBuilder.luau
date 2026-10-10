@@ -715,12 +715,13 @@ local function buildChampionsPlaza(parent: Instance)
 		part({ Name = "Medal", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 16 - i * 4, 16 - i * 4), CFrame = CFrame.new(c + Vector3.new(0, 0.42 + i * 0.02, 0)) * CFrame.Angles(0, 0, math.rad(90)),
 			Color = col, Material = Enum.Material.SmoothPlastic, CanCollide = false, Parent = p })
 	end
-	signBoard(p, CFrame.new(-128, 13, 0) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(21, 3.8, 0.5), {
+	-- (high enough that it doesn't hide the board titles from a player's camera)
+	signBoard(p, CFrame.new(-128, 21, 0) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(21, 3.8, 0.5), {
 		{ name = "Title", text = "CHAMPIONS PLAZA", size = 0.58, color = HUB.gold },
 		{ name = "Sub", text = "Leaderboards  •  Rebirth Shrine", size = 0.3, color = Color3.new(1, 1, 1) },
 	})
 	for _, sz in ipairs({ -1, 1 }) do
-		part({ Name = "SignPost", Size = Vector3.new(0.8, 13, 0.8), CFrame = CFrame.new(-128, 6.5, sz * 9.9), Color = HUB.metalDark, Parent = p })
+		part({ Name = "SignPost", Size = Vector3.new(0.8, 21, 0.8), CFrame = CFrame.new(-128, 10.5, sz * 9.9), Color = HUB.metalDark, Parent = p })
 	end
 end
 

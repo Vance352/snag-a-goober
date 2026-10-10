@@ -192,6 +192,7 @@ Config.SnagRange = 14
 Config.Combat = {
 	range = 14, -- studs (3D, centre to centre)
 	cone = 0.55, -- dot product: the target must be roughly in front of your aim
+	facing = 0.5, -- ...and your aim within 60 degrees of where your character faces
 	cooldown = 1.1, -- seconds between blasts
 	stagger = 0.75, -- the hit carrier can't move for this long
 	knockback = 4, -- studs the hit carrier is pushed
@@ -216,7 +217,7 @@ Config.Chaos = {
 		SlopStorm = {
 			title = "SLOP STORM",
 			desc = "The Breach is erupting twice as often!",
-			intervalMult = 0.33,
+			intervalMult = 0.45, -- (15.5 s cycle -> 7.8 s: twice as often)
 			luck = 1,
 			color = Color3.fromRGB(123, 227, 90),
 		},

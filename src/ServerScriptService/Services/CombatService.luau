@@ -32,7 +32,7 @@ local C = Config.Combat
 local state: { [Player]: { nextAt: number, immuneUntil: number, spawnSafeUntil: number, lastHitOn: { [number]: number } } } = {}
 -- recent positions of every character (lag compensation: what the shooter saw)
 local history: { [Player]: { { t: number, pos: Vector3 } } } = {}
-local HISTORY_SPAN = 0.4
+local HISTORY_SPAN = 0.25 -- (the most lag a shot is forgiven for)
 
 function CombatService.Init(registry)
 	S = registry
@@ -140,13 +140,18 @@ function CombatService.Blast(attacker: Player, aim: any)
 		aim = ahrp.CFrame.LookVector
 	end
 	aim = Vector3.new(aim.X, math.clamp(aim.Y, -0.6, 0.6), aim.Z).Unit
-	-- you shoot where you're facing (the client turns you before it fires; the
-	-- slack covers the turn arriving a frame late) - no 360-degree auto-aim
-	local look = ahrp.CFrame.LookVector
-	local flatAim = Vector3.new(aim.X, 0, aim.Z)
-	local flatLook = Vector3.new(look.X, 0, look.Z)
-	if flatAim.Magnitude > 0.05 and flatLook.Magnitude > 0.05 and flatAim.Unit:Dot(flatLook.Unit) < -0.2 then
-		aim = flatLook.Unit
+	-- you shoot where you're facing (within 60 degrees): the client turns you
+	-- as it fires, so if the turn hasn't reached the server yet the shot is
+	-- checked again a moment later - no 360-degree auto-aim
+	local function facing(dir: Vector3): (boolean, Vector3)
+		local r = hrpOf(attacker)
+		local look = if r then r.CFrame.LookVector else dir
+		local flatAim = Vector3.new(dir.X, 0, dir.Z)
+		local flatLook = Vector3.new(look.X, 0, look.Z)
+		if flatAim.Magnitude < 0.05 or flatLook.Magnitude < 0.05 then
+			return true, dir
+		end
+		return flatAim.Unit:Dot(flatLook.Unit) >= C.facing, flatLook.Unit
 	end
 	-- Sprint Boots rest for a moment after firing
 	if ast.passes.SprintBoots then
@@ -160,8 +165,27 @@ function CombatService.Blast(attacker: Player, aim: any)
 	end
 	-- everyone sees the splat fly (the shooter has already drawn their own)
 	S.Session.Effect("BlastFx", { by = attacker.UserId, from = ahrp.Position, dir = aim })
-	-- pick the closest valid carrier inside range, in front of the aim, in sight
+	local ok = facing(aim)
+	if ok then
+		CombatService._resolve(attacker, aim)
+	else
+		task.delay(0.2, function()
+			local ok2, straight = facing(aim)
+			if attacker.Parent and hrpOf(attacker) then
+				CombatService._resolve(attacker, if ok2 then aim else straight)
+			end
+		end)
+	end
+end
+
+-- pick the closest valid carrier inside range, in front of the aim, in sight
+function CombatService._resolve(attacker: Player, aim: Vector3)
+	local ahrp = hrpOf(attacker)
+	if not ahrp then
+		return
+	end
 	local eye = ahrp.Position + Vector3.new(0, 1.4, 0)
+
 	local best, bestD, why = nil, math.huge, nil
 	-- where targets were when the shooter fired (their ping ago, capped)
 	local lag = math.clamp(attacker:GetNetworkPing(), 0, HISTORY_SPAN)
@@ -219,7 +243,7 @@ function CombatService.ApplyHit(attacker: Player, target: Player)
 		-- shooter end up about the same distance from it, and both wait the same
 		-- lockout - a fair race, which anyone else nearby can also win
 		local side = Vector3.new(-dir.Z, 0, dir.X) * (if math.random() < 0.5 then -1 else 1)
-		S.Breach.DropFromCarry(target, (side + dir * 0.25).Unit, "blasted", attacker)
+		S.Breach.DropFromCarry(target, (side + dir * 0.25).Unit, "blasted", attacker, (-side + dir * 0.25).Unit)
 	else
 		-- a Goober stolen from a base: the theft fails and it goes home to its owner
 		S.Steal.Fail(target, "blasted")

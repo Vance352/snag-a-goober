@@ -20,7 +20,6 @@ local Util = require(ReplicatedStorage.Shared.Util)
 
 local CarryService = {}
 local S
-local stealCreditAt: { [string]: number } = {} -- "thief:victim" -> next time a combat steal counts
 
 function CarryService.Init(registry)
 	S = registry
@@ -101,10 +100,12 @@ function CarryService.PlaceHome(player: Player, credit: boolean?)
 	if carry.takenFrom then
 		-- knocked loose from someone else and brought home: a real combat steal.
 		-- It only counts once per Config.Combat.stealCredit per pair of players,
-		-- so two friends can't farm Master Thieves by passing a Blorp back and forth
-		local key = player.UserId .. ":" .. carry.takenFrom
-		if os.clock() >= (stealCreditAt[key] or -1e9) then
-			stealCreditAt[key] = os.clock() + Config.Combat.stealCredit
+		-- so two friends can't farm Master Thieves by passing a Blorp back and
+		-- forth (kept in the thief's save, so switching servers doesn't reset it)
+		local credit = st.data.stealCredit
+		local key = tostring(carry.takenFrom)
+		if os.time() >= (credit[key] or 0) then
+			credit[key] = os.time() + Config.Combat.stealCredit
 			st.data.stats.combatSteals += 1
 			S.Hooks.Fire("stolen", player, { id = carry.id, combat = true })
 		end
@@ -128,10 +129,13 @@ function CarryService.Settle(player: Player, reason: string)
 		return
 	end
 	if carry.source == "belt" then
+		-- (a real disconnect removes the character before this runs: use the
+		-- last position the carry loop saw)
 		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart
+		local pos = if hrp then hrp.Position else carry.lastPos
 		local plot = S.Plot.Get(player)
-		local atHome = hrp ~= nil and plot ~= nil and S.Plot.Inside(plot, hrp.Position)
-		if reason == "died" or reason == "lost" or (reason == "left" and not atHome and hrp) then
+		local atHome = pos ~= nil and plot ~= nil and S.Plot.Inside(plot, pos)
+		if reason == "died" or reason == "lost" or (reason == "left" and not atHome and pos) then
 			-- falling over (or resetting) drops it where you were: anyone can grab it,
 			-- and if nobody does it waddles home to you (so a reset never escapes a chase).
 			-- Leaving drops it too (BreachService.OnRemoving refunds what you paid).

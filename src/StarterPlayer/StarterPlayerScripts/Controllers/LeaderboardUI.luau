@@ -55,13 +55,13 @@ function LeaderboardUI.Build()
 
 	for i, c in ipairs(Leaderboards.Categories) do
 		-- short tab names stay readable on phones (the full title is in the stat line)
-		local b = Theme.button({ Size = UDim2.fromOffset(138, 46), Text = "", Color = C.panel2, LayoutOrder = i, Parent = tabs }, function()
+		local b = Theme.button({ Size = UDim2.fromOffset(146, 46), Text = "", Color = C.panel2, LayoutOrder = i, Parent = tabs }, function()
 			Effects.Play("Click")
 			current = c.key
 			refresh()
 		end)
 		Theme.icon(c.icon, { Position = UDim2.fromOffset(4, 5), Size = UDim2.fromOffset(36, 36), Parent = b })
-		Theme.label({ AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 42, 0.5, 0), Size = UDim2.new(1, -46, 0, 24), Text = c.tab or c.title, MaxText = 18, MinText = 14, Parent = b })
+		Theme.label({ AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 42, 0.5, 0), Size = UDim2.new(1, -46, 0, 24), Text = c.tab or c.title, MaxText = 18, MinText = 11, TextWrapped = false, Parent = b })
 		tabButtons[c.key] = { b, c.color }
 	end
 

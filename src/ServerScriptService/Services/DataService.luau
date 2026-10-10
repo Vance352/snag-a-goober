@@ -102,6 +102,7 @@ local function defaults()
 		flags = { islandIntro = false },
 		bucketReady = {}, -- [bucketId] = os.time() it refills (saved, so rejoining can't refill)
 		areasVisited = {}, -- [areaKey] = true once you've walked into it (area quests)
+		stealCredit = {}, -- [tostring(victimUserId)] = os.time() a combat steal from them counts again (saved: no server-hopping)
 	}
 end
 
@@ -176,6 +177,12 @@ local function sanitize(data)
 		end
 	end
 	data.areasVisited = tbl(data.areasVisited)
+	data.stealCredit = tbl(data.stealCredit)
+	for k, t in pairs(data.stealCredit) do
+		if type(t) ~= "number" or t ~= t or t < os.time() then
+			data.stealCredit[k] = nil -- (expired entries are dropped on load)
+		end
+	end
 	data.event.placeDay = math.floor(tonumber(data.event.placeDay) or -1)
 	data.event.placeCount = math.floor(tonumber(data.event.placeCount) or 0)
 	data.event.bonusXp = tonumber(data.event.bonusXp) or 0

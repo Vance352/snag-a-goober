@@ -45,13 +45,16 @@ type Loose = {
 	dropped: boolean?,
 	dropBy: number?,
 	locks: { [number]: number }?, -- userId -> can't grab before this (the dropper and the blaster)
-	refundedTo: number?, -- the dropper left and was refunded: they pay that back to re-grab it
-	refundAmt: number?,
 	model: Model,
 }
 
 local loose: { [string]: Loose } = {}
 local claimed: { [string]: { name: string, by: number, t: number } } = {} -- recent snags (for "too slow!")
+-- Goobers whose payer left and was refunded: uid -> { userId, amount }. That
+-- player pays the refund back to grab it again (whoever drops it in between);
+-- for everyone else it's a free grab worth nothing more (paid = 0), so the
+-- refund can never be claimed twice
+local owed: { [string]: { userId: number, amount: number } } = {}
 local folder: Folder
 local stateFolder: Folder
 local candidates: { [string]: { Vector3 } } = {}
@@ -376,8 +379,9 @@ function BreachService.Snag(player: Player, uid: any)
 	end
 	local def = GooberData.ById[e.id]
 	local cost = if e.dropped then 0 else e.price
-	if e.dropped and e.refundedTo == player.UserId then
-		cost = e.refundAmt or 0 -- refunded when they left: rejoining is no free Goober
+	local debt = e.dropped and owed[uid]
+	if debt and debt.userId == player.UserId then
+		cost = debt.amount -- refunded when they left: rejoining is no free Goober
 	end
 	if cost > 0 and not S.Session.Spend(player, cost) then
 		return fail(player, ("You need $%s to snag %s."):format(Util.Short(cost), def.name))
@@ -386,10 +390,12 @@ function BreachService.Snag(player: Player, uid: any)
 	loose[uid] = nil
 	claimed[uid] = { name = player.DisplayName, by = player.UserId, t = os.clock() }
 	local paidBy = if e.dropped then e.paidBy else player.UserId
-	if e.dropped and e.refundedTo == player.UserId then
-		paidBy = player.UserId
+	local paid = e.paid or e.price
+	if debt and debt.userId == player.UserId then
+		paidBy, paid = player.UserId, debt.amount -- bought back
+		owed[uid] = nil
 	end
-	local carry = { uid = uid, id = e.id, source = "belt", model = e.model, price = e.paid or e.price, paidBy = paidBy, line = e.line }
+	local carry = { uid = uid, id = e.id, source = "belt", model = e.model, price = paid, paidBy = paidBy, line = e.line }
 	if e.dropped then
 		if e.dropBy and e.dropBy ~= player.UserId then
 			carry.takenFrom = e.dropBy -- counts as a combat steal when it gets home
@@ -420,7 +426,8 @@ local function inAnyPlot(inst: Instance): boolean
 	return plots ~= nil and inst:IsDescendantOf(plots)
 end
 
-function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: string, blaster: Player?)
+function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: string, blaster: Player?, alt: Vector3?)
+
 	local st = S.Session.Get(player)
 	local carry = st and st.carry
 	if not carry or carry.source ~= "belt" then
@@ -441,18 +448,35 @@ function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: stri
 	end
 	model:SetAttribute("CarriedBy", nil)
 	-- land a few studs away on open ground (straight down if blocked)
+	local function landFor(flat: Vector3): Vector3?
+		local far = Breach.DropDistance
+		for _, d in ipairs({ far, far * 0.66, far * 0.33, 0 }) do
+			local p = origin + flat * d
+			rayParams.FilterDescendantsInstances = { folder, char or folder, (blaster and blaster.Character) or folder }
+			local blocked = d > 0 and workspace:Raycast(origin, flat * d, rayParams)
+			local g = not blocked and workspace:Raycast(Vector3.new(p.X, origin.Y + 4, p.Z), Vector3.new(0, -40, 0), rayParams)
+			-- never into someone's base (it would be safe from everyone but the owner)
+			if g and (d == 0 or not inAnyPlot(g.Instance)) then
+				return g.Position
+			end
+		end
+		return nil
+	end
+	local function nearBase(p: Vector3): boolean
+		for _, plot in ipairs(S.Plot.All()) do
+			if S.Plot.Inside(plot, p, 8) then
+				return true
+			end
+		end
+		return false
+	end
 	local flat = if dir and dir.Magnitude > 0.01 then Vector3.new(dir.X, 0, dir.Z).Unit else Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)).Unit
-	local land
-	local far = Breach.DropDistance
-	for _, d in ipairs({ far, far * 0.66, far * 0.33, 0 }) do
-		local p = origin + flat * d
-		rayParams.FilterDescendantsInstances = { folder, char, (blaster and blaster.Character) or folder }
-		local blocked = d > 0 and workspace:Raycast(origin, flat * d, rayParams)
-		local g = not blocked and workspace:Raycast(Vector3.new(p.X, origin.Y + 4, p.Z), Vector3.new(0, -40, 0), rayParams)
-		-- never into someone's base (it would be safe from everyone but the owner)
-		if g and (d == 0 or not inAnyPlot(g.Instance)) then
-			land = g.Position
-			break
+	local land = landFor(flat)
+	-- a blasted Goober flies to whichever side keeps it out of a base doorway
+	if alt and land and nearBase(land) then
+		local other = landFor(Vector3.new(alt.X, 0, alt.Z).Unit)
+		if other and not nearBase(other) then
+			land = other
 		end
 	end
 	land = land or (origin - Vector3.new(0, 3, 0))
@@ -649,7 +673,9 @@ function BreachService.OnRemoving(player: Player, shuttingDown: boolean?)
 				if st and e.paidBy == player.UserId and (e.paid or 0) > 0 then
 					local refund = math.floor(e.paid * Config.SellRefund)
 					S.Session.AddCoins(player, refund, true)
-					e.refundedTo, e.refundAmt = player.UserId, refund
+					owed[e.uid] = { userId = player.UserId, amount = refund }
+					-- from now on it's worth nothing to sell or refund: the refund is spent
+					e.paid, e.paidBy = 0, nil
 				end
 			end
 		end

@@ -3,6 +3,16 @@
 Evidence from real Roblox Studio sessions (place 90695592143707). "Harness" =
 Studio-only `ServerStorage.SAG_Test` (src/ServerScriptService/Testing/TestHarness.luau).
 
+## 2026-10-10 - Review round 2 fixes, retest (Studio server + clients)
+
+| Check | Result |
+|---|---|
+| Refund loop (round 2 critical) | PASS - P1 buys Pebble Pete $50 (1000 -> 950), dies, leave hook +25 (975); friend grabs free (carry price $0) and resets; P1 grabs it back and pays $25 (950); dies + leaves again +12 (962); friend grabs and releases: +$0. P1 ends $38 down, no coins created |
+| Real disconnect mid-carry | PASS - Player2 carrying Pebble Pete was kicked (`Player:Kick`): the Goober lay in the field as a free grab (paid 0), exactly one model, not placed at home |
+| Facing check | PASS - aim straight at the carrier while facing 90 and 70 degrees away: no hit (also after the 0.2 s re-check); 30 degrees: hit |
+| Doorway landing | PASS - carrier hit 7 studs from a plot edge: the Goober landed on the arena side (z -22.3, plot edge z -40) |
+| Console | Clean on server and client |
+
 ## 2026-10-10 - Review round 1 fixes, two-player retest (Studio server + 2 clients)
 
 Player1 (-1), Player2 (-2), Lv 10 / tutorial done. New harness helpers: `get`, `tpLook`, `char`.
