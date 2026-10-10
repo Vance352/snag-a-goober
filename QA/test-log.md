@@ -3,6 +3,16 @@
 Evidence from real Roblox Studio sessions (place 90695592143707). "Harness" =
 Studio-only `ServerStorage.SAG_Test` (src/ServerScriptService/Testing/TestHarness.luau).
 
+## 2026-10-10 - Review round 3 fixes, retest (Studio server + 2 clients)
+
+| Check | Result |
+|---|---|
+| Teleport home while carrying | PASS - Player1 carrying Pebble Pete was moved (server-side PivotTo, bypassing the harness) from the field onto their Cash Pad 180 studs away: pulled back to the exact start spot within 1 s, still carrying 8 s later, `delivered` unchanged (34) |
+| Leave hook, no refund | PASS - `Carry.OnRemoving` mid-field: coins unchanged, Goober lying in the field (paid 50 kept for whoever grabs it), not at home |
+| Delayed shot after a grab | PASS - shooter fired facing 90 degrees off, then snagged a Goober within 0.2 s: no hit (carrier still carrying) |
+| Late turn | PASS - shooter fired facing north, turn to the target arrived 0.1 s later: hit confirmed |
+| Console | Clean on server and client |
+
 ## 2026-10-10 - Review round 2 fixes, retest (Studio server + clients)
 
 | Check | Result |

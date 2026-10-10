@@ -50,11 +50,6 @@ type Loose = {
 
 local loose: { [string]: Loose } = {}
 local claimed: { [string]: { name: string, by: number, t: number } } = {} -- recent snags (for "too slow!")
--- Goobers whose payer left and was refunded: uid -> { userId, amount }. That
--- player pays the refund back to grab it again (whoever drops it in between);
--- for everyone else it's a free grab worth nothing more (paid = 0), so the
--- refund can never be claimed twice
-local owed: { [string]: { userId: number, amount: number } } = {}
 local folder: Folder
 local stateFolder: Folder
 local candidates: { [string]: { Vector3 } } = {}
@@ -379,10 +374,6 @@ function BreachService.Snag(player: Player, uid: any)
 	end
 	local def = GooberData.ById[e.id]
 	local cost = if e.dropped then 0 else e.price
-	local debt = e.dropped and owed[uid]
-	if debt and debt.userId == player.UserId then
-		cost = debt.amount -- refunded when they left: rejoining is no free Goober
-	end
 	if cost > 0 and not S.Session.Spend(player, cost) then
 		return fail(player, ("You need $%s to snag %s."):format(Util.Short(cost), def.name))
 	end
@@ -391,10 +382,6 @@ function BreachService.Snag(player: Player, uid: any)
 	claimed[uid] = { name = player.DisplayName, by = player.UserId, t = os.clock() }
 	local paidBy = if e.dropped then e.paidBy else player.UserId
 	local paid = e.paid or e.price
-	if debt and debt.userId == player.UserId then
-		paidBy, paid = player.UserId, debt.amount -- bought back
-		owed[uid] = nil
-	end
 	local carry = { uid = uid, id = e.id, source = "belt", model = e.model, price = paid, paidBy = paidBy, line = e.line }
 	if e.dropped then
 		if e.dropBy and e.dropBy ~= player.UserId then
@@ -473,10 +460,18 @@ function BreachService.DropFromCarry(player: Player, dir: Vector3?, reason: stri
 	local flat = if dir and dir.Magnitude > 0.01 then Vector3.new(dir.X, 0, dir.Z).Unit else Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)).Unit
 	local land = landFor(flat)
 	-- a blasted Goober flies to whichever side keeps it out of a base doorway
-	if alt and land and nearBase(land) then
-		local other = landFor(Vector3.new(alt.X, 0, alt.Z).Unit)
-		if other and not nearBase(other) then
-			land = other
+	if land and nearBase(land) then
+		-- (a death / leave drop has no preferred side: try a few others)
+		local tries = if alt then { Vector3.new(alt.X, 0, alt.Z).Unit } else {}
+		for _ = 1, if alt then 0 else 6 do
+			table.insert(tries, Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1)).Unit)
+		end
+		for _, d in ipairs(tries) do
+			local other = landFor(d)
+			if other and not nearBase(other) then
+				land = other
+				break
+			end
 		end
 	end
 	land = land or (origin - Vector3.new(0, 3, 0))
@@ -653,9 +648,10 @@ local function stepSite(name: string, t: number)
 	publish(name)
 end
 
--- leaving: Goobers you dropped stay in the field for anyone to grab (leaving is
--- never a safe way out of a chase). You get the usual release refund for the
--- ones you paid for. When the server is shutting down they go home instead.
+-- leaving: Goobers you dropped stay in the field for anyone to grab - leaving
+-- is never a way out of a chase, and pays nothing back (a refund here would let
+-- a friend pick up a half-price Goober). When the server is shutting down they
+-- go home instead.
 function BreachService.OnRemoving(player: Player, shuttingDown: boolean?)
 	local st = S.Session.Get(player)
 	for _, e in pairs(loose) do
@@ -670,13 +666,6 @@ function BreachService.OnRemoving(player: Player, shuttingDown: boolean?)
 			else
 				e.dropBy = nil -- nobody to waddle home to now
 				e.model:SetAttribute("DroppedBy", nil)
-				if st and e.paidBy == player.UserId and (e.paid or 0) > 0 then
-					local refund = math.floor(e.paid * Config.SellRefund)
-					S.Session.AddCoins(player, refund, true)
-					owed[e.uid] = { userId = player.UserId, amount = refund }
-					-- from now on it's worth nothing to sell or refund: the refund is spent
-					e.paid, e.paidBy = 0, nil
-				end
 			end
 		end
 	end

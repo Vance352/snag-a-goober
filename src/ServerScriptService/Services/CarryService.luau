@@ -138,7 +138,7 @@ function CarryService.Settle(player: Player, reason: string)
 		if reason == "died" or reason == "lost" or (reason == "left" and not atHome and pos) then
 			-- falling over (or resetting) drops it where you were: anyone can grab it,
 			-- and if nobody does it waddles home to you (so a reset never escapes a chase).
-			-- Leaving drops it too (BreachService.OnRemoving refunds what you paid).
+			-- Leaving drops it too (for anyone to grab; nothing is refunded).
 			S.Breach.DropFromCarry(player, nil, reason)
 		else
 			-- shutting down / no character / already standing at home
@@ -183,17 +183,26 @@ function CarryService.Start()
 					if hrp then
 						carry.lastPos = hrp.Position
 					end
-					local ok, from = S.MoveGuard.CarryStep(player, carry)
+					local ok, from, excess = S.MoveGuard.CarryStep(player, carry)
 					if not ok then
-						-- shortcut detected: the walking clock restarts from the
-						-- last trusted spot, so a teleport home is never faster
-						-- than walking
+						-- shortcut detected. A real jump (well beyond lag) is pulled
+						-- back to the last trusted spot - a teleport home must never
+						-- skip the chase (your own base is blast-proof). Either way
+						-- the walking clock restarts from there, so a shortcut home
+						-- is never faster than walking.
+						if from and (excess or 0) > 8 and hrp then
+							local origPos, origT = carry.origPos, carry.origT
+							S.MoveGuard.ServerMove(player, CFrame.new(from.pos) * hrp.CFrame.Rotation)
+							carry.origPos, carry.origT = origPos, origT -- (ServerMove shifts it; this is the real start)
+							carry.lastPos = from.pos
+						end
 						if from then
 							carry.startPos = from.pos
 							carry.startT = from.t
 						else
 							carry.startT = os.clock()
 						end
+
 						carry.trail = nil
 						if os.clock() - (carry.warnedAt or -100) > 5 then
 							carry.warnedAt = os.clock()
@@ -252,7 +261,7 @@ function CarryService.OnRemoving(player: Player)
 		CarryService.Settle(player, if shuttingDown then "shutdown" else "left")
 	end
 	-- Goobers you dropped (including the one just dropped above) stay in the field
-	-- with a refund - or come home if the server is closing
+	-- for anyone to grab - or come home if the server is closing
 	S.Breach.OnRemoving(player, shuttingDown)
 
 	-- anything still walking home lands now so it is saved

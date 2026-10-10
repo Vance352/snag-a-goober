@@ -33,6 +33,7 @@ local state: { [Player]: { nextAt: number, immuneUntil: number, spawnSafeUntil: 
 -- recent positions of every character (lag compensation: what the shooter saw)
 local history: { [Player]: { { t: number, pos: Vector3 } } } = {}
 local HISTORY_SPAN = 0.25 -- (the most lag a shot is forgiven for)
+local HISTORY_KEEP = HISTORY_SPAN + 0.3 -- (+ the facing re-check delay)
 
 function CombatService.Init(registry)
 	S = registry
@@ -171,32 +172,35 @@ function CombatService.Blast(attacker: Player, aim: any)
 	else
 		task.delay(0.2, function()
 			local ok2, straight = facing(aim)
-			if attacker.Parent and hrpOf(attacker) then
-				CombatService._resolve(attacker, if ok2 then aim else straight)
+			-- (still judged as of the moment they fired)
+			local st = S.Session.Get(attacker)
+			if attacker.Parent and hrpOf(attacker) and st and not st.carry then
+				CombatService._resolve(attacker, if ok2 then aim else straight, 0.2)
 			end
 		end)
 	end
 end
 
 -- pick the closest valid carrier inside range, in front of the aim, in sight
-function CombatService._resolve(attacker: Player, aim: Vector3)
+function CombatService._resolve(attacker: Player, aim: Vector3, late: number?)
 	local ahrp = hrpOf(attacker)
 	if not ahrp then
 		return
 	end
-	local eye = ahrp.Position + Vector3.new(0, 1.4, 0)
-
+	-- a re-checked (late) shot is judged from where everyone was when it was fired
+	local from = if late then (CombatService.PositionAgo(attacker, late) or ahrp.Position) else ahrp.Position
+	local eye = from + Vector3.new(0, 1.4, 0)
 	local best, bestD, why = nil, math.huge, nil
 	-- where targets were when the shooter fired (their ping ago, capped)
-	local lag = math.clamp(attacker:GetNetworkPing(), 0, HISTORY_SPAN)
+	local lag = math.clamp(attacker:GetNetworkPing(), 0, HISTORY_SPAN) + (late or 0)
 	for _, target in ipairs(Players:GetPlayers()) do
 		local thrp = target ~= attacker and hrpOf(target)
 		if thrp then
 			-- accept either where they are now or where the shooter saw them
 			local seen = CombatService.PositionAgo(target, lag) or thrp.Position
 			local pick, d = nil, math.huge
-			for _, p in ipairs({ thrp.Position, seen }) do
-				local off = p - ahrp.Position
+			for _, p in ipairs(if late then { seen } else { thrp.Position, seen }) do
+				local off = p - from
 				local dd = off.Magnitude
 				if dd <= C.range and dd > 0.1 and off.Unit:Dot(aim) >= C.cone and dd < d then
 					pick, d = p, dd
@@ -307,7 +311,7 @@ function CombatService.Start()
 						history[p] = h
 					end
 					table.insert(h, { t = t, pos = hrp.Position })
-					while #h > 0 and t - h[1].t > HISTORY_SPAN + 0.1 do
+					while #h > 0 and t - h[1].t > HISTORY_KEEP do
 						table.remove(h, 1)
 					end
 				else

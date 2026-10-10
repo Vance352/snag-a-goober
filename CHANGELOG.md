@@ -2,6 +2,12 @@
 
 Newest entry at the top.
 
+## 2026-10-10 (Goober Breach overhaul, review round 3 fixes)
+- Leaving refunds nothing: your carried or dropped Goober stays in the field for anyone to grab (closes the two-account half-price trick). Server shutdown still lands them at home.
+- Teleporting while carrying a Goober (a jump well beyond lag) pulls you back to the last trusted spot, so a shortcut can't skip the chase into your blast-proof base.
+- The 0.2 s facing re-check of a Blaster shot is cancelled if the shooter has picked something up, and judges positions as of the moment of firing.
+- Death and leave drops also avoid base doorways. Leaderboard tab text is bigger on phones.
+
 ## 2026-10-10 (Goober Breach overhaul, review round 2 fixes)
 - Closed a coin loop: the leave refund can only ever be paid once per Goober. After it the Goober is worth $0 to whoever holds it, and the refunded player pays the refund back to grab it again, however many times it changes hands.
 - A real disconnect while carrying now drops the Goober where you last stood (the character is already gone when the leave hook runs).
